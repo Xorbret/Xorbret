@@ -1,0 +1,5 @@
+- 👋 Hi, I’m @Xorbret
+- 👀 I’m interested game development.
+- 🌱 I’m currently learning Python and Godot.
+- 💞️ I’m looking to improve my skills and build games.
+- 📫 How to reach me xorbret@hotmail.com
