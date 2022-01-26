@@ -1,5 +1,3 @@
-- 👋 Hi, I’m @Xorbret
-- 👀 I’m interested game development.
-- 🌱 I’m currently learning Python and Godot.
-- 💞️ I’m looking to improve my skills and build games.
-- 📫 How to reach me xorbret@hotmail.com
+Hello! My name is Robert and I am an aspiring game designer and programmer.
+Please feel free to reach out to me if you have any constructive criticism.
+I'm currently learning Python and Godot!
