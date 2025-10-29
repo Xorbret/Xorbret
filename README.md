@@ -8,18 +8,9 @@ linux-lts
 linux-firmware
 networkmanager
 dhcpcd
-sudo
-git
-curl
-wget
-base-devel base
-linux
-linux-lts
-linux-firmware
-networkmanager
-dhcpcd
 base-devel
 sudo
+git
 wget /or/ curl
 
 Once these are installed just run the following command (I added logic for both wget and curl)
