@@ -24,4 +24,4 @@ wget /or/ curl
 
 Once these are installed just run the following command (I added logic for both wget and curl)
 
-bash <(command -v curl >/dev/null 2>&1 && curl -sSL https://raw.githubusercontent.com/Xorbret/Xorbret/481368582599191143d5c0376f268bf59966fd96/startup-script.sh || wget -qO- https://raw.githubusercontent.com/Xorbret/Xorbret/481368582599191143d5c0376f268bf59966fd96/startup-script.sh)
+bash <(command -v curl >/dev/null 2>&1 && curl -sSL https://raw.githubusercontent.com/Xorbret/Xorbret/6c9474bbc9e9d5cdaeedcaeefb3576c401f7692c/startup-script.sh || wget -qO- https://raw.githubusercontent.com/Xorbret/Xorbret/6c9474bbc9e9d5cdaeedcaeefb3576c401f7692c/startup-script.sh )
