@@ -1,6 +1,6 @@
 Hello! I am new to the Linux environment and have done a ton of research and testing through Nobara, Fedora, Ubuntu, and Arch. I wanted to expedite future Arch installs on gaming hardware and provide an easy stepping off point for my friends.
 
-This script will install what I deem necessary for a good out-the-box Gaming experience while staying in Arch. This assumes you have already mounted your drives and partitions and installed:
+This script will install what I deem necessary for a good out-the-box gaming experience while staying in Arch. This assumes you have already mounted your drives and partitions and installed:
 
 base
 linux
