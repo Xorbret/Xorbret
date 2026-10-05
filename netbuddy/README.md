@@ -9,7 +9,8 @@ Loosely inspired by Navi, Pokémon, and Shin Megami Tensei: the Cardputer is a
 **Compendium**, sorted by **race**. Defensive and receive-only throughout.
 
 Styled after **Cyberpunk 2077** — the **Rajdhani** font and a Night City palette
-(cyber-yellow / hot-magenta / purple on near-black violet; no red). See
+(cyber-yellow / hot-magenta / purple / cyan) painted over a structural **red
+"bones"** layer that frames the UI and bleeds through at seams and glitches. See
 `outline.md` for the full design.
 
 ## Design commitment

@@ -21,9 +21,28 @@ Loosely inspired by Navi (a watchful companion), Pokémon (collect/catalog), and
 
 ## Visual identity — Cyberpunk 2077 / Night City
 
-The look is **Cyberpunk 2077**, not the Win95 gray PaperOS ships or SquachWatch's
-red. This replaces PaperOS's `config.h` palette at M0 and becomes the first
-shippable runtime `.thm` theme once the AdvanceOS Theme Manager lands (M4).
+The look is **Cyberpunk 2077**, not the Win95 gray PaperOS ships. This replaces
+PaperOS's `config.h` palette at M0 and becomes the first shippable runtime `.thm`
+theme once the AdvanceOS Theme Manager lands (M4).
+
+### The "red bones" principle (core to the look)
+
+Red is the **structural substrate** of the UI — the chassis the whole HUD is
+built on, exactly like CP2077's own red framing lines under everything. The
+bright colors are *painted over* the red and bleed through at seams, borders,
+and glitches. The house metaphor:
+
+| House part | Red is the slats underneath | UI mapping |
+|------------|------------------------------|------------|
+| Roof (yellow) | | top bar / header / active title, primary highlight |
+| Walls (purple/pink) | | app panel fills / content backgrounds |
+| Windows (magenta, blue frames) | | fields & list-selection in magenta, cyan/blue borders |
+| Door (cyan) | | interactive focus / links / accents |
+| **Slats (red)** | **the frame beneath all of it** | base grid, divider rules, panel/bevel outlines, scanline underlay, chassis — mostly behind the bright layers, showing at edges, seams, and glitch states |
+
+So red is **never removed** — it's the load-bearing layer. The bright palette
+reads as the finished surface; the red reads as the machine underneath it. Red
+intensifies (bleeds through more) in alert/Fiend states — that's the glitch.
 
 - **Font: Rajdhani** — the Cyberpunk 2077 UI typeface. Free (SIL OFL), condensed
   (legible on a 240×135 screen), embeddable. On-device plan: convert the TTF to
@@ -33,25 +52,27 @@ shippable runtime `.thm` theme once the AdvanceOS Theme Manager lands (M4).
   that layouts are sized for the built-in font — re-check spacing after swap).
 - **Palette (RGB565 for the 8-bit canvas):**
 
-  | Role | Color | Hex | RGB565 |
-  |------|-------|-----|--------|
-  | Primary accent / highlight | Cyber Yellow | `#FCEE0A` | `0xFF61` |
-  | Secondary / selection | Hot Magenta | `#FF2A6D` | `0xF94D` |
-  | Alert / hostile (Fiend) | Neon Pink | `#FF003C` | `0xF807` |
-  | Tertiary accent | Vivid Purple | `#B026FF` | `0xB13F` |
-  | Links / info | Cyan | `#05D9E8` | `0x06DD` |
-  | Background | Near-black violet | `#0A0118` | `0x0803` |
-  | Panels / dialogs | Deep violet | `#1A0B2E` | `0x1845` |
-  | Secondary text | Muted violet | `#8A7CA8` | `0x8BF5` |
-  | Primary text | White | `#FFFFFF` | `0xFFFF` |
+  | Layer | Role | Color | Hex | RGB565 |
+  |-------|------|-------|-----|--------|
+  | **Bones** | Structural frame / grid / rules | Bones Red | `#E5162B` | `0xE0A5` |
+  | **Bones** | Dim underlay (scanlines, recessed frame) | Dim Red | `#7A0A18` | `0x7843` |
+  | **Bones** | Glitch bleed (alert/Fiend intensify) | Bright Red | `#FF1133` | `0xF886` |
+  | Surface | Primary highlight (roof) | Cyber Yellow | `#FCEE0A` | `0xFF61` |
+  | Surface | Secondary / selection (windows) | Hot Magenta | `#FF2A6D` | `0xF94D` |
+  | Surface | Panel fills / walls | Vivid Purple | `#B026FF` | `0xB13F` |
+  | Surface | Interactive focus / door | Cyan | `#05D9E8` | `0x06DD` |
+  | Surface | Background field | Near-black violet | `#0A0118` | `0x0803` |
+  | Surface | Panels / dialogs | Deep violet | `#1A0B2E` | `0x1845` |
+  | Text | Secondary text | Muted violet | `#8A7CA8` | `0x8BF5` |
+  | Text | Primary text | White | `#FFFFFF` | `0xFFFF` |
 
-- **No red.** Danger/hostile reads as **neon pink/magenta + glitch**, not red —
-  so §5a's Fiend treatment (deauth/evil-twin/hacker) uses neon-pink glitch art,
-  which also keeps it on-aesthetic. "Over red bones" retired.
-- Yellow is the signature highlight (titlebar/selection/active), magenta the
-  secondary, purple the structural accent, all on the near-black violet field —
-  the Night City HUD feel. Optional CRT/scanline + glitch flourishes fit the
-  Mitama's alert states and Fiend cards.
+- **Red is the bones, not an accent.** Frame outlines, divider rules, bevel
+  edges, grid and scanline underlays draw in Bones Red (dim where recessed).
+  The bright surface colors sit on top; red shows at seams and edges and
+  intensifies on alert/Fiend states (the glitch bleed). This is the signature of
+  the look — not optional dressing.
+- Optional CRT/scanline + glitch flourishes (the red substrate flickering
+  through) fit the Mitama's alert states and Fiend cards.
 
 **Design commitment (non-negotiable):** everything network-facing is
 **receive-only / passive**. MitamaOS detects, observes, and informs — it never
@@ -231,8 +252,9 @@ pick-and-swap, not load-bearing. The structural points:
   the rare, ominous optional encounters — perfect for attacks/hostile behavior
   (not "wildlife"). Visual treatment: glitched/corrupted sprite, garbling name
   text, deliberately "wrong" Compendium-card layout — the SMT-flavored version
-  of the MissingNo idea. Reinforces SquachWatch's red/hostile-vs-cyan/passive
-  color logic. A cosmetic rendering flag on those three entries — no engine work.
+  of the MissingNo idea — with the **red bones bleeding through** (the glitch
+  intensifies the structural red, per Visual identity). A cosmetic rendering
+  flag on those three entries — no engine work.
 - Compendium gets a second axis: filter/sort by race, a race glyph per entry,
   and Mitama flavor-text that varies by race (a Vile sighting reads more serious
   than a Fairy one).
