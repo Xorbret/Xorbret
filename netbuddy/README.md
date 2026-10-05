@@ -6,7 +6,10 @@ that surfaces the device's network environment at a glance.
 
 Loosely inspired by Navi, Pokémon, and Shin Megami Tensei: the Cardputer is a
 **COMP** that hosts the Mitama; detected devices are **demons** registered to a
-**Compendium**, sorted by **race**. Defensive and receive-only throughout. See
+**Compendium**, sorted by **race**. Defensive and receive-only throughout.
+
+Styled after **Cyberpunk 2077** — the **Rajdhani** font and a Night City palette
+(cyber-yellow / hot-magenta / purple on near-black violet; no red). See
 `outline.md` for the full design.
 
 ## Design commitment

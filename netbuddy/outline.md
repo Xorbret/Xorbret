@@ -19,6 +19,40 @@ Loosely inspired by Navi (a watchful companion), Pokémon (collect/catalog), and
   demon registry); device categories are **races** (§5a). Hostile behaviors
   (deauth/evil-twin) are corrupted entries, framed as rare **Fiends**.
 
+## Visual identity — Cyberpunk 2077 / Night City
+
+The look is **Cyberpunk 2077**, not the Win95 gray PaperOS ships or SquachWatch's
+red. This replaces PaperOS's `config.h` palette at M0 and becomes the first
+shippable runtime `.thm` theme once the AdvanceOS Theme Manager lands (M4).
+
+- **Font: Rajdhani** — the Cyberpunk 2077 UI typeface. Free (SIL OFL), condensed
+  (legible on a 240×135 screen), embeddable. On-device plan: convert the TTF to
+  M5GFX/LVGL bitmap fonts at the 2–3 sizes the UI uses (header, body, small) and
+  bake them in; PaperOS currently relies on LGFX's built-in font, so this is a
+  font-asset swap plus a global default-font change (mind the note in `main.cpp`
+  that layouts are sized for the built-in font — re-check spacing after swap).
+- **Palette (RGB565 for the 8-bit canvas):**
+
+  | Role | Color | Hex | RGB565 |
+  |------|-------|-----|--------|
+  | Primary accent / highlight | Cyber Yellow | `#FCEE0A` | `0xFF61` |
+  | Secondary / selection | Hot Magenta | `#FF2A6D` | `0xF94D` |
+  | Alert / hostile (Fiend) | Neon Pink | `#FF003C` | `0xF807` |
+  | Tertiary accent | Vivid Purple | `#B026FF` | `0xB13F` |
+  | Links / info | Cyan | `#05D9E8` | `0x06DD` |
+  | Background | Near-black violet | `#0A0118` | `0x0803` |
+  | Panels / dialogs | Deep violet | `#1A0B2E` | `0x1845` |
+  | Secondary text | Muted violet | `#8A7CA8` | `0x8BF5` |
+  | Primary text | White | `#FFFFFF` | `0xFFFF` |
+
+- **No red.** Danger/hostile reads as **neon pink/magenta + glitch**, not red —
+  so §5a's Fiend treatment (deauth/evil-twin/hacker) uses neon-pink glitch art,
+  which also keeps it on-aesthetic. "Over red bones" retired.
+- Yellow is the signature highlight (titlebar/selection/active), magenta the
+  secondary, purple the structural accent, all on the near-black violet field —
+  the Night City HUD feel. Optional CRT/scanline + glitch flourishes fit the
+  Mitama's alert states and Fiend cards.
+
 **Design commitment (non-negotiable):** everything network-facing is
 **receive-only / passive**. MitamaOS detects, observes, and informs — it never
 transmits attacks. No deauth frames, no evil-portal, no credential capture, no
@@ -244,8 +278,9 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 0. **Fork & rebrand (M0).** Copy PaperOS v1.3 source into `netbuddy/` under
    GPLv2, add the GPLv2 `LICENSE` and a `CREDITS`/`NOTICE` attributing PaperOS,
    AdvanceOS, SquachWatch. Build for the ADV (no-PSRAM target already matches),
-   confirm it boots and the stock apps run, rebrand PaperOS → MitamaOS. This is
-   the foundation; everything else lands on top.
+   confirm it boots and the stock apps run, rebrand PaperOS → MitamaOS, and
+   apply the Cyberpunk palette (swap `config.h` color macros) + Rajdhani font
+   (see Visual identity). This is the foundation; everything else lands on top.
 1. **Background detection service (M1).** Lift SquachWatch's `DetectionEngine` +
    signature tables in as a background FreeRTOS task using PaperOS's `DispLock`
    so it runs regardless of focused app. A minimal "Environment" app lists live
@@ -258,8 +293,9 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 3. **Compendium (M3).** Port SquachWatch's Dex/pet as the Compendium + the §5a
    race/Fiend taxonomy and race-complete achievements (Mitama forms).
 4. **Runtime themes (M4 — the Option-2 addition).** Port AdvanceOS's Theme
-   Manager (`.thm` JSON + SD PNG icons/wallpaper) to replace PaperOS's
-   compile-time Win95 palette with runtime SD themes.
+   Manager (`.thm` JSON + SD PNG icons/wallpaper) to replace the compile-time
+   palette with runtime SD themes; ship the Cyberpunk palette as the default
+   `.thm` so the look is swappable without a rebuild.
 5. **Productivity polish (M5).** PaperOS already ships file manager, notes,
    calculator, clock, paint, music, 3D editor, piano, browser, Lua, store. Fill
    gaps from §2 (calendar, to-do, world clock, alarms) as native or Lua apps.
