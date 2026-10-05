@@ -605,9 +605,26 @@ Drives the planned mood machine (expanded from Calm→Curious→Worried→Alarme
 
 ### Technical reality (important — don't over-trust the LLM)
 
+**DECISION (locked):** the line bank is the product; the LLM is an optional,
+**async, best-effort flavor layer** that enhances pre-written mood phrases. It
+is never on the critical path and can be toggled fully off with no loss of
+function.
+
 The on-device model (§12) is a tiny TinyStories-class GPT. It **cannot** be
 relied on to free-generate reliably witty, in-character, factually-correct
-GLaDOS prose. So the persona is **authored, not emergent**:
+GLaDOS prose. It is also **slow** — PaperOS streams `model.bin` from SD every
+token, so generation is SD-read-bound and nowhere near real-time, and it
+contends with detection + WiFi for the no-PSRAM heap. Practical consequences:
+
+- LLM output is **async and non-blocking** — it drafts a line in the background
+  and the Mitama may deliver it a beat later, or not at all. It **never** gates
+  the UI or a security alert.
+- Alerts and any factual payload always come from the **line bank**, rendered
+  immediately; the LLM never touches them.
+- Good LLM jobs: idle musings, lightly re-wording a bank line between events,
+  ambient chatter while you sit on a menu. Low stakes, no deadline, no facts.
+
+So the persona is **authored, not emergent**:
 
 - **Backbone: a curated line bank + template engine.** Hand-written lines keyed
   by `event × mood` (boot, idle, new-device-by-race, deauth, evil-twin,
