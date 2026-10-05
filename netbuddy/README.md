@@ -25,5 +25,8 @@ PlatformIO + Arduino, M5Unified / M5Cardputer, NimBLE-Arduino. Build with
 
 ## Credits
 
-Detection engine, signature tables, pet and Dex are ported from
-[SquachWatch-CYD](https://github.com/skizzophrenic/SquachWatch-CYD) (MIT).
+- Detection engine, signature tables, pet and Dex from
+  [SquachWatch-CYD](https://github.com/skizzophrenic/SquachWatch-CYD) (MIT).
+- OS shell, app framework, theme manager, productivity apps and emulator from
+  [AdvanceOS-for-cardputer](https://github.com/bomberman30/AdvanceOS-for-cardputer)
+  (MIT, © 2025 bomberman30). See `outline.md` §11.

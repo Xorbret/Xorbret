@@ -238,6 +238,92 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 
 ---
 
+## 11. AdvanceOS study (bomberman30/AdvanceOS-for-cardputer, MIT)
+
+Reviewed the full source. It's a mature, **purely-productivity** firmware for the
+Cardputer ADV — no attack tooling — and it's MIT (Copyright 2025 bomberman30),
+so it's reusable with attribution. It's a much better base for the productivity
++ themes + games pillars than scaffolding from scratch.
+
+### Architecture worth adopting directly
+
+- **App base class** — `GlobalParentClass` with a `Begin() / Loop() / Draw() /
+  OnExit()` lifecycle, a `mainOS` back-pointer, a `showTopBar` flag and
+  `BackToMainMenu()`. This is essentially NetBuddy's app interface, already
+  concrete. Adopt this shape.
+- **Data-driven launcher** — a `MenuItem` struct (`name`, `color`, `image`,
+  `ItemType` = APP/CATEGORY/FILE_ITEM, `subMenuId`, a `std::function<void()>
+  onLaunch` lambda, `HelpText`) plus `SubMenu` (title + indices) and a saved
+  menu state. `MenuItemManeger` lets the user **reorder and hide** icons.
+  New apps register a `MenuItem`; the kernel doesn't change. Adopt.
+- **Theme Manager** — exactly the custom-theme feature wanted. `.thm` files are
+  tiny JSON (`BAR_COLOR_1/2`, `BAR_TEXT_COLOR`, `BACKGROUND_COLOR`,
+  `ShowWallpaperInMainMenu`); per-app PNG icons (35×35) and a wallpaper
+  (240×135) load from SD by matching the app's name. `LoadTheme` /
+  `SaveCurrentTheme` / `ResetToDefaultTheme`, editable on-device. Adopt wholesale.
+
+### Productivity suite already built (candidates to port)
+
+File browser, text editor, notes, calculator, loan calculator, resistor calc,
+color-code tool, timer, alarm clock (uses deep-sleep), step counter, music
+player (MP3/WAV + EQ), music composer (exports WAV), Painter V2 (shapes, bucket,
+pixel-art zoom), 3D OBJ renderer, piano, voice recorder, image/GIF/JPEG viewer,
+**encrypted password vault**, IR sender + editor, ESP-NOW chat, ESP-RC remote
+control, WiFi spectrum, SD-as-USB mass storage, partition manager, hex editor,
+screenshot (G0 button). This covers §2's productivity pillar many times over.
+
+### Games & emulator — important caveat
+
+`Emulator.extension` is a **precompiled ESP32-S3 OTA app image** (ESP image magic
+`0xE9`), not source. Its strings show it bundles **gnuboy** (GB/GBC), **NES**,
+**Arduboy**, and an experimental **SNES** core. Games run by a second OTA app
+slot: AdvanceOS writes the ROM path into `Preferences` and boots the emulator
+image. The partition layout (`AdvanceOSv2.csv`) carries dual app slots
+(`app0` 0x280000 / `app1` 0x180000) + a large SPIFFS for ROMs, and the README's
+PMan steps show the partition surgery users must do under some launchers.
+
+So "it has an emulator" = a heavy prebuilt blob run via OTA-partition switching;
+the emulator **source is not in the repo**. Reusing it means shipping that blob
+and its partition scheme, not porting code. This is separate from NetBuddy's own
+planned lightweight native games (Snake → Solitaire → Chess → Poker, §2).
+
+### Architecture mismatches to reconcile
+
+1. **Single-app vs background monitors.** AdvanceOS runs one foreground app at a
+   time (`currentApp`, swapped by `ChangeMenu`). NetBuddy's defining feature —
+   detection monitors + buddy running *regardless of focus* (§3 kernel) — does
+   not exist in AdvanceOS. NetBuddy's event-bus/kernel has to sit *underneath*
+   this model as a background service, with the buddy and the SquachWatch
+   detection engine ticking independent of whichever app is focused.
+2. **No back-stack.** AdvanceOS is also ESC→main-menu only — it shares the exact
+   gap §3 flagged. The Go-button back-stack is still net-new work either way.
+3. **Library base.** AdvanceOS uses `M5Cardputer` directly + a custom
+   `NewKeyboardHandle`; §1 picked `M5Unified`. Minor reconciliation; AdvanceOS's
+   choice is proven on this exact board, so M5Cardputer-direct may win.
+4. **RTC.** AdvanceOS uses `ESP32Time` (software RTC) — answers §9's open RTC
+   question: no hardware RTC needed, GPS/NTP/manual set seeds it.
+
+### Strategic decision this raises (needs Robert's call)
+
+Three ways to relate NetBuddy to AdvanceOS:
+- **A — Borrow patterns only.** Keep NetBuddy's own codebase; copy the app-class,
+  launcher and theme-manager *designs*; port individual apps as needed.
+- **B — Fork AdvanceOS as the base.** Start from AdvanceOS, add the buddy +
+  SquachWatch detection engine as a background service and the Dex/Environment
+  app on top, reframe as NetBuddy. Fastest to a feature-rich OS; inherits the
+  whole productivity suite + themes + emulator immediately.
+- **C — Hybrid.** Fork AdvanceOS for the OS shell/apps/themes, but lift
+  SquachWatch's detection engine in wholesale (per §5) and run it under a small
+  background-service layer added to AdvanceOS's loop.
+
+Leaning **C**: AdvanceOS gives the richest, already-working OS shell + apps +
+themes + emulator, SquachWatch gives the best detection engine + Dex/pet, and
+the only genuinely new engineering is (a) a background-service layer so
+detection runs off-focus, (b) the Go-button back-stack, and (c) the buddy/Dex
+rework. Both sources are MIT and attributable.
+
+---
+
 ## 10. Session-1 scaffold (NOT yet recovered)
 
 The first build session scaffolded a `netbuddy/` project (platformio.ini, an
