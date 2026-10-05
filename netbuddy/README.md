@@ -1,12 +1,17 @@
-# NetBuddy OS
+# MitamaOS
 
 A fully featured, PDA-style handheld OS/firmware for the **M5Cardputer ADV**
-(ESP32-S3) with a Navi/Bjorn-style companion "buddy" that surfaces the device's
-network environment at a glance.
+(ESP32-S3) with a **Mitama** — a gentle, non-intimidating companion spirit —
+that surfaces the device's network environment at a glance.
+
+Loosely inspired by Navi, Pokémon, and Shin Megami Tensei: the Cardputer is a
+**COMP** that hosts the Mitama; detected devices are **demons** registered to a
+**Compendium**, sorted by **race**. Defensive and receive-only throughout. See
+`outline.md` for the full design.
 
 ## Design commitment
 
-NetBuddy is a **defensive** companion. Everything network-facing is
+MitamaOS is a **defensive** companion. Everything network-facing is
 **receive-only / passive**: it detects, observes, and informs — it never
 transmits attacks. No deauth, no evil-portal, no credential capture, no exploit
 payloads. There is no use of `esp_wifi_80211_tx` anywhere in the codebase, and
@@ -26,7 +31,7 @@ M5Cardputer, vendored Lua 5.4, LittleFS + SD, NimBLE-Arduino. Build with
 
 ## License
 
-**GPLv2.** NetBuddy forks [PaperOS](https://github.com/Artem76228/PaperOS)
+**GPLv2.** MitamaOS forks [PaperOS](https://github.com/Artem76228/PaperOS)
 (GPLv2) as its OS core, so the combined work is GPLv2 with full source. MIT
 components (SquachWatch, AdvanceOS) are absorbed under GPLv2 with attribution
 preserved. See `outline.md` §13.

@@ -1,11 +1,26 @@
-# NetBuddy OS — Project Outline
+# MitamaOS — Project Outline
 
 A fully featured, PDA-style handheld OS/firmware for the **M5Cardputer ADV**
-(ESP32-S3), with a Navi/Bjorn-style companion "buddy" that makes the device's
-network environment legible at a glance.
+(ESP32-S3), with a **Mitama** — a gentle companion spirit — that makes the
+device's network environment legible at a glance.
+
+## Theme & naming
+
+Loosely inspired by Navi (a watchful companion), Pokémon (collect/catalog), and
+**Shin Megami Tensei** (friendly-demon framing). The through-line:
+
+- The **Mitama** is the buddy — named for SMT's little floating soul/mask demon
+  family (the word means "spirit/soul"). It's deliberately **non-intimidating**:
+  this is a *defensive* companion, so nothing menacing. It reacts to the network
+  around it and speaks via the on-device LLM (§12).
+- The Cardputer is styled as a **COMP** (SMT's demon-summoning handheld) — the
+  device that hosts the Mitama and registers what it encounters.
+- Detections are **demons encountered**; the Dex is the **Compendium** (SMT's
+  demon registry); device categories are **races** (§5a). Hostile behaviors
+  (deauth/evil-twin) are corrupted entries, framed as rare **Fiends**.
 
 **Design commitment (non-negotiable):** everything network-facing is
-**receive-only / passive**. NetBuddy detects, observes, and informs — it never
+**receive-only / passive**. MitamaOS detects, observes, and informs — it never
 transmits attacks. No deauth frames, no evil-portal, no credential capture, no
 exploit payloads. There is no call to `esp_wifi_80211_tx` anywhere in the
 codebase, and that stays true as the project grows. This is a *defensive*
@@ -32,7 +47,7 @@ companion, the inverse of offensive firmware like Porkchop.
 
 ## 2. The three pillars
 
-NetBuddy is a full handheld OS, not a security tool with a mascot. Scope spans
+MitamaOS is a full handheld OS, not a security tool with a mascot. Scope spans
 three pillars:
 
 ### Productivity
@@ -43,10 +58,11 @@ Build-effort order: Snake → Solitaire → Chess → Poker.
 - **Chess difficulty:** Medium-Easy. Shallow search (2–3 ply), *not* a real
   engine. "For fun, not to be a GM."
 
-### Buddy / Environment layer
-A Navi-style animated sprite + passive environment monitoring, surfaced as
-"Environment Status." The buddy reacts to what the radios see — calm when
-normal, alert/agitated when something is worth flagging.
+### Mitama / Environment layer
+The Mitama (an animated sprite) + passive environment monitoring, surfaced as
+"Environment Status." The Mitama reacts to what the radios see — calm when
+normal, alert/agitated when something is worth flagging — and can speak through
+the on-device LLM (§12).
 
 ---
 
@@ -100,7 +116,7 @@ What the buddy legitimately watches for, all receive-only:
 
 **Decision:** port the detection engine, signature tables, pet, and Dex from
 [SquachWatch-CYD](https://github.com/skizzophrenic/SquachWatch-CYD) **wholesale**
-into NetBuddy's kernel architecture, *replacing* session-1's from-scratch
+into MitamaOS's kernel architecture, *replacing* session-1's from-scratch
 monitors rather than extending them. It's MIT, it's Robert's own prior work, it
 already targets the Cardputer-ADV, and it's far more battle-tested.
 
@@ -132,7 +148,7 @@ that feature.
 
 ---
 
-## 5a. Dex taxonomy — Pokémon-style types, legendaries & glitches
+## 5a. The Compendium — SMT races, rare Fiends & the collection game
 
 SquachWatch ships **17 Dex entries** (18 `DetectionType` values; `UNKNOWN`
 gets no card, so `Dex::ENTRIES = COUNT - 1`) and **19 outfits/skins**
@@ -145,47 +161,53 @@ gets no card, so `Dex::ENTRIES = COUNT - 1`) and **19 outfits/skins**
   VOID EYE, SNOW PARKA, SHARK SUIT, YZZERD, OVER 9000, SHAMBLER, TH3 0N3 —
   hidden Easter eggs on specific background screens.
 
-The Pokémon idea maps cleanly: **device categories = types**, **device types =
-species**. The outfit-threshold system is already "catch N, unlock reward," so a
-**type-complete achievement** ("catch all 4 Trackers") slots into the existing
-`OutfitDef`/`outfitUnlocked()` mechanism as a third unlock condition alongside
-threshold and event — no new infrastructure.
+The SMT reframe maps cleanly onto the existing engine: the **Compendium** is the
+Dex, a detected device is a **demon** registered to it, and **device categories
+= demon races**. The outfit-threshold system is already "encounter N, unlock
+reward," so a **race-complete achievement** ("register every Tracker") slots
+into the existing `OutfitDef`/`outfitUnlocked()` mechanism as a third unlock
+condition alongside threshold and event — no new infrastructure. (Outfits are
+reframed as the Mitama's unlockable forms/skins.)
 
-### Finalized taxonomy
+### Finalized taxonomy (device category → SMT race)
 
-| Type         | Species                                   | Tier                     |
-|--------------|-------------------------------------------|--------------------------|
-| Official     | FLOCK, AXON, ALPR                         | Normal                   |
-| Surveillance | CAMERA, RING, META                        | Normal                   |
-| Tracker      | AIRTAG, TILE, SAMSUNG_TAG, GOOGLE_TAG     | Normal                   |
-| Aerial       | DRONE                                     | Legendary (singleton)    |
-| Beacon       | IBEACON                                   | Legendary (singleton)    |
-| Fraud        | SKIMMER                                   | Legendary (singleton)    |
-| Acoustic     | RAVEN                                     | Legendary (singleton)    |
-| Glitch       | DEAUTH, EVILTWIN, HACKER                  | Corrupted / MissingNo    |
+| Race (category)     | Species (devices)                     | Tier                  |
+|---------------------|----------------------------------------|-----------------------|
+| **Vile** (Official) | FLOCK, AXON, ALPR                      | Normal                |
+| **Night** (Surveillance) | CAMERA, RING, META                | Normal                |
+| **Fairy** (Tracker) | AIRTAG, TILE, SAMSUNG_TAG, GOOGLE_TAG  | Normal                |
+| **Avian** (Aerial)  | DRONE                                  | Rare (singleton)      |
+| **Herald** (Beacon) | IBEACON                                | Rare (singleton)      |
+| **Foul** (Fraud)    | SKIMMER                                | Rare (singleton)      |
+| **Jaki** (Acoustic) | RAVEN                                  | Rare (singleton)      |
+| **Fiend** (Hostile) | DEAUTH, EVILTWIN, HACKER               | Fiend (corrupted)     |
 
-- **Government + police surveillance are lumped together** under **Official**
+Race names are flavor styling over the existing `DetectionType` buckets —
+pick-and-swap, not load-bearing. The structural points:
+
+- **Government + police surveillance stay lumped** under **Vile/Official**
   (Flock, Axon, ALPR). Flock stays Normal tier, not split off by rarity — it's
-  getting more common, not less. Rarity-as-Dex-tier and type-membership are
-  separate axes; confidence grade (High/Med/Low) can still affect how "hard" a
-  catch registers without being its own type.
-- **Legendaries** = singleton-type species (one-of-a-kind in their category,
-  rare encounters, special card treatment). Add a `LEGENDARY` tier above `RARE`
-  in the existing `Dex::Rarity` enum — a one-line addition.
-- **Glitches** = the HACKER bucket (DEAUTH, EVILTWIN, HACKER). These are
-  attacks/hostile behavior, not "wildlife," so MissingNo fits: scrambled/
-  glitch-art sprite, garbling name text, deliberately "wrong" Dex-card layout.
-  Reinforces SquachWatch's existing red/hostile-vs-cyan/passive color logic. A
-  cosmetic rendering flag on those three entries — no engine work.
-- Dex gets a second axis: filter/sort by type, a type icon per entry, and
-  buddy flavor-text that varies by type (an Official hit reads more serious than
-  a Tracker hit).
+  getting more common, not less. Rarity-as-tier and race-membership are separate
+  axes; confidence grade (High/Med/Low) can still affect how "hard" a sighting
+  registers without being its own race.
+- **Rare (singleton races)** = one-of-a-kind in their race (uncommon to
+  encounter, special card treatment). Add a `LEGENDARY`/`RARE+` tier to the
+  existing `Dex::Rarity` enum — a one-line addition.
+- **Fiends** = the hostile bucket (DEAUTH, EVILTWIN, HACKER). In SMT, Fiends are
+  the rare, ominous optional encounters — perfect for attacks/hostile behavior
+  (not "wildlife"). Visual treatment: glitched/corrupted sprite, garbling name
+  text, deliberately "wrong" Compendium-card layout — the SMT-flavored version
+  of the MissingNo idea. Reinforces SquachWatch's red/hostile-vs-cyan/passive
+  color logic. A cosmetic rendering flag on those three entries — no engine work.
+- Compendium gets a second axis: filter/sort by race, a race glyph per entry,
+  and Mitama flavor-text that varies by race (a Vile sighting reads more serious
+  than a Fairy one).
 
 **Open question (flagged, not decided):** RAVEN (gunshot detectors) is usually a
 city/police deployment too, so by the same "who deploys it" logic it arguably
-belongs in **Official** — which would retire the Acoustic legendary slot. Left
-as its own legendary for now since it's a genuinely different detection modality
-(audio, not camera/network).
+belongs in **Vile/Official** — which would retire the Jaki/Acoustic singleton
+slot. Left on its own for now since it's a genuinely different detection
+modality (audio, not camera/network).
 
 ---
 
@@ -195,9 +217,9 @@ as its own legendary for now since it's a genuinely different detection modality
   same-SSID-different-BSSID (which false-positives on every mesh network).
 - **Per-signature confidence grading** (High/Medium/Low) rather than binary
   detect — honest about weak/overlapping signatures.
-- **Squachy pet / companion system** — prior art for NetBuddy's buddy.
+- **Squachy pet / companion system** — prior art for the Mitama.
 - **Dex** — Pokédex-style catalog with rarity/lore/quips/personal records —
-  prior art for the Dex and the Environment Status screen.
+  prior art for the Compendium and the Environment Status screen.
 
 ---
 
@@ -222,19 +244,19 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 0. **Fork & rebrand (M0).** Copy PaperOS v1.3 source into `netbuddy/` under
    GPLv2, add the GPLv2 `LICENSE` and a `CREDITS`/`NOTICE` attributing PaperOS,
    AdvanceOS, SquachWatch. Build for the ADV (no-PSRAM target already matches),
-   confirm it boots and the stock apps run, rebrand PaperOS → NetBuddy. This is
+   confirm it boots and the stock apps run, rebrand PaperOS → MitamaOS. This is
    the foundation; everything else lands on top.
 1. **Background detection service (M1).** Lift SquachWatch's `DetectionEngine` +
    signature tables in as a background FreeRTOS task using PaperOS's `DispLock`
    so it runs regardless of focused app. A minimal "Environment" app lists live
    detections. Watch the heap — detection + WiFi + (later) the LLM all contend
    for the no-PSRAM free heap.
-2. **Buddy (M2).** Persistent companion driven by detection events; wire
-   PaperOS's `myai` LLM so the buddy can generate text, with a mood state
+2. **Mitama (M2).** Persistent companion driven by detection events; wire
+   PaperOS's `myai` LLM so the Mitama can generate text, with a mood state
    machine (Calm→Curious→Worried→Alarmed) layered on top. Decide when the LLM is
    resident vs streamed (RAM).
-3. **Dex (M3).** Port SquachWatch's Dex/pet + the §5a type/legendary/glitch
-   taxonomy and type-complete achievements.
+3. **Compendium (M3).** Port SquachWatch's Dex/pet as the Compendium + the §5a
+   race/Fiend taxonomy and race-complete achievements (Mitama forms).
 4. **Runtime themes (M4 — the Option-2 addition).** Port AdvanceOS's Theme
    Manager (`.thm` JSON + SD PNG icons/wallpaper) to replace PaperOS's
    compile-time Win95 palette with runtime SD themes.
@@ -269,7 +291,7 @@ so it's reusable with attribution. It's a much better base for the productivity
 
 - **App base class** — `GlobalParentClass` with a `Begin() / Loop() / Draw() /
   OnExit()` lifecycle, a `mainOS` back-pointer, a `showTopBar` flag and
-  `BackToMainMenu()`. This is essentially NetBuddy's app interface, already
+  `BackToMainMenu()`. This is essentially MitamaOS's app interface, already
   concrete. Adopt this shape.
 - **Data-driven launcher** — a `MenuItem` struct (`name`, `color`, `image`,
   `ItemType` = APP/CATEGORY/FILE_ITEM, `subMenuId`, a `std::function<void()>
@@ -304,15 +326,15 @@ PMan steps show the partition surgery users must do under some launchers.
 
 So "it has an emulator" = a heavy prebuilt blob run via OTA-partition switching;
 the emulator **source is not in the repo**. Reusing it means shipping that blob
-and its partition scheme, not porting code. This is separate from NetBuddy's own
+and its partition scheme, not porting code. This is separate from MitamaOS's own
 planned lightweight native games (Snake → Solitaire → Chess → Poker, §2).
 
 ### Architecture mismatches to reconcile
 
 1. **Single-app vs background monitors.** AdvanceOS runs one foreground app at a
-   time (`currentApp`, swapped by `ChangeMenu`). NetBuddy's defining feature —
+   time (`currentApp`, swapped by `ChangeMenu`). MitamaOS's defining feature —
    detection monitors + buddy running *regardless of focus* (§3 kernel) — does
-   not exist in AdvanceOS. NetBuddy's event-bus/kernel has to sit *underneath*
+   not exist in AdvanceOS. MitamaOS's event-bus/kernel has to sit *underneath*
    this model as a background service, with the buddy and the SquachWatch
    detection engine ticking independent of whichever app is focused.
 2. **No back-stack.** AdvanceOS is also ESC→main-menu only — it shares the exact
@@ -325,12 +347,12 @@ planned lightweight native games (Snake → Solitaire → Chess → Poker, §2).
 
 ### Strategic decision this raises (needs Robert's call)
 
-Three ways to relate NetBuddy to AdvanceOS:
-- **A — Borrow patterns only.** Keep NetBuddy's own codebase; copy the app-class,
+Three ways to relate MitamaOS to AdvanceOS:
+- **A — Borrow patterns only.** Keep MitamaOS's own codebase; copy the app-class,
   launcher and theme-manager *designs*; port individual apps as needed.
 - **B — Fork AdvanceOS as the base.** Start from AdvanceOS, add the buddy +
   SquachWatch detection engine as a background service and the Dex/Environment
-  app on top, reframe as NetBuddy. Fastest to a feature-rich OS; inherits the
+  app on top, reframe as MitamaOS. Fastest to a feature-rich OS; inherits the
   whole productivity suite + themes + emulator immediately.
 - **C — Hybrid.** Fork AdvanceOS for the OS shell/apps/themes, but lift
   SquachWatch's detection engine in wholesale (per §5) and run it under a small
@@ -370,7 +392,7 @@ the Cardputer ADV's PSRAM would relax this considerably.
   apps, and community content could all be Lua.
 - **True multitasking with a display lock (`DispLock`).** PaperOS already runs a
   background Lua REPL task that draws safely alongside the foreground app via a
-  display mutex. **This is exactly the mechanism NetBuddy's background
+  display mutex. **This is exactly the mechanism MitamaOS's background
   detection-off-focus requirement needs** (§3) — and it's the thing AdvanceOS
   lacks entirely.
 - **Polished OS core** — `App`/`AppManager` singleton, `Launcher`, a Win95-style
@@ -411,7 +433,7 @@ the Cardputer ADV's PSRAM would relax this considerably.
 **The license is the decision's hinge.** GPLv2 is copyleft: any firmware that
 incorporates PaperOS source must itself be released under GPLv2 with full
 source. GPLv2 *can* legally absorb the MIT SquachWatch and AdvanceOS code, so a
-combined NetBuddy built on PaperOS is fine — but **the whole project then
+combined MitamaOS built on PaperOS is fine — but **the whole project then
 becomes GPLv2**, not MIT. If staying MIT/permissive matters to Robert, PaperOS
 source is off the table (its *ideas* — a tiny on-device LLM, a Lua app layer —
 could still be reimplemented independently, but that's real work, not a port).
@@ -434,7 +456,7 @@ could still be reimplemented independently, but that's real work, not a port).
   runtime themes later. Smaller first step toward the most capable base.
 
 **Lean: Option 2 (or 3 as its first milestone).** PaperOS already solved the two
-hardest problems in the original NetBuddy plan — running detection in the
+hardest problems in the original MitamaOS plan — running detection in the
 background without freezing the UI (DispLock multitasking) and giving the buddy
 an actual voice (on-device LLM) — and its Lua layer makes everything after that
 cheaper. The cost is committing the project to GPLv2. That trade is Robert's to
@@ -442,7 +464,7 @@ make, which is the one thing worth deciding before any code moves.
 
 ### DECISION LOCKED (2026-10-05)
 
-- **License:** GPLv2. Robert confirmed open-source is fine. NetBuddy is a GPLv2
+- **License:** GPLv2. Robert confirmed open-source is fine. MitamaOS is a GPLv2
   project; the AdvanceOS/SquachWatch MIT code it absorbs stays attributed but
   the combined work ships under GPLv2 with full source.
 - **Base:** **Option 2**, delivered **Option 3 first** — fork PaperOS as the OS
