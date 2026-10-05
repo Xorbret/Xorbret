@@ -20,8 +20,16 @@ is in §8 of that doc.
 
 ## Platform
 
-PlatformIO + Arduino, M5Unified / M5Cardputer, NimBLE-Arduino. Build with
+M5Cardputer ADV (ESP32-S3, 8MB flash, no PSRAM). PlatformIO + Arduino,
+M5Cardputer, vendored Lua 5.4, LittleFS + SD, NimBLE-Arduino. Build with
 `pio run`.
+
+## License
+
+**GPLv2.** NetBuddy forks [PaperOS](https://github.com/Artem76228/PaperOS)
+(GPLv2) as its OS core, so the combined work is GPLv2 with full source. MIT
+components (SquachWatch, AdvanceOS) are absorbed under GPLv2 with attribution
+preserved. See `outline.md` §13.
 
 ## Credits
 

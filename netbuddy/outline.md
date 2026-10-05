@@ -15,9 +15,13 @@ companion, the inverse of offensive firmware like Porkchop.
 
 ## 1. Platform & toolchain
 
-- **Board:** M5Cardputer ADV (ESP32-S3, PSRAM).
-- **Framework:** PlatformIO + Arduino, using the M5 ecosystem
-  (`M5Unified`, `M5Cardputer`) plus `NimBLE-Arduino` for passive BLE.
+- **Board:** M5Cardputer ADV (ESP32-S3FN8, 8MB flash, **NO PSRAM** on the stock
+  unit — confirmed by Robert). Same board class PaperOS targets, so its
+  no-PSRAM RAM budgeting applies directly.
+- **License:** **GPLv2** (the project forks PaperOS; see §13).
+- **Framework:** PlatformIO + Arduino. Inherits PaperOS's stack: `M5Cardputer`
+  (direct, not M5Unified), vendored Lua 5.4, `ESP8266Audio`, LittleFS + SD. Add
+  `NimBLE-Arduino` for passive BLE detection.
 - Fastest path to a flashable image on the ADV and the stack the Cardputer
   community already builds on.
 - Build with `pio run`; flash with `pio run -t upload`. (Cannot be
@@ -213,18 +217,34 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 
 ---
 
-## 8. Build order
+## 8. Build order (revised for the PaperOS base — see §13 decision)
 
-1. **Foundation** — SD storage layer + Go-button back-stack navigation.
-2. **Port the detection engine** — SquachWatch `DetectionEngine`,
-   `signatures.cpp`, pet, Dex into the kernel (replaces session-1 monitors).
-3. **Buddy / Dex rework** — surface-based rendering, type/legendary/glitch
-   taxonomy, type-complete achievements.
-4. **Productivity apps** — file manager, notes, calculator, calendar, to-do,
-   world clock, alarms.
-5. **Games** — Snake → Solitaire → Chess (medium-easy) → Poker.
-6. **HAT expansion** — dual-band, GPS/wardrive, LoRa sub-GHz, then NFC.
-7. **Second screen** — route buddy rendering to a second display.
+0. **Fork & rebrand (M0).** Copy PaperOS v1.3 source into `netbuddy/` under
+   GPLv2, add the GPLv2 `LICENSE` and a `CREDITS`/`NOTICE` attributing PaperOS,
+   AdvanceOS, SquachWatch. Build for the ADV (no-PSRAM target already matches),
+   confirm it boots and the stock apps run, rebrand PaperOS → NetBuddy. This is
+   the foundation; everything else lands on top.
+1. **Background detection service (M1).** Lift SquachWatch's `DetectionEngine` +
+   signature tables in as a background FreeRTOS task using PaperOS's `DispLock`
+   so it runs regardless of focused app. A minimal "Environment" app lists live
+   detections. Watch the heap — detection + WiFi + (later) the LLM all contend
+   for the no-PSRAM free heap.
+2. **Buddy (M2).** Persistent companion driven by detection events; wire
+   PaperOS's `myai` LLM so the buddy can generate text, with a mood state
+   machine (Calm→Curious→Worried→Alarmed) layered on top. Decide when the LLM is
+   resident vs streamed (RAM).
+3. **Dex (M3).** Port SquachWatch's Dex/pet + the §5a type/legendary/glitch
+   taxonomy and type-complete achievements.
+4. **Runtime themes (M4 — the Option-2 addition).** Port AdvanceOS's Theme
+   Manager (`.thm` JSON + SD PNG icons/wallpaper) to replace PaperOS's
+   compile-time Win95 palette with runtime SD themes.
+5. **Productivity polish (M5).** PaperOS already ships file manager, notes,
+   calculator, clock, paint, music, 3D editor, piano, browser, Lua, store. Fill
+   gaps from §2 (calendar, to-do, world clock, alarms) as native or Lua apps.
+6. **Games (M6).** Native lightweight games (Snake → Solitaire → Chess
+   medium-easy → Poker) alongside the existing emulator extension.
+7. **HAT expansion (M7).** dual-band, GPS/wardrive, LoRa sub-GHz, then NFC.
+8. **Second screen (M8).** Route buddy rendering to a second display.
 
 ---
 
@@ -419,6 +439,21 @@ background without freezing the UI (DispLock multitasking) and giving the buddy
 an actual voice (on-device LLM) — and its Lua layer makes everything after that
 cheaper. The cost is committing the project to GPLv2. That trade is Robert's to
 make, which is the one thing worth deciding before any code moves.
+
+### DECISION LOCKED (2026-10-05)
+
+- **License:** GPLv2. Robert confirmed open-source is fine. NetBuddy is a GPLv2
+  project; the AdvanceOS/SquachWatch MIT code it absorbs stays attributed but
+  the combined work ships under GPLv2 with full source.
+- **Base:** **Option 2**, delivered **Option 3 first** — fork PaperOS as the OS
+  core, lift SquachWatch's detection engine in as a background service, add
+  AdvanceOS's runtime Theme Manager in a later milestone.
+- **Hardware:** stock Cardputer ADV has **NO PSRAM** — the *same class of board*
+  PaperOS already targets (ESP32-S3, 8MB flash, no PSRAM). PaperOS's entire v1.3
+  RAM-budget effort (WiFi-off-by-default, trimmed Lua stdlib, model streamed
+  from SD per token) transfers directly. The RAM ceiling is real and is the
+  governing constraint for the buddy LLM and background detection running
+  together — both compete for the same ~free heap.
 
 ---
 
