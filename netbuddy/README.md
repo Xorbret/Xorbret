@@ -30,3 +30,7 @@ PlatformIO + Arduino, M5Unified / M5Cardputer, NimBLE-Arduino. Build with
 - OS shell, app framework, theme manager, productivity apps and emulator from
   [AdvanceOS-for-cardputer](https://github.com/bomberman30/AdvanceOS-for-cardputer)
   (MIT, © 2025 bomberman30). See `outline.md` §11.
+- Multitasking OS core, on-device LLM buddy, Lua app engine + store from
+  [PaperOS](https://github.com/Artem76228/PaperOS) (**GPLv2**, © Artem76228).
+  See `outline.md` §12. Note: using PaperOS source makes the combined work
+  GPLv2 — see the license discussion in §13.

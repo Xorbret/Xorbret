@@ -324,6 +324,104 @@ rework. Both sources are MIT and attributable.
 
 ---
 
+## 12. PaperOS study (Artem76228/PaperOS, GPLv2)
+
+Reviewed the full source (shipped in `PaperOS_v1.3.zip` — complete, not a stub).
+It is the most architecturally capable of the three, and the only one that is
+**GPLv2** rather than MIT. That license is the single most important fact here
+(see §13). Target board in the repo is the **ESP32-S3FN8, 8MB flash, NO PSRAM** —
+RAM is extremely tight (the whole v1.3 changelog is about clawing back 40–70KB);
+the Cardputer ADV's PSRAM would relax this considerably.
+
+### What PaperOS has that the others don't
+
+- **On-device offline LLM ("myAI").** A byte-level GPT (vocab 256, 192-dim,
+  12 layers, 6 heads, **multi-query attention**, 256-token context, ~125
+  tensors, ~4.7MB weights) running natively on the Cardputer, streaming
+  `model.bin` from SD per token. Ships the **full training pipeline**
+  (`train_stories.py`, TinyStories) and the C inference engine
+  (`myai_engine.h`). **This is the game-changer for the buddy** — it means the
+  companion can actually *generate language*, not just cycle mood faces, and the
+  trainer means its personality can be fine-tuned.
+- **Lua 5.4 app engine + app Store.** Lua is fully vendored; apps are Lua
+  scripts with a rich hardware API (`os/io/net/gpio/disp/key/sound/timer/ui/
+  store/json/bit/i2c/term`) installed over WiFi from a GitHub-backed Store into
+  `/lua/`. Best extensibility model of the three — detection reactions, mini
+  apps, and community content could all be Lua.
+- **True multitasking with a display lock (`DispLock`).** PaperOS already runs a
+  background Lua REPL task that draws safely alongside the foreground app via a
+  display mutex. **This is exactly the mechanism NetBuddy's background
+  detection-off-focus requirement needs** (§3) — and it's the thing AdvanceOS
+  lacks entirely.
+- **Polished OS core** — `App`/`AppManager` singleton, `Launcher`, a Win95-style
+  UI toolkit (`OsUI` with 3D bevels), `WiFiManager`, `mem_guard`, a BIOS POST
+  screen (`bios_post.h`) and a Win95 boot animation.
+- **Text-mode browser** with a real small HTML/CSS layout engine (parses
+  `<style>`, classes/ids → color/bold/alignment, lists, tables), 3 tabs,
+  history, bookmarks, find-in-page.
+- Paint, 3D OBJ editor, Music (WAV/MP3), Notes, Calculator, Clock, Piano,
+  Settings (with WiFi scanner), SysInfo.
+
+### Where it's weaker than AdvanceOS
+
+- **Theming is compile-time**, not runtime. The whole OS reskins from RGB565
+  macros in `config.h` — you recompile to change it. AdvanceOS's SD-loaded
+  `.thm` + PNG runtime themes (which Robert explicitly values) are more
+  flexible. This is the one place AdvanceOS clearly wins.
+- **No-PSRAM target** → brutal RAM budget. Less of an issue on the ADV.
+- **Emulator is still a prebuilt `.extension` blob** (`PaperEMU.extension` /
+  `EmulatorV3.4.extension` — note the latter is *the same file* AdvanceOS ships;
+  the two projects share emulator extensions). Same caveat as §11.
+
+---
+
+## 13. Three-way comparison & the license fork in the road
+
+| Capability                | SquachWatch (MIT) | AdvanceOS (MIT) | PaperOS (GPLv2) |
+|---------------------------|:---:|:---:|:---:|
+| Detection engine + Dex/pet | ★ best | — | — |
+| Background monitors off-focus | (its whole model) | ✗ single-app | ★ DispLock multitask |
+| Runtime SD themes          | — | ★ best | ✗ compile-time |
+| Productivity app suite     | — | ★ huge | ✓ good |
+| On-device AI buddy         | — | — | ★ only one |
+| Lua scripting + app store  | — | — | ★ only one |
+| Emulator / games           | — | ✓ blob | ✓ blob (shared) |
+| License                    | MIT | MIT | **GPLv2** |
+
+**The license is the decision's hinge.** GPLv2 is copyleft: any firmware that
+incorporates PaperOS source must itself be released under GPLv2 with full
+source. GPLv2 *can* legally absorb the MIT SquachWatch and AdvanceOS code, so a
+combined NetBuddy built on PaperOS is fine — but **the whole project then
+becomes GPLv2**, not MIT. If staying MIT/permissive matters to Robert, PaperOS
+source is off the table (its *ideas* — a tiny on-device LLM, a Lua app layer —
+could still be reimplemented independently, but that's real work, not a port).
+
+### Revised strategy options (supersedes §11's A/B/C)
+
+- **Option 1 — MIT stack (AdvanceOS + SquachWatch).** Fork AdvanceOS for the
+  shell/apps/runtime-themes, add SquachWatch's detection engine, build the
+  background-service layer and buddy ourselves. Stays MIT. No AI buddy, no Lua
+  (unless we add them from scratch). This is §11's option C.
+- **Option 2 — GPL stack (PaperOS core + SquachWatch + AdvanceOS themes).**
+  Fork PaperOS as the OS core (its multitask/DispLock already solves
+  background-off-focus; its myAI gives the buddy a real voice; its Lua/Store
+  gives extensibility), lift SquachWatch's detection engine in as a background
+  service, and port AdvanceOS's runtime Theme Manager on top to regain custom
+  themes. Most capable result by far. **Becomes GPLv2.** Most integration work
+  (three codebases, two styles).
+- **Option 3 — PaperOS core, skip the themes port initially.** Option 2 minus
+  the AdvanceOS theme-manager port; live with compile-time themes for v1, add
+  runtime themes later. Smaller first step toward the most capable base.
+
+**Lean: Option 2 (or 3 as its first milestone).** PaperOS already solved the two
+hardest problems in the original NetBuddy plan — running detection in the
+background without freezing the UI (DispLock multitasking) and giving the buddy
+an actual voice (on-device LLM) — and its Lua layer makes everything after that
+cheaper. The cost is committing the project to GPLv2. That trade is Robert's to
+make, which is the one thing worth deciding before any code moves.
+
+---
+
 ## 10. Session-1 scaffold (NOT yet recovered)
 
 The first build session scaffolded a `netbuddy/` project (platformio.ini, an
