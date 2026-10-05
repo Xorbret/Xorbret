@@ -61,6 +61,7 @@ intensifies (bleeds through more) in alert/Fiend states — that's the glitch.
   | Surface | Secondary / selection (windows) | Hot Magenta | `#FF2A6D` | `0xF94D` |
   | Surface | Panel fills / walls | Vivid Purple | `#B026FF` | `0xB13F` |
   | Surface | Interactive focus / door | Cyan | `#05D9E8` | `0x06DD` |
+  | Surface | Affirmation / "good call" (Smug) | Neon Green | `#39FF14` | `0x3FE2` |
   | Surface | Background field | Near-black violet | `#0A0118` | `0x0803` |
   | Surface | Panels / dialogs | Deep violet | `#1A0B2E` | `0x1845` |
   | Text | Secondary text | Muted violet | `#8A7CA8` | `0x8BF5` |
@@ -559,6 +560,24 @@ Tone rules:
 - Rare, earned sincerity is the payoff. A genuine "…that was a good call" lands
   precisely *because* it's surrounded by sarcasm.
 
+### Visual design — LOCKED
+
+From the design study (concept sheet, mockups to be turned into real pixel-art
+sprites later):
+
+- **Base form: Soul** — a round core carrying a single magatama sigil and an
+  aura ring whose brightness is the "optic." (Chosen over Noh mask, Optic core,
+  Ofuda.)
+- **Sigil: the magatama** — a **solid open comma** (fat round head, long taper,
+  **no drilled eye** — the eye read as an ouroboros). This is the Mitama's crest
+  everywhere and the **app/boot icon**.
+- **Mood accent colors:** calm = yellow; curious = cyan; **smug/approve = neon
+  green**; passive-aggressive = magenta; alarmed/hostile = red-bones bleed.
+- **Outfits (approved, expandable):** Netrunner (default), Tinfoil (paranoia /
+  SquachWatch nod), Oni (soft horns), Kitsune, Omamori, Braindance (glitch).
+  Governed by the MAY/NEVER rules below — never a face, never replacing the
+  tilt+aura+sigil expression system.
+
 ### The no-face doctrine
 
 GLaDOS conveys a wide emotional range with an unmoving chassis and one optic. A
@@ -596,7 +615,7 @@ Drives the planned mood machine (expanded from Calm→Curious→Worried→Alarme
 | Mood | Language | Kinetics | Mask motion | Aura / color | Sound |
 |------|----------|----------|-------------|--------------|-------|
 | Calm/bored | understated, a little bored | slow, even | gentle slow bob | steady dim yellow | occasional soft blip |
-| Smug/approving | backhanded praise | normal, a beat before the twist | small upward bob, settle | brief bright yellow | rising chirp |
+| Smug/approving | backhanded praise | normal, a beat before the twist | calm pose, small settle | **neon green** glow | rising chirp |
 | Curious/intrigued | leading questions | slight speed-up | head-cock tilt | magenta tick-up | short two-tone |
 | Passive-aggressive | faux-concern | the pointed "..." | slow orbit | magenta, mild red seep | flat tone |
 | Contemptuous (at threats) | clipped, cutting | fast, hard stops | still, aura hardens | red bones surge | low sting |
