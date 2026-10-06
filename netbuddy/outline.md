@@ -918,6 +918,25 @@ device profile:
 This is the single most important finding: **M0 adds a TCA8418 keyboard layer**
 before anything else works on real hardware.
 
+**COMPLETE solution — bmorcelli's Launcher already supports the ADV** (its
+`unified_inputs` branch + `boards/m5stack-cardputer/CardputerADV.md`). It
+supersedes the "reimplement from MicroHydra" note — use its recipe:
+- Library: **`adafruit/Adafruit TCA8418 @ ^1.0.1`** (no hand-written driver).
+- **Keyboard I2C is its own bus: SDA=GPIO8, SCL=GPIO9, INT=GPIO11**, TCA8418 @
+  0x34, 7×8 matrix. **Interrupt is unreliable — poll at ~100ms** instead.
+- Build flags: `-DCARDPUTER_ADV=1 -DTCA8418_INT_PIN=11 -DTCA8418_I2C_ADDR=0x34
+  -DTCA8418_SDA_PIN=8 -DTCA8418_SCL_PIN=9`.
+- **GOTCHA #1 (reboot loop):** the original GPIO/matrix keyboard init on the ADV
+  → endless reboot after "Using config.conf". Must branch to TCA8418 by compile
+  flag. (This is exactly what PaperOS/AdvanceOS would do out of the box.)
+- **GOTCHA #2 (SD won't mount):** the extra I2C sensors interfere with GPIO5
+  (SPI CS). **Set GPIO5 HIGH during init** or the SD card never mounts.
+- I2C scan on the ADV shows **0x18** (accel), **0x34** (keyboard), **0x69**
+  (gyro/IMU — matches the BMI270). Bootloader mode: hold GPIO0 + reset.
+- Launcher's ADV build runs at ~25% RAM / ~27% flash — healthy baseline headroom.
+Licensing: use `Adafruit_TCA8418` (permissive) + these documented pins/flags
+(facts); don't copy Launcher's GPL source.
+
 ### Confirmed build facts
 - **Audio PCM path:** `M5Cardputer.Speaker.playRaw(buf, n, sampleRate)` (from
   cardputer-nofrendo) — exactly the API for our §15 sung-PCM cues. Confirmed.
@@ -952,10 +971,21 @@ AdvanceOS/PaperOS use.
   **plan to bundle an open emulator (Nofrendo) so the GPLv2 image is fully
   source-available.** Verify the Nofrendo core's license before bundling.
 
-### Distribution / partitions
-**M5Stick-Launcher** (bmorcelli): `partitioner.h` (dump/restore/crawler = the
-"PMan" AdvanceOS references), `installFAT_OTA()`, per-flash-size partition CSVs,
-OTA install. The install + OTA-slot mechanism our Games path and flashing ride on.
+### Distribution / partitions / flashing
+- **M5Stick-Launcher** (bmorcelli): `partitioner.h` (dump/restore/crawler = the
+  "PMan" AdvanceOS references), `installFAT_OTA()`, per-flash-size partition
+  CSVs, OTA install — the install + OTA-slot mechanism our Games path rides on.
+- **Launcher catalog** (bmorcelli.github.io/Launcher/catalog.html): a
+  browser-based **app store + WebSerial web-flasher** (esptool-js). It pulls the
+  firmware list from `api.launcherhub.net` (which mirrors the **M5Burner CDN** —
+  `m5burner-cdn.m5stack.com/firmware|cover`), filtered by device category
+  ("cardputer"), each entry = name/author/category/description/versions + cover,
+  flashed over WebSerial with a chip-family check. Two takeaways for MitamaOS:
+  1. **Distribution:** publish MitamaOS to M5Burner / the launcherhub catalog so
+     users one-click web-flash it (and the **Launcher already supports the ADV**,
+     so it's a real target). 2. **Our own flasher:** add a "Flash MitamaOS"
+     button to our Pages site using the same esptool-js/WebSerial approach (like
+     PaperOS's esphome.io link) pointing at our `.bin`.
 
 ### Architecture references (patterns, not code)
 - **Bruce** (pr3y): a `src/core` (config / display / `bus_HAL` / `configPins`) +
