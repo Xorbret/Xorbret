@@ -114,9 +114,9 @@ Build-effort order: Snake → Solitaire → Chess → Poker.
 - **Chess difficulty:** Medium-Easy. Shallow search (2–3 ply), *not* a real
   engine. "For fun, not to be a GM."
 
-### Mitama / Environment layer
+### Mitama / Proxima layer
 The Mitama (an animated sprite) + passive environment monitoring, surfaced as
-"Environment Status." The Mitama reacts to what the radios see — calm when
+"Proxima." The Mitama reacts to what the radios see — calm when
 normal, alert/agitated when something is worth flagging — and can speak through
 the on-device LLM (§12). Its personality and how it emotes without a face are
 specified in full in §14.
@@ -136,7 +136,7 @@ specified in full in §14.
 ### Architectural changes the full-OS scope forces (do before more apps pile up)
 
 1. **Navigation — "Go button" back-stack.** Current model is ESC-always-goes-
-   home. The vision needs a real back-stack: jump to Environment Status from
+   home. The vision needs a real back-stack: jump to Proxima from
    anywhere, press again to return to *exactly* what you were doing. Kernel
    change, best done early.
 2. **Storage — real SD filesystem layer.** Notes, to-do items, save games,
@@ -148,7 +148,7 @@ specified in full in §14.
 
 ---
 
-## 4. Environment monitoring (passive / receive-only)
+## 4. Proximity monitoring (passive / receive-only)
 
 What the buddy legitimately watches for, all receive-only:
 
@@ -277,7 +277,7 @@ modality (audio, not camera/network).
   detect — honest about weak/overlapping signatures.
 - **Squachy pet / companion system** — prior art for the Mitama.
 - **Dex** — Pokédex-style catalog with rarity/lore/quips/personal records —
-  prior art for the Compendium and the Environment Status screen.
+  prior art for the Compendium and the Proxima screen.
 
 ---
 
@@ -307,7 +307,7 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
    (see Visual identity). This is the foundation; everything else lands on top.
 1. **Background detection service (M1).** Lift SquachWatch's `DetectionEngine` +
    signature tables in as a background FreeRTOS task using PaperOS's `DispLock`
-   so it runs regardless of focused app. A minimal "Environment" app lists live
+   so it runs regardless of focused app. A minimal "Proxima" screen lists live
    detections. Watch the heap — detection + WiFi + (later) the LLM all contend
    for the no-PSRAM free heap.
 2. **Mitama (M2).** Persistent companion driven by detection events; wire
@@ -411,7 +411,7 @@ Three ways to relate MitamaOS to AdvanceOS:
 - **A — Borrow patterns only.** Keep MitamaOS's own codebase; copy the app-class,
   launcher and theme-manager *designs*; port individual apps as needed.
 - **B — Fork AdvanceOS as the base.** Start from AdvanceOS, add the buddy +
-  SquachWatch detection engine as a background service and the Dex/Environment
+  SquachWatch detection engine as a background service and the Dex/Proxima
   app on top, reframe as MitamaOS. Fastest to a feature-rich OS; inherits the
   whole productivity suite + themes + emulator immediately.
 - **C — Hybrid.** Fork AdvanceOS for the OS shell/apps/themes, but lift
@@ -548,7 +548,7 @@ alert, toast). Rendered at the real 240×135, 16px top bar + 14px status bar.
 
 - **Mitama is always on screen** (system layer, not a screen you visit). It
   lives on the **status bar** (bottom 14px) as a small magatama + a one-line
-  ticker, present in every app; the full sprite appears on the Environment
+  ticker, present in every app; the full sprite appears on the Proxima
   screen and in toasts. Every app reserves the status bar for it.
 - **Launcher = icon grid** (3-wide tiles, neon line icons, per-app accent
   color; selected tile glows yellow with a red corner-tick).
@@ -569,18 +569,18 @@ alert, toast). Rendered at the real 240×135, 16px top bar + 14px status bar.
 ### Icon system (LOCKED)
 
 Visual language: **esoteric sigils**, not literal objects — occult / alchemical /
-sacred-geometry forms sharing the Environment glyph's core-and-ring grammar, so
+sacred-geometry forms sharing the Proxima glyph's core-and-ring grammar, so
 the set reads as one arcane family. 2px neon stroke on a 24-unit grid, each in
 its own per-app accent color; selected launcher tiles override to yellow.
 
 - **App sigils:** Compendium = magatama sealed in a dashed ring (the crest) ·
-  Environment = core + dashed orbit + cardinal ticks · Files = warded
+  Proxima = core + dashed orbit + cardinal ticks · Files = warded
   archive-diamond (cardinal nodes + inscribed lines) · Paint = the squared
   circle (▢○△, alchemical creation) · Music = cymatic sound-mandala · Games =
   **pentagram** + center point · Lua = `>_` bound in a hexagon · Notes =
   **grimoire** (spine + clasp + circle-and-triangle seal) · Browser = astrolabe ·
   Settings = orrery (nested rings + orbiting nodes).
-- **Per-app accents:** Compendium yellow · Environment green · Files cyan ·
+- **Per-app accents:** Compendium yellow · Proxima green · Files cyan ·
   Paint magenta · Music purple · Games green · Lua cyan · Notes yellow ·
   Browser cyan · Settings dim/violet. (Refinable; not all unique.)
 - **Avoided:** Star of David (→ pentagram), cross/Bible glyph (→ grimoire seal),
@@ -689,7 +689,7 @@ the theme.
 - **Severity → presentation** (ties to the §3 event bus):
   Info → ticker only · Notice → ticker + soft tone · Warning → toast + tone,
   Mitama worried · Alert/Fiend → full-screen takeover + alarm + red-bones surge.
-- **Go/Mitama key:** a dedicated key jumps to Environment from anywhere and
+- **Go/Mitama key:** a dedicated key jumps to Proxima from anywhere and
   back (the §3 back-stack). Exact Cardputer key TBD at M0 (keymap check);
   ESC = back, Enter = select already.
 
@@ -707,9 +707,8 @@ in-universe app naming, accessibility toggles, logo lockup.
 4. ~~**Idle cadence & sass dial**~~ — ✓ LOCKED (see §15 "Idle cadence &
    temperament"): Energy/Patience model, time-of-day + fatigue tiers, sass dial
    default 2, visual/audio drift, clock-dependency fallback.
-5. **In-universe naming** — which apps get themed names (Environment,
-   Compendium) vs plain (Files, Notes, Music). Proposed: theme the buddy/security
-   surfaces, keep utilities plain.
+5. ~~**In-universe naming**~~ — ✓ LOCKED (see §15 "In-universe naming"):
+   layer-split register; Proxima home screen; Grimoire kept; tools plain.
 6. **Accessibility / comfort toggles** — reduce-motion / reduce-glitch, high-
    contrast, sass level, ticker speed. Settings from day one.
 7. **Logo lockup** — the MitamaOS wordmark (magatama + Rajdhani) for boot + icon.
