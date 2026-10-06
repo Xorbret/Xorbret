@@ -1038,6 +1038,56 @@ M5CardRemote (VolosR) · M5Stick-Launcher (bmorcelli) · m5cardputer_doom
 
 ---
 
+## 18. Build hazards & mitigations (headache list)
+
+Verified against real code (PaperOS, SquachWatch-CYD, M5GFX, official M5 libs).
+Ordered by how much pain they'd cause if hit blind.
+
+1. **Radio arbitration — sniff vs. connect (THE big one, M1 design).**
+   SquachWatch detection = `esp_wifi_set_promiscuous(true)` + **channel-hopping**
+   in `WIFI_STA` mode, **not associated** to any AP. PaperOS connectivity
+   (Browser, Store, LLM/OTA fetch, NTP) = `WiFi.begin()` **associated on one
+   fixed channel**. These are **mutually exclusive** — you cannot channel-hop
+   while holding an association. Mitigation: a **kernel radio manager** with two
+   modes — default **Warding** (promiscuous + hop, full detection) and on-demand
+   **Link** (apps request it; stop hopping, associate; detection narrows to the
+   connected channel — still hears deauth/mgmt aimed at you, loses multi-channel
+   coverage). The Mitama narrates the trade ("looking away from the spectrum
+   while you browse"). SquachWatch confirms the split: it sniffs for detection
+   and only `WiFi.begin()`s separately for OTA/LoRa feed.
+2. **RAM: ~320 KB shared heap, NO PSRAM (governing budget).** WiFi sniffer +
+   NimBLE scan + the LLM + UI sprites + fonts all compete (PaperOS's own note).
+   Mitigations: LLM stays async/streamed from SD (§14); sniffer paused in Link
+   mode; BLE scans duty-cycled; fonts subset (below); bound sprite sizes; keep
+   PaperOS's Lua heap cap. **Do not enable SPIRAM build flags.**
+3. **Keyboard (ADV) — RESOLVED.** PaperOS calls `M5Cardputer.Keyboard` in every
+   app; bumping `m5stack/M5Cardputer` to ≥1.1.1 (+ matching M5Unified) makes all
+   of it work on the ADV unchanged (official TCA8418 reader). No per-app edits.
+4. **GPIO5 / SD mount.** On the ADV the extra I2C sensors fight GPIO5 (SPI CS) —
+   **drive GPIO5 HIGH during init** or the SD card never mounts (Launcher gotcha).
+5. **WiFi + BLE coexistence.** NimBLE scan + esp_wifi promiscuous run together
+   (coex) — extra RAM + timing cost. Budget for it; duty-cycle BLE.
+6. **Fonts — use VLW (and a pleasant surprise).** M5GFX loads **VLW** fonts at
+   runtime: `display.loadFont("/fonts/rajdhani_14.vlw", SD)` / `unloadFont()`.
+   **VLW glyphs are anti-aliased**, so Rajdhani at 8 px reads *better* than the
+   1-bit bake I feared — softens the §15 "8 px floor" caveat. Ship subset VLWs
+   (ASCII + the few glyphs we use) on SD/LittleFS to keep RAM/size small; load
+   the 3 sizes we need, unload when switching.
+7. **Audio arbitration — mostly solved.** M5 `Speaker_Class` supports **virtual
+   sound channels** (PaperOS uses them via `AudioOutputM5Speaker`). Play UI cues
+   and music on **separate virtual channels** so a cue doesn't cut the music.
+   Emulator audio takes the speaker exclusively during games.
+8. **Flash / partition budget.** `paperos_8mb.csv`: app0 (ota_0) **1.69 MB**,
+   app1 (ota_1) 0.96 MB (the spare OTA slot for the emulator/games boot),
+   `romxip` spiffs **5 MB** (emulator ROMs, XIP), spiffs 320 KB; `model.bin`
+   lives on **SD**. Adding the SquachWatch engine + NimBLE + buddy may strain
+   app0 — if it overflows, repartition (shrink `romxip`). Watch app0 size at M0/M1.
+9. **Board target.** `board = m5stack-stamps3` compiles for the S3; rely on
+   M5Unified **runtime** detection of `board_M5CardputerADV`. Keep flash 8 MB /
+   qio / 240 MHz; LittleFS + SD. Bootloader: hold GPIO0 + reset.
+
+---
+
 ## 10. Session-1 scaffold (NOT yet recovered)
 
 The first build session scaffolded a `netbuddy/` project (platformio.ini, an
