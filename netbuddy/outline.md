@@ -560,6 +560,11 @@ alert, toast). Rendered at the real 240×135, 16px top bar + 14px status bar.
 - **Readability rule — glitch never over data.** Scanline/glitch decoration is
   confined to titles and empty bands; facts and critical text always get a
   solid dark backing plate. (Enforces "snark yields to clarity".)
+- **Type scale (LOCKED):** Rajdhani, device px —
+  Display 20/700 (boot wordmark), Title 14/700, Label 10/600 caps,
+  Body 9/400–500, Small 8/500, Numeric 11/600 (colored), Badge 7.5/600.
+  Bake as M5GFX bitmap fonts at 8/10/14 + 20px. 8px is the floor (1-bit, no
+  AA) — Small/Badge verified on hardware at M0; bump to 9 if muddy.
 
 ### Proposed (confirm before M0)
 
@@ -577,8 +582,7 @@ in-universe app naming, accessibility toggles, logo lockup.
 
 ## 16. Remaining design aspects to lock (pre-code checklist)
 
-1. **Type scale** — the 2–3 Rajdhani sizes in device px (title ~16, body ~9–10,
-   small ~8) that every layout sizes to, + baked bitmap-font sizes.
+1. ~~**Type scale**~~ — ✓ LOCKED (see §15).
 2. **Icon system** — neon line-icon style (2px stroke, per-app accent) + the
    per-app accent map; **race glyphs** for the Compendium (Vile/Night/Fairy/…).
 3. **Sound set** — the small tone vocabulary: approval chirp, disappointment
