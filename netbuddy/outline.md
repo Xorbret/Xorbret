@@ -1104,9 +1104,9 @@ short occult verbs, "perceive the unseen" / "raise protection".
 ### Switching
 Scry is the default (a defensive device watches by default). An app or the user
 requests **Ward**; the manager associates, detection narrows to your channel +
-the LAN toolset, and returns to Scry when released. **Sweep**: a one-shot
+the LAN toolset, and returns to Scry when released. **Augury**: a one-shot
 full-band hop from within Ward (briefly drop, scan all channels, report,
-reconnect) for an on-demand whole-picture without leaving Ward. The Mitama's
+reconnect) for an on-demand whole-picture without leaving Ward (a single reading, vs. Scry's continuous gaze). The Mitama's
 temperament colors each mode (watchful/mystical in Scry; vigilant/martial in Ward).
 
 ## 18. Build hazards & mitigations (headache list)
