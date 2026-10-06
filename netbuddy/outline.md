@@ -289,8 +289,8 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 |------------|---------------------------------------------------------------------|
 | Dual-band  | = WiFi 2.4/5 GHz scanning. Ports from SquachWatch `SQW_WIFI_5G`.     |
 | GPS        | Solved. Ports from `gnss.h`/`gnss.cpp`; unlocks wardrive + RTC-less time. |
-| Sub-GHz    | Build the **LoRa** path now (ports directly, near-zero new work); hold a generic CC1101-style receiver until the exact module is known. "Both / not sure yet." |
-| NFC        | No existing code to lean on. Hold off until a module is picked (likely PN532). |
+| Sub-GHz    | **LoRa = M5 LoRa-E220 (JP) Unit** + `M5-LoRa-E220-JP` lib, with an ESP-NOW fallback mode (ref: CardputerLoRaChat, §17). Hold a generic CC1101-style receiver until that module is known. |
+| NFC        | **PN532 over I2C** — `PN532`/`PN532_I2C`/`NfcAdapter` libs, `readPassiveTargetID` (ref: RFID-PN532-i2c-CARDPUTER, §17). Resolved. |
 
 - **RTC:** open low-priority question whether the Cardputer-ADV has an onboard
   RTC — GPS can supply time once that HAT is wired.
@@ -301,10 +301,13 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 
 0. **Fork & rebrand (M0).** Copy PaperOS v1.3 source into `netbuddy/` under
    GPLv2, add the GPLv2 `LICENSE` and a `CREDITS`/`NOTICE` attributing PaperOS,
-   AdvanceOS, SquachWatch. Build for the ADV (no-PSRAM target already matches),
-   confirm it boots and the stock apps run, rebrand PaperOS → MitamaOS, and
-   apply the Cyberpunk palette (swap `config.h` color macros) + Rajdhani font
-   (see Visual identity). This is the foundation; everything else lands on top.
+   AdvanceOS, SquachWatch (+ the §17 references). **FIRST hardware task — the
+   ADV keyboard: add a TCA8418 I2C driver (@0x34)** and route it into PaperOS's
+   input layer; PaperOS reads the original Cardputer's matrix keyboard, which is
+   dead on the ADV (see §17). Then build for the ADV (no-PSRAM already matches),
+   confirm it boots, keys work, and the stock apps run; rebrand PaperOS →
+   MitamaOS; apply the Cyberpunk palette (swap `config.h` color macros) +
+   Rajdhani font (see Visual identity). Everything else lands on top.
 1. **Background detection service (M1).** Lift SquachWatch's `DetectionEngine` +
    signature tables in as a background FreeRTOS task using PaperOS's `DispLock`
    so it runs regardless of focused app. A minimal "Proxima" screen lists live
@@ -886,6 +889,97 @@ So the persona is **authored, not emergent**:
 - Clippy intrusion: *"It looks like you're joining an open network. Would you like me to disapprove silently, or with commentary?"*
 - Earned sincerity: *"...that was genuinely the right move. Don't make it weird."*
 - Compendium complete (a race): *"You've logged every Tracker in existence. A full set of things that watch you. Congratulations, I suppose."*
+
+---
+
+## 17. References & prior art — Cardputer firmware survey
+
+Surveyed the community firmware list (ru84r8/Cardputer-firmware-list) and read
+the relevant source. Findings below, with credit. **License note:** entries are
+used as *reference/facts* unless a license check clears porting; we must not copy
+GPLv3 code into this GPLv2 project — reimplement from the documented facts.
+
+### CRITICAL — the ADV is not the original Cardputer (M0 risk)
+
+From **MicroHydra** (echo-lalia, GPLv3) which ships an explicit `CARDPUTER_ADV`
+device profile:
+- **Keyboard: TCA8418 I2C keypad controller @ 0x34** — *not* the original
+  Cardputer's GPIO matrix. PaperOS/AdvanceOS read `M5Cardputer.Keyboard`
+  (matrix), which **will not work on the ADV**. M0 must add a TCA8418 driver
+  (register map: CFG 0x01, INT_STAT 0x02, KEY_LCK_EC 0x03 [low nibble = event
+  count], KEY_STAT/event FIFO; a key event byte = bit7 press/release + bits0-6
+  keycode). Reimplement in C++ from the datasheet/these facts.
+- **IMU: BMI270** (I2C) — the ADV has motion sensing (tilt/shake for the Mitama).
+- **Confirmed ADV pin map** (matches PaperOS's SD pins — good): Display ST7789
+  240×135 SPI1 — CS 37, DC 34, MOSI 35, SCK 36, RST 33, BL 38, 40MHz, no MISO.
+  SD — CS 12, MISO 39, MOSI 14, SCK 40. I2S speaker — SCK 41, SD 42, WS 43.
+  PDM mic, IR blaster, WiFi+BT, G0 on pin 0. No PSRAM.
+
+This is the single most important finding: **M0 adds a TCA8418 keyboard layer**
+before anything else works on real hardware.
+
+### Confirmed build facts
+- **Audio PCM path:** `M5Cardputer.Speaker.playRaw(buf, n, sampleRate)` (from
+  cardputer-nofrendo) — exactly the API for our §15 sung-PCM cues. Confirmed.
+- **Onboard IR TX = GPIO44**, via the `IRremote` library (`IrSender.setSendPin(44)`)
+  — from **M5CardRemote** (VolosR). Also `WORLD_IR_CODES.h` in m5stick-nemo for
+  TV-B-Gone-style codes.
+- **M5Cardputer examples** (m5stack, MIT): display / sdcard / mic_wav_record /
+  ir_nec / keyboard / buzzer / REPL — the foundational API reference (original
+  matrix keyboard: `Keyboard.isChange()/isPressed()/keysState()`).
+
+### Resolves open hardware items
+- **NFC → PN532 over I2C.** From **RFID-PN532-i2c-CARDPUTER** (Jojorel): the
+  Seeed/Adafruit `PN532`/`PN532_I2C`/`NfcAdapter` libs, `pn532.begin();
+  pn532.wakeup(); nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &len)`.
+  Resolves the §7 "no NFC code" unknown.
+- **Sub-GHz/LoRa → M5 LoRa-E220 (JP) Unit** + `M5-LoRa-E220-JP` library, and an
+  **ESP-NOW** fallback mode (no radio needed). From **CardputerLoRaChat**
+  (nonik0) — also a clean tabbed UI with per-user signal-strength display (good
+  prior art for Proxima). Refines the §7 LoRa path.
+- **Spectrum/FFT:** a fixed-point integer FFT (`fix_fft.h` / Fixed15FFT) from
+  **m5Cardputer_audiospectrum** (cyberwisk) — no-FPU-friendly, reusable for a
+  Proxima channel-activity / music visual.
+
+### Games pillar — the open-emulator decision
+**cardputer-nofrendo** (lxyMiao) ports **arduino-nofrendo** (moononournation),
+itself the classic **Nofrendo** NES core — an *open* NES emulator on the
+Cardputer (keys: arrows, k=A, l=B; NES frame → 240×135 line buffer; audio via
+`playRaw`). **m5cardputer_doom** (romalik) is an ESP-IDF Doom port bundling
+LovyanGFX. These give an **open path off the closed `.extension` blob** that
+AdvanceOS/PaperOS use.
+- **Decision (reaffirmed):** v1 keeps native games + the existing blob;
+  **plan to bundle an open emulator (Nofrendo) so the GPLv2 image is fully
+  source-available.** Verify the Nofrendo core's license before bundling.
+
+### Distribution / partitions
+**M5Stick-Launcher** (bmorcelli): `partitioner.h` (dump/restore/crawler = the
+"PMan" AdvanceOS references), `installFAT_OTA()`, per-flash-size partition CSVs,
+OTA install. The install + OTA-slot mechanism our Games path and flashing ride on.
+
+### Architecture references (patterns, not code)
+- **Bruce** (pr3y): a `src/core` (config / display / `bus_HAL` / `configPins`) +
+  `src/modules` structure with a `boards/<name>/pins_arduino.h` + JSON HAL —
+  a clean multi-module-with-HAL pattern.
+- **m5stick-nemo** (n0xa): a dead-simple `struct MENU` + `drawmenu(MENU[], n)`
+  scrolling menu — minimal menu prior art.
+- **MicroHydra** (echo-lalia): per-device profiles + an `apps/` module pattern.
+
+### Offensive firmwares — context only, nothing ported
+**Bruce**, **ESP32Marauder**, **Evil-M5Core2**, **evil-portal**, and nemo's
+attack modules are the offensive tools MitamaOS is the *defensive inverse* of.
+We port **no** attack code. Their *techniques* (how deauth / evil-portal / BLE
+spam are performed) only inform our passive **detection signatures** — which
+SquachWatch already encodes. They also target the original Cardputer
+(`ARDUINO_M5STACK_CARDPUTER`), not the ADV.
+
+### Credits to carry (verify licenses before porting any code)
+MicroHydra (echo-lalia, GPLv3 — facts only) · M5Cardputer & M5-LoRa-E220-JP &
+M5GFX (m5stack) · cardputer-nofrendo (lxyMiao) → arduino-nofrendo
+(moononournation) → Nofrendo · RFID-PN532 (Jojorel) + PN532 lib (Seeed/Adafruit)
+· CardputerLoRaChat (nonik0) · m5Cardputer_audiospectrum (cyberwisk) ·
+M5CardRemote (VolosR) · M5Stick-Launcher (bmorcelli) · m5cardputer_doom
+(romalik) · Bruce (pr3y) & ESP32Marauder (justcallmekoko/marivaaldo) — reference.
 
 ---
 
