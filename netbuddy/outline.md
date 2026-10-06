@@ -1101,6 +1101,24 @@ short occult verbs, "perceive the unseen" / "raise protection".
   alerts; evil-twin **confirmation** (real BSSID is known); your-channel deauth
   watch; network signal / health map; hardening hints (WPS / open / weak auth).
 
+### Ward scoping decisions (LOCKED / deferred)
+- **Active on Trusted, passive elsewhere (LOCKED).** On a user-marked **trusted**
+  network Ward may send *benign client* traffic (ARP/ping/mDNS) for active
+  defense; on any other network it is **passive-listen only**. Attack traffic
+  (deauth/injection/evil-portal/floods, `esp_wifi_80211_tx`) is **always banned**.
+- **Separate "Breaches" tab (LOCKED).** Ward keeps its **own log** — attacks
+  caught + successful defenses — distinct from the Compendium (which stays the
+  demon bestiary of airspace sightings). Ward incidents are events, not species.
+- **Sentinel mode — design goal, power-aware.** Park-it-on-the-desk 24/7 Warding
+  is viable *because firmware can manage power*: `M5.Power.setBatteryCharge(false)`
+  / `setChargeCurrent()` on the ADV's charge IC (AW32001 per M5Unified) lets us
+  **stop charging at full** (avoid LiPo hold-at-100% degradation), plus an **eco
+  profile** (screen off, downclock, radio duty-cycled) to cut heat. Run on USB;
+  if the cell is removable, best to run without it. **Verify charge-control on
+  real hardware at M0.**
+- **Deferred to work-scoping:** the passive-first tool tiering (MVP vs later) and
+  IPv6 (leaning IPv4-only for v1).
+
 ### Switching
 Scry is the default (a defensive device watches by default). An app or the user
 requests **Ward**; the manager associates, detection narrows to your channel +
