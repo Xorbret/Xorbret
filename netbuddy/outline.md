@@ -539,6 +539,59 @@ make, which is the one thing worth deciding before any code moves.
 
 ---
 
+## 15. UI & interaction decisions
+
+From the UI mockups (6 screens: boot, launcher, environment, compendium, fiend
+alert, toast). Rendered at the real 240×135, 16px top bar + 14px status bar.
+
+### Locked
+
+- **Mitama is always on screen** (system layer, not a screen you visit). It
+  lives on the **status bar** (bottom 14px) as a small magatama + a one-line
+  ticker, present in every app; the full sprite appears on the Environment
+  screen and in toasts. Every app reserves the status bar for it.
+- **Launcher = icon grid** (3-wide tiles, neon line icons, per-app accent
+  color; selected tile glows yellow with a red corner-tick).
+- **Compendium = split-view** (race-grouped list + entry card side by side).
+- **Top bar schema:** left = mood-magatama + context title; right = clock,
+  Wi-Fi, battery glyph (no numeric %, it overflowed).
+- **Status-bar ticker = single line, marquee-scrolls on device** when longer
+  than the bar. Long Mitama dialogue goes in a toast/speech strip, never the bar.
+- **Readability rule — glitch never over data.** Scanline/glitch decoration is
+  confined to titles and empty bands; facts and critical text always get a
+  solid dark backing plate. (Enforces "snark yields to clarity".)
+
+### Proposed (confirm before M0)
+
+- **Severity → presentation** (ties to the §3 event bus):
+  Info → ticker only · Notice → ticker + soft tone · Warning → toast + tone,
+  Mitama worried · Alert/Fiend → full-screen takeover + alarm + red-bones surge.
+- **Go/Mitama key:** a dedicated key jumps to Environment from anywhere and
+  back (the §3 back-stack). Exact Cardputer key TBD at M0 (keymap check);
+  ESC = back, Enter = select already.
+
+### Still to lock (see §16)
+
+Type scale, icon/race-glyph set, sound set, idle cadence + sass dial defaults,
+in-universe app naming, accessibility toggles, logo lockup.
+
+## 16. Remaining design aspects to lock (pre-code checklist)
+
+1. **Type scale** — the 2–3 Rajdhani sizes in device px (title ~16, body ~9–10,
+   small ~8) that every layout sizes to, + baked bitmap-font sizes.
+2. **Icon system** — neon line-icon style (2px stroke, per-app accent) + the
+   per-app accent map; **race glyphs** for the Compendium (Vile/Night/Fairy/…).
+3. **Sound set** — the small tone vocabulary: approval chirp, disappointment
+   tone, alarm double-blip, "hmph", boot sting, key-blip. (Mood channel §14.)
+4. **Idle cadence & sass dial** — how often the Mitama speaks/emotes when idle
+   (anti-annoyance rate-limit), and the default sass level (1–3 → "just facts").
+5. **In-universe naming** — which apps get themed names (Environment,
+   Compendium) vs plain (Files, Notes, Music). Proposed: theme the buddy/security
+   surfaces, keep utilities plain.
+6. **Accessibility / comfort toggles** — reduce-motion / reduce-glitch, high-
+   contrast, sass level, ticker speed. Settings from day one.
+7. **Logo lockup** — the MitamaOS wordmark (magatama + Rajdhani) for boot + icon.
+
 ## 14. The Mitama — personality & faceless expression
 
 ### Persona
