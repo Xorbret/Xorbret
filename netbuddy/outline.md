@@ -662,6 +662,28 @@ flavor, counts still update); nothing here gates the UI.
 GPS/NTP/manual). With no set clock and no GPS/WiFi, fall back to **fatigue-only**
 (uptime works from boot) until the clock is set.
 
+### In-universe naming (LOCKED)
+
+Register is split by **layer**, not sprinkled — that keeps themed names from
+clashing with plain tools in the same grid:
+
+- **Companion layer (named / themed):** the **Mitama** (buddy) · **Proxima**
+  (its home screen — the Go-button destination, *not* a launcher tile; replaces
+  the old "Environment", which read too vast — Proxima = "the nearest", punchy,
+  local, techno-esoteric) · the **Compendium** (the bestiary). Compendium stays
+  reachable as its own named tile and from Proxima's recent-sightings.
+- **Tool grid (plain):** Files · Paint · Music · Games · Lua · Browser ·
+  Settings — generic apps, generic names. Quiet esoteric **epithets** appear
+  only in help/subtitle text (the Archive, Sigilcraft, Resonance, the Rites,
+  Incantations, the Astrolabe, Attunement).
+- **One themed primary kept in the grid:** **Notes → Grimoire** (its icon is
+  already a grimoire, and it still reads plainly as "my notes").
+- **System vocabulary (themed, already locked):** COMP (device), races, Fiends.
+
+Logic: the device's signature *systems* get names (Pip-Boy / Codec style);
+commodity tools stay commodity. The layer split, not a coat of paint, carries
+the theme.
+
 ### Proposed (confirm before M0)
 
 - **Severity → presentation** (ties to the §3 event bus):
