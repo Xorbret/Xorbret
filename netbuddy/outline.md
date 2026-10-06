@@ -714,6 +714,16 @@ let people dial it down.
 another `.thm` served by the theme manager (M4); the race accent remap lives
 there, not as its own toggle.
 
+### Logo lockup (LOCKED)
+
+Built entirely from the magatama crest + Rajdhani over the red bones.
+- **Primary (horizontal):** the **sealed crest** (magatama inside a dashed
+  yellow seal-ring with a dim-red bones ring) + "Mitama**OS**" wordmark, "OS" in
+  cyber-yellow. For landing/nav/headers. Stacked variant for boot/splash.
+- **App / flash icon:** the **sealed crest on a red-bones tile** (icon A) — no
+  words. The red-bones field makes it unmistakably MitamaOS at a glance and in
+  the M5Burner/launcher grid.
+
 ### Proposed (confirm before M0)
 
 - **Severity → presentation** (ties to the §3 event bus):
@@ -742,7 +752,8 @@ in-universe app naming, accessibility toggles, logo lockup.
 6. ~~**Accessibility / comfort toggles**~~ — ✓ LOCKED (see §15): visual/motion/
    audio/cognitive toggles, Calm Mode preset, flash-safety + safety-never-hidden
    invariants, colorblind via Themes.
-7. **Logo lockup** — the MitamaOS wordmark (magatama + Rajdhani) for boot + icon.
+7. ~~**Logo lockup**~~ — ✓ LOCKED (see §15 "Logo lockup"): sealed-crest
+   horizontal wordmark; crest-on-red-bones app icon.
 
 ## 14. The Mitama — personality & faceless expression
 

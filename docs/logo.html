@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MitamaOS Logo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--red:#E5162B;--red-dim:#7A0A18;--yellow:#FCEE0A;--magenta:#FF2A6D;--purple:#B026FF;--cyan:#05D9E8;--green:#39FF14;--bg:#0A0118;--panel:#1A0B2E;--dim:#8A7CA8;--s:1.4}
+@media(max-width:480px){:root{--s:1.1}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:#060010;color:#fff;font-family:'Rajdhani',system-ui,sans-serif;padding:0 16px 60px;overflow-x:hidden;
+  background-image:repeating-linear-gradient(90deg,rgba(122,10,24,.07) 0 1px,transparent 1px 46px),repeating-linear-gradient(0deg,rgba(122,10,24,.07) 0 1px,transparent 1px 46px)}
+.wrap{max-width:920px;margin:0 auto}
+header{padding:28px 0 10px;border-bottom:2px solid var(--red);position:relative}
+header::after{content:"";position:absolute;left:0;bottom:-2px;width:110px;height:2px;background:var(--yellow)}
+h1{font-weight:700;letter-spacing:.14em;margin:0;font-size:26px;text-transform:uppercase}h1 .a{color:var(--yellow)}
+.sub{color:var(--dim);font-size:14px;margin:6px 0 0;max-width:74ch;letter-spacing:.04em;line-height:1.45}
+h2{font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:16px;margin:36px 0 12px;color:var(--cyan);display:flex;gap:10px;align-items:center}
+h2::before{content:"";width:10px;height:10px;background:var(--magenta);transform:rotate(45deg);box-shadow:0 0 8px var(--magenta)}
+.note{color:var(--dim);font-size:13px;margin:-4px 0 14px;letter-spacing:.03em}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:620px){.g2,.g3{grid-template-columns:1fr}}
+.card{background:linear-gradient(180deg,var(--panel),#120720);border:1px solid var(--red-dim);position:relative;padding:22px 18px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.card::before{content:"";position:absolute;top:-1px;left:-1px;width:10px;height:10px;border-top:2px solid var(--red);border-left:2px solid var(--red)}
+.cap{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}.cap b{color:var(--yellow)}
+.rec{outline:2px solid var(--yellow);outline-offset:2px}
+/* wordmark */
+.wm{font-weight:700;letter-spacing:.1em;text-transform:uppercase;line-height:.95;display:flex;align-items:center}
+.wm .os{color:var(--yellow)}
+.lockH{display:flex;align-items:center;gap:16px}
+.lockV{display:flex;flex-direction:column;align-items:center;gap:10px}
+.crest{overflow:visible}
+/* icon tiles */
+.tiles{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;justify-content:center}
+.tile{position:relative;display:flex;align-items:center;justify-content:center}
+.tile.lg{width:120px;height:120px}.tile.sm{width:40px;height:40px}
+.tile svg{overflow:visible}
+.tbones{background:
+  repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 4px),
+  linear-gradient(145deg,#2a0810,#17060c);border:2px solid var(--red)}
+.tdark{background:linear-gradient(145deg,#150a24,#0a0414);border:2px solid var(--red-dim)}
+.tyellow{background:linear-gradient(145deg,#1a1405,#0c0a02);border:2px solid var(--yellow)}
+.corner::after{content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-top:2px solid var(--yellow);border-left:2px solid var(--yellow)}
+.box{width:calc(240px*var(--s));height:calc(135px*var(--s));overflow:hidden;border:1px solid var(--red-dim)}
+.scr{width:240px;height:135px;transform:scale(var(--s));transform-origin:top left;position:relative;background:var(--bg);
+  background-image:repeating-linear-gradient(0deg,rgba(229,22,43,.07) 0 1px,transparent 1px 7px)}
+.footn{margin-top:30px;color:var(--dim);font-size:13px;border-top:1px solid var(--red-dim);padding-top:14px;line-height:1.5;letter-spacing:.03em}
+.footn b{color:var(--yellow)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>Logo Lockup <span class="a">// MitamaOS</span></h1>
+<p class="sub">Aspect 7 — the wordmark and the app/flash icon. The magatama crest is the constant; everything is built from it + Rajdhani over the red bones. Pick a primary lockup and an icon tile.</p></header>
+
+<h2>Primary lockup — horizontal</h2>
+<p class="note">For the landing page, nav, docs headers. The crest + wordmark, "OS" in cyber-yellow.</p>
+<div class="grid g2">
+  <div class="card rec">
+    <div class="lockH"><svg class="crest" id="c1" width="64" height="64" viewBox="0 0 200 200"></svg>
+      <div class="wm" style="font-size:40px">Mitama<span class="os">OS</span></div></div>
+    <div class="cap"><b>A — sealed crest</b> + wordmark</div>
+  </div>
+  <div class="card">
+    <div class="lockH"><svg class="crest" id="c2" width="58" height="58" viewBox="0 0 200 200"></svg>
+      <div class="wm" style="font-size:40px">Mitama<span class="os">OS</span></div></div>
+    <div class="cap"><b>B — bare magatama</b> + wordmark</div>
+  </div>
+</div>
+
+<h2>Stacked lockup — boot / splash</h2>
+<p class="note">Centered, vertical. Shown alone and in the real 240×135 boot screen.</p>
+<div class="grid g2">
+  <div class="card">
+    <div class="lockV"><svg class="crest" id="c3" width="86" height="86" viewBox="0 0 200 200"></svg>
+      <div class="wm" style="font-size:30px;letter-spacing:.18em">Mitama<span class="os">OS</span></div>
+      <div style="font-size:11px;letter-spacing:.2em;color:var(--dim)">v0.1 // COMP ONLINE</div></div>
+    <div class="cap"><b>Stacked</b> wordmark</div>
+  </div>
+  <div class="card">
+    <div class="box"><div class="scr">
+      <div style="position:absolute;top:0;bottom:16px;left:0;right:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
+        <svg width="40" height="40" viewBox="0 0 200 200" id="c4" style="overflow:visible"></svg>
+        <div class="wm" style="font-size:18px;letter-spacing:.2em">Mitama<span class="os">OS</span></div>
+        <div style="font-size:7px;letter-spacing:.2em;color:var(--dim)">v0.1 // COMP ONLINE</div>
+        <div style="width:140px;height:6px;background:#140826;border:1px solid var(--red-dim);margin-top:3px;position:relative"><i style="position:absolute;inset:0;width:66%;background:var(--yellow)"></i></div>
+      </div>
+      <div style="position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:7px;color:var(--dim)">loading applications... try to keep up</div>
+    </div></div>
+    <div class="cap">in the <b>boot screen</b></div>
+  </div>
+</div>
+
+<h2>App / flash icon</h2>
+<p class="note">The square icon for M5Burner / the launcher — just the crest, no words. Shown big + at real small size. Needs to read as a seal at a glance.</p>
+<div class="grid g3">
+  <div class="card rec">
+    <div class="tiles">
+      <div class="tile lg tbones corner" id="t1"></div>
+      <div class="tile sm tbones" id="t1s"></div>
+    </div>
+    <div class="cap"><b>A — crest on red bones</b></div>
+  </div>
+  <div class="card">
+    <div class="tiles">
+      <div class="tile lg tdark corner" id="t2"></div>
+      <div class="tile sm tdark" id="t2s"></div>
+    </div>
+    <div class="cap"><b>B — crest on dark</b></div>
+  </div>
+  <div class="card">
+    <div class="tiles">
+      <div class="tile lg tyellow" id="t3"></div>
+      <div class="tile sm tyellow" id="t3s"></div>
+    </div>
+    <div class="cap"><b>C — yellow-framed seal</b></div>
+  </div>
+</div>
+
+<div class="footn">
+  Recommended: <b>horizontal A</b> (sealed crest) for the wordmark, <b>icon A</b> (crest on red bones) for the flash icon — the red-bones tile makes the icon unmistakably MitamaOS and ties to the whole aesthetic. Tunable: crest size, letter-spacing, "OS" color, tile frame. Say the word and I'll lock it.
+</div>
+</div>
+<script>
+const d2r=Math.PI/180;
+function magatama(cx,cy,Rm,tH,a0,a1,tp,col){const n=48,o=[],inn=[];
+  for(let i=0;i<=n;i++){const u=i/n,th=(a0+(a1-a0)*u)*d2r,t=tH*Math.pow(1-u,tp);o.push([cx+(Rm+t)*Math.cos(th),cy+(Rm+t)*Math.sin(th)]);inn.push([cx+(Rm-t)*Math.cos(th),cy+(Rm-t)*Math.sin(th)]);}
+  const f=p=>p[0].toFixed(1)+' '+p[1].toFixed(1);let d='M '+f(o[0]);for(let i=1;i<o.length;i++)d+=' L '+f(o[i]);
+  for(let i=inn.length-1;i>=0;i--)d+=' L '+f(inn[i]);d+=' Z';const hx=cx+Rm*Math.cos(a0*d2r),hy=cy+Rm*Math.sin(a0*d2r);
+  return `<path d="${d}" fill="${col}"/><circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="${tH}" fill="${col}"/>`;}
+// sealed crest: magatama in a dashed ring; bare: just magatama
+function crest(sealed,accent='#FCEE0A',ringBones=true){
+  let s=`<g filter="drop-shadow(0 0 5px ${accent})">${magatama(100,106,34,24,-60,185,.82,accent)}</g>`;
+  if(sealed) s=`<circle cx="100" cy="100" r="86" fill="none" stroke="${accent}" stroke-width="5" stroke-dasharray="7 11"/>`+
+    (ringBones?`<circle cx="100" cy="100" r="74" fill="none" stroke="#E5162B" stroke-width="2.5" stroke-dasharray="4 8" opacity=".75"/>`:'')+s;
+  return s;
+}
+document.getElementById('c1').innerHTML=crest(true);
+document.getElementById('c2').innerHTML=crest(false);
+document.getElementById('c3').innerHTML=crest(true);
+document.getElementById('c4').innerHTML=crest(true);
+// icon tiles: magatama in sealed ring
+function tileIcon(size,accent){return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" style="overflow:visible">
+  <circle cx="100" cy="100" r="78" fill="none" stroke="${accent}" stroke-width="7" stroke-dasharray="8 12"/>
+  <g filter="drop-shadow(0 0 5px ${accent})">${magatama(100,106,34,24,-60,185,.82,accent)}</g></svg>`;}
+function tileIconSmall(size,accent){return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" style="overflow:visible">
+  <g>${magatama(100,106,40,28,-60,185,.82,accent)}</g></svg>`;}
+document.getElementById('t1').innerHTML=tileIcon(92,'#FCEE0A');
+document.getElementById('t1s').innerHTML=tileIconSmall(30,'#FCEE0A');
+document.getElementById('t2').innerHTML=tileIcon(92,'#FCEE0A');
+document.getElementById('t2s').innerHTML=tileIconSmall(30,'#FCEE0A');
+document.getElementById('t3').innerHTML=`<svg width="92" height="92" viewBox="0 0 200 200" style="overflow:visible"><g>${magatama(100,106,38,27,-60,185,.82,'#FCEE0A')}</g></svg>`;
+document.getElementById('t3s').innerHTML=tileIconSmall(30,'#FCEE0A');
+</script>
+</body>
+</html>

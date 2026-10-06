@@ -30,6 +30,7 @@ GitHub shows `.html` as source, so to render a single page without Pages:
 | Icons & glyphs | [open](https://htmlpreview.github.io/?https://github.com/Xorbret/Xorbret/blob/claude/cardputer-adv-os-firmware-okqopr/docs/icons.html) |
 | Type scale | [open](https://htmlpreview.github.io/?https://github.com/Xorbret/Xorbret/blob/claude/cardputer-adv-os-firmware-okqopr/docs/type-scale.html) |
 | Sound set (interactive) | [open](https://htmlpreview.github.io/?https://github.com/Xorbret/Xorbret/blob/claude/cardputer-adv-os-firmware-okqopr/docs/sound.html) |
+| Logo | [open](https://htmlpreview.github.io/?https://github.com/Xorbret/Xorbret/blob/claude/cardputer-adv-os-firmware-okqopr/docs/logo.html) |
 
 > The sound page uses Web Audio — click a card to play (browsers block autoplay until you interact). Via htmlpreview the index's internal links won't navigate; use the per-page links above, or enable Pages for full navigation.
 
@@ -46,5 +47,6 @@ offline except the Google-Fonts request for Rajdhani.
 - `icons.html` — app sigils + race glyphs
 - `type-scale.html` — typography
 - `sound.html` — interactive sound set
+- `logo.html` — wordmark lockups + app icon
 
 The full written design lives in [`../netbuddy/outline.md`](../netbuddy/outline.md).
