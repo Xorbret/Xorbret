@@ -597,6 +597,31 @@ broadcast rings · Foul = card + hook (skimmer) · Jaki = waveform in a ring ·
 with the **red bones behind each pixel**; dropped pixels reveal the bones — the
 threats are a corruption of the companion itself).
 
+### Sound set (LOCKED)
+
+Character: curt, synthetic, a little smug — the Mitama **intones** (portamento +
+vibrato + legato), it does not beep. Up = good, down = disappointment,
+alternating = alarm; only the alarm is harsh so the OS isn't noisy. All cues
+obey a UI-sound on/off toggle + volume, and audio never gates the UI.
+
+**Hardware path:** glides/vibrato exceed plain `M5.Speaker.tone()`, so cues
+render as **short synthesized PCM** (ESP32 generates the waveform samples). Three
+player types: *melody* (discrete sung notes), *phrase* (one continuous glide),
+*grunt* (square). Pitches in Hz, durations in s.
+
+| Cue | When | Type / wave | Definition |
+|-----|------|-------------|------------|
+| Boot song | power-on identity | melody / triangle | C5 E5 G5 F#5 E5 D5 G5 A5 (rest) E5 G5→ C6-held; a real tune w/ a chromatic dip + octave resolve |
+| Nav blip | cursor move | phrase / sine | 1180→1030, 0.14s, no vib |
+| Select | confirm / open | phrase / sine | 620→940, 0.2s — quick functional |
+| Approval | "good call" (Smug) | melody / sine | a curt **"mhmm"**: G#4(.13) C5(.36), warm, low |
+| Disappointment | the sigh | phrase / sine | 784→660→523→392, 1.05s, deep vibrato |
+| Hmph | dismissive grunt | grunt / square | 210→155, 0.11s (**kept — do not change**) |
+| Notice | toast appears | melody / square | **MGS "!" alert**: B5(.07) E6(.16), sharp/metallic |
+| Warning | watchlist / caution | phrase / sawtooth | 587→494→659→587, 0.72s |
+| Alarm | Fiend / full-screen | phrase / square | siren 880⇄440 glide ×3, 1.1s — the only harsh cue |
+| New entry | demon logged | melody / triangle | sparkly run E5 G5 B5 A5 C6 (rest) E6 D6 E6-held, 1.2s |
+
 ### Proposed (confirm before M0)
 
 - **Severity → presentation** (ties to the §3 event bus):
@@ -615,8 +640,8 @@ in-universe app naming, accessibility toggles, logo lockup.
 
 1. ~~**Type scale**~~ — ✓ LOCKED (see §15).
 2. ~~**Icon system**~~ — ✓ LOCKED (see §15 "Icon system").
-3. **Sound set** — the small tone vocabulary: approval chirp, disappointment
-   tone, alarm double-blip, "hmph", boot sting, key-blip. (Mood channel §14.)
+3. ~~**Sound set**~~ — ✓ LOCKED (see §15 "Sound set").
+   (boot melody, mhmm approval, MGS-style notice, kept Hmph, PCM synthesis path)
 4. **Idle cadence & sass dial** — how often the Mitama speaks/emotes when idle
    (anti-annoyance rate-limit), and the default sass level (1–3 → "just facts").
 5. **In-universe naming** — which apps get themed names (Environment,
