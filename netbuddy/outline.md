@@ -1106,8 +1106,8 @@ short occult verbs, "perceive the unseen" / "raise protection".
   network Ward may send *benign client* traffic (ARP/ping/mDNS) for active
   defense; on any other network it is **passive-listen only**. Attack traffic
   (deauth/injection/evil-portal/floods, `esp_wifi_80211_tx`) is **always banned**.
-- **Separate "Breaches" tab (LOCKED).** Ward keeps its **own log** — attacks
-  caught + successful defenses — distinct from the Compendium (which stays the
+- **The Hexes tab (LOCKED).** Ward keeps its own log, the **Hexes** tab — attacks caught + successful
+  defenses (a defense reads as "the Ward broke the Hex") — distinct from the Compendium (which stays the
   demon bestiary of airspace sightings). Ward incidents are events, not species.
 - **Sentinel mode — design goal, power-aware.** Park-it-on-the-desk 24/7 Warding
   is viable *because firmware can manage power*: `M5.Power.setBatteryCharge(false)`
