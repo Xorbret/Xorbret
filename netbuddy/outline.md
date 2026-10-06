@@ -1081,8 +1081,8 @@ M5CardRemote (VolosR) · M5Stick-Launcher (bmorcelli) · m5cardputer_doom
 The one-radio limit (§18 #1) is turned into a **feature**: two deliberate
 security postures, each a radio mode with its own toolset. Only one is active at
 a time (that's what keeps it stable — see §18). The Mitama narrates the switch.
-*(Names: Scry locked; the defensive mode is **Ward** pending final confirmation —
-alts: Walled / Bulwark / Aegis / Bastion.)*
+**Names LOCKED: Scry (passive RF recon) & Ward (active network defense)** — two
+short occult verbs, "perceive the unseen" / "raise protection".
 
 ### SCRY — passive RF divination (default, "offline")
 - **Radio:** unassociated, promiscuous, **channel-hopping** → full-band.
