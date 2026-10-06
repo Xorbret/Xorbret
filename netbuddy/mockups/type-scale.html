@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MitamaOS Type Scale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#E5162B; --red-dim:#7A0A18; --yellow:#FCEE0A; --magenta:#FF2A6D;
+  --purple:#B026FF; --cyan:#05D9E8; --green:#39FF14;
+  --bg:#0A0118; --panel:#1A0B2E; --dim:#8A7CA8; --s:2.6;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#060010;color:#fff;font-family:'Rajdhani',system-ui,sans-serif;padding:0 16px 56px;overflow-x:hidden}
+.wrap{max-width:920px;margin:0 auto}
+header{padding:28px 0 10px;border-bottom:2px solid var(--red);position:relative}
+header::after{content:"";position:absolute;left:0;bottom:-2px;width:110px;height:2px;background:var(--yellow)}
+h1{font-weight:700;letter-spacing:.14em;margin:0;font-size:26px;text-transform:uppercase}
+h1 .a{color:var(--yellow)}
+.sub{color:var(--dim);font-size:14px;margin:6px 0 0;max-width:72ch;letter-spacing:.04em}
+.layout{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.col-spec{flex:none}
+.col-tbl{flex:1;min-width:280px}
+@media(max-width:620px){:root{--s:1.9}}
+@media(max-width:430px){:root{--s:1.4}}
+.bezel{padding:8px;background:linear-gradient(145deg,#150a24,#0a0414);border:1px solid var(--red-dim);position:relative;
+  width:calc(240px*var(--s) + 16px)}
+.bezel::before{content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-top:2px solid var(--red);border-left:2px solid var(--red)}
+.box{width:calc(240px*var(--s));height:calc(135px*var(--s));overflow:hidden}
+.scr{width:240px;height:135px;transform:scale(var(--s));transform-origin:top left;background:var(--bg);position:relative;
+  background-image:repeating-linear-gradient(0deg,rgba(229,22,43,.06) 0 1px,transparent 1px 7px)}
+.scr .pad{position:absolute;inset:0;padding:6px 7px;display:flex;flex-direction:column;gap:3px}
+.row{display:flex;align-items:baseline;gap:5px}
+.rl{color:var(--red);font-weight:600;font-size:7px;letter-spacing:.06em;flex:none;width:30px;text-align:right;opacity:.85}
+/* text roles — device px */
+.t-display{font-size:20px;font-weight:700;letter-spacing:.14em}
+.t-title{font-size:14px;font-weight:700;letter-spacing:.05em}
+.t-label{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.t-body{font-size:9px;font-weight:400;letter-spacing:.02em}
+.t-small{font-size:8px;font-weight:500;letter-spacing:.04em;color:var(--dim)}
+.t-num{font-size:11px;font-weight:600;letter-spacing:.03em;color:var(--cyan)}
+.k{color:var(--yellow)}.m{color:var(--magenta)}.g{color:var(--green)}
+.badge{font-size:7.5px;font-weight:600;letter-spacing:.06em;padding:1px 4px;border:1px solid currentColor;display:inline-block}
+/* table */
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--red-dim)}
+th{color:var(--cyan);text-transform:uppercase;letter-spacing:.08em;font-size:12px;font-weight:600}
+td.r{color:var(--yellow);font-weight:600;white-space:nowrap}
+td .u{color:var(--dim);font-size:12.5px}
+.k2{color:var(--yellow);font-weight:600}
+.note{margin-top:28px;color:var(--dim);font-size:13px;border-top:1px solid var(--red-dim);padding-top:14px;letter-spacing:.03em;line-height:1.5}
+.note b{color:var(--yellow)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Type Scale <span class="a">// MitamaOS</span></h1>
+  <p class="sub">Aspect 1 of the design checklist. Every text role at its proposed device-pixel size, shown on a real 240×135 screen (scaled up). Rajdhani is condensed, so it holds detail at small sizes better than a normal face — the question is whether 8px still reads for you.</p>
+</header>
+
+<div class="layout">
+  <div class="col-spec">
+    <div class="bezel"><div class="box"><div class="scr"><div class="pad">
+      <div class="row"><span class="rl">20</span><span class="t-display">MITAMA<span class="k">OS</span></span></div>
+      <div class="row"><span class="rl">14</span><span class="t-title">COMPENDIUM</span></div>
+      <div class="row"><span class="rl">10</span><span class="t-label">Environment Status</span></div>
+      <div class="row"><span class="rl">9</span><span class="t-body">12 devices · ch 36 · −48dBm connected</span></div>
+      <div class="row"><span class="rl">8</span><span class="t-small">"Nothing's trying to ruin your day. Savor it."</span></div>
+      <div class="row"><span class="rl">11</span><span class="t-num">13:37 · <span class="k">142/s</span> · <span class="g">82%</span></span></div>
+      <div class="row"><span class="rl">7.5</span><span class="badge m">FAIRY</span><span class="badge" style="color:var(--cyan)">COMMON</span><span class="badge g">HIGH</span></div>
+    </div></div></div></div>
+    <div style="text-align:center;color:var(--dim);font-size:12px;margin-top:7px;letter-spacing:.06em">numbers = device px · red labels not part of UI</div>
+  </div>
+
+  <div class="col-tbl">
+    <table>
+      <tr><th>Role</th><th>Size / weight</th><th>Used for</th></tr>
+      <tr><td class="r">Display</td><td>20px · 700</td><td>Boot wordmark only</td></tr>
+      <tr><td class="r">Title</td><td>14px · 700</td><td>Screen/app title, alert headline</td></tr>
+      <tr><td class="r">Label</td><td>10px · 600 caps</td><td>Section headers, field labels</td></tr>
+      <tr><td class="r">Body</td><td>9px · 400/500</td><td>Lists, descriptions, most text</td></tr>
+      <tr><td class="r">Small</td><td>8px · 500</td><td>Ticker, footer hints, captions</td></tr>
+      <tr><td class="r">Numeric</td><td>11px · 600</td><td>Clock, counts, data — colored</td></tr>
+      <tr><td class="r">Badge</td><td>7.5px · 600</td><td>Race / rarity / confidence tags</td></tr>
+    </table>
+    <div class="note">
+      <b>Bake plan:</b> Rajdhani converted to M5GFX bitmap fonts at <b>3 core sizes — 8 / 10 / 14px</b> — plus one <b>20px</b> boot size. Body(9) renders from the 10px face down-hinted, or we add a 4th bake if 9 looks muddy.<br><br>
+      <b>Honest caveat:</b> baked fonts are 1-bit (no anti-aliasing), so <b>8px is the floor</b> — it reads here in a browser with AA, but on-device the Small/Badge sizes may need hand-tuned glyphs or bumping Small to 9px. We confirm this on real hardware at M0.<br><br>
+      Tunable: nudge any role ±1px, change a weight, or drop the Badge tier into Small. Tell me what to change.
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

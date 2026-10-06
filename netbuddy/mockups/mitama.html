@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mitama Design Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red-bone:#E5162B; --red-dim:#7A0A18; --red-glitch:#FF1133;
+  --yellow:#FCEE0A; --magenta:#FF2A6D; --purple:#B026FF; --cyan:#05D9E8; --green:#39FF14;
+  --bg:#0A0118; --panel:#1A0B2E; --dim:#8A7CA8; --white:#FFFFFF;
+  --gutter:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--white);
+  font-family:'Rajdhani',system-ui,sans-serif;
+  padding:0 var(--gutter) 64px;
+  overflow-x:hidden;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(122,10,24,.18) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgba(122,10,24,.10) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(0deg, rgba(122,10,24,.10) 0 1px, transparent 1px 40px);
+}
+.wrap{max-width:960px;margin:0 auto}
+header{padding:32px 0 8px;border-bottom:2px solid var(--red-bone);position:relative}
+header::after{content:"";position:absolute;left:0;bottom:-2px;width:120px;height:2px;background:var(--yellow)}
+h1{font-weight:700;letter-spacing:.14em;margin:0;font-size:30px;text-transform:uppercase}
+h1 .accent{color:var(--yellow)}
+.sub{color:var(--dim);letter-spacing:.06em;margin:6px 0 0;font-size:15px;max-width:60ch}
+h2{font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:17px;margin:40px 0 4px;
+   color:var(--cyan);display:flex;align-items:center;gap:10px}
+h2::before{content:"";width:10px;height:10px;background:var(--magenta);transform:rotate(45deg);box-shadow:0 0 8px var(--magenta)}
+.note{color:var(--dim);font-size:14px;margin:0 0 18px;letter-spacing:.04em;max-width:70ch}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g5{grid-template-columns:repeat(5,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:720px){.g4,.g5,.g3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:420px){.g4,.g5,.g3{grid-template-columns:1fr 1fr}}
+.card{
+  background:linear-gradient(180deg,var(--panel),#120720);
+  border:1px solid var(--red-dim);position:relative;padding:10px 10px 12px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;min-height:0;
+}
+.card::before,.card::after{content:"";position:absolute;width:10px;height:10px;pointer-events:none}
+.card::before{top:-1px;left:-1px;border-top:2px solid var(--red-bone);border-left:2px solid var(--red-bone)}
+.card::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--red-bone);border-right:2px solid var(--red-bone)}
+.stage{width:100%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 45%, rgba(176,38,255,.10), transparent 60%);position:relative}
+.stage svg{width:82%;height:82%;overflow:visible}
+.cap{font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:14px;text-align:center}
+.cap small{display:block;color:var(--dim);font-weight:400;letter-spacing:.03em;text-transform:none;font-size:12.5px;margin-top:2px}
+.tag{font-size:11px;color:var(--yellow);letter-spacing:.1em;text-transform:uppercase}
+.pill{display:inline-block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid var(--red-dim);padding:2px 7px;color:var(--dim)}
+.rec{outline:2px solid var(--yellow);outline-offset:2px}
+.rec .cap small{color:var(--yellow)}
+/* palette */
+.pal{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.sw{display:flex;align-items:center;gap:8px;border:1px solid var(--red-dim);padding:6px 10px;font-size:12.5px;letter-spacing:.04em}
+.chip{width:16px;height:16px;border:1px solid rgba(255,255,255,.2)}
+.chip.layer{border-style:dashed}
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+@media(max-width:640px){.rules{grid-template-columns:1fr}}
+.rbox{border:1px solid var(--red-dim);padding:14px 16px;background:rgba(26,11,46,.6)}
+.rbox h3{margin:0 0 8px;font-size:14px;letter-spacing:.1em;text-transform:uppercase}
+.rbox.may h3{color:var(--cyan)} .rbox.never h3{color:var(--magenta)}
+.rbox ul{margin:0;padding-left:18px} .rbox li{margin:5px 0;font-size:13.5px;color:#d8cfe8;letter-spacing:.02em}
+/* motion */
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes jitter{0%,100%{transform:translate(0,0)}25%{transform:translate(-1.5px,1px)}50%{transform:translate(1.5px,-1px)}75%{transform:translate(-1px,-1px)}}
+.float{animation:float 4s ease-in-out infinite}
+.ring{transform-origin:50% 50%;animation:spin 14s linear infinite}
+.sigil{animation:pulse 3s ease-in-out infinite}
+.jit{animation:jitter .18s steps(2) infinite}
+.foot{margin-top:40px;color:var(--dim);font-size:13px;letter-spacing:.04em;border-top:1px solid var(--red-dim);padding-top:14px}
+.legendline{display:flex;gap:8px;align-items:baseline;margin:3px 0}
+.legendline b{color:var(--yellow);font-weight:600;min-width:84px;letter-spacing:.06em;text-transform:uppercase;font-size:12px}
+.legendline span{color:#d8cfe8;font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Mitama <span class="accent">// Design Study</span></h1>
+  <p class="sub">A faceless companion spirit. No eyes, no mouth — ever. It emotes through tilt, aura, a single sigil, and motion (the GLaDOS trick). Night City palette painted over a red "bones" frame. Concepts only — calibration, not final art.</p>
+</header>
+
+<h2>Base forms</h2>
+<p class="note">Four silhouettes for the core spirit. Each carries one <em>sigil</em> (a magatama/comma mark) — a crest, never a face — and an aura ring whose brightness is the "optic." Pick one to build the expression system and outfits on.</p>
+<div class="grid g4" id="bases"></div>
+
+<h2>Magatama sigil — pick the icon</h2>
+<p class="note">The single mark the Mitama wears. The eye is gone (it read as an ouroboros) — these are <em>solid open commas</em>, the true magatama/soul shape. Whichever you pick becomes the Mitama's crest everywhere (and the app icon).</p>
+<div class="grid g3" id="sigils"></div>
+
+<h2>Expression states — same mask, no face</h2>
+<p class="note">Proof of the no-face doctrine: this is the <b>recommended base, unchanged</b>, emoting only through tilt, aura colour/intensity, sigil pulse, vertical lean and glitch. Nothing on a "face" moves because there isn't one.</p>
+<div class="grid g5" id="moods"></div>
+<div style="margin-top:12px" id="moodlegend"></div>
+
+<h2>Outfits / skins</h2>
+<p class="note">Costumes layer onto the same base. They change silhouette add-ons, accent colour and aura flavour — the expression system underneath is identical, so personality never changes with the outfit.</p>
+<div class="grid g3" id="skins"></div>
+
+<h2>What an outfit may &amp; may not touch</h2>
+<div class="rules">
+  <div class="rbox may">
+    <h3>An outfit MAY change</h3>
+    <ul>
+      <li>Silhouette add-ons (horns, ears, hat, cord, visor bar)</li>
+      <li>Accent colour pulled from the palette</li>
+      <li>Aura shape &amp; idle-motion flavour</li>
+      <li>A cosmetic frame motif around the card</li>
+    </ul>
+  </div>
+  <div class="rbox never">
+    <h3>An outfit must NEVER</h3>
+    <ul>
+      <li>Add eyes, a mouth, or any face</li>
+      <li>Replace the sigil + tilt + aura expression system</li>
+      <li>Break legibility at ~40px (top-bar size)</li>
+      <li>Remove the red-bones frame or add real menace</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Palette — surface over bones</h2>
+<div class="pal" id="pal"></div>
+
+<div class="foot">
+  Expression lives in motion + the written line-bank, not pixels on a face — so every costume above tells the exact same jokes. Swap any shape, colour or name; the method holds.
+</div>
+</div>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+// ---- shared pieces -------------------------------------------------------
+function defs(id, aura){
+  return `<defs>
+    <radialGradient id="g${id}" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="${aura}" stop-opacity=".9"/>
+      <stop offset="55%" stop-color="${aura}" stop-opacity=".18"/>
+      <stop offset="100%" stop-color="${aura}" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="b${id}" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3.2"/>
+    </filter>
+  </defs>`;
+}
+// ---- magatama sigil: parametric tapering comma (round head -> point tail) ----
+function magatama(cx,cy,Rm,tHead,a0,a1,taperPow,hole,col){
+  const steps=56,d2r=Math.PI/180;let o=[],inn=[];
+  for(let i=0;i<=steps;i++){
+    const u=i/steps, th=(a0+(a1-a0)*u)*d2r, t=tHead*Math.pow(1-u,taperPow);
+    o.push([cx+(Rm+t)*Math.cos(th), cy+(Rm+t)*Math.sin(th)]);
+    inn.push([cx+(Rm-t)*Math.cos(th), cy+(Rm-t)*Math.sin(th)]);
+  }
+  const f=p=>p[0].toFixed(1)+' '+p[1].toFixed(1);
+  let d='M '+f(o[0]); for(let i=1;i<o.length;i++) d+=' L '+f(o[i]);
+  for(let i=inn.length-1;i>=0;i--) d+=' L '+f(inn[i]); d+=' Z';
+  const hx=cx+Rm*Math.cos(a0*d2r), hy=cy+Rm*Math.sin(a0*d2r);
+  let s=`<g class="sigil" filter="drop-shadow(0 0 5px ${col})">
+    <path d="${d}" fill="${col}"/>
+    <circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="${tHead}" fill="${col}"/>`;
+  if(hole) s+=`<circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="${(tHead*0.44).toFixed(1)}" fill="#140826"/>`;
+  return s+`</g>`;
+}
+function sigilFor(variant,cx,cy,col){
+  switch(variant){
+    case 'tight': return magatama(cx,cy,16,15,-45,150,0.95,false,col);        // fuller head, shorter curl
+    case 'dot': {const a=162*Math.PI/180; return magatama(cx,cy,16,12,-55,168,0.85,false,col)+
+      `<circle class="sigil" cx="${(cx+16*Math.cos(a)).toFixed(1)}" cy="${(cy+16*Math.sin(a)).toFixed(1)}" r="4.6" fill="${col}" filter="drop-shadow(0 0 4px ${col})"/>`;}
+    default:   return magatama(cx,cy,17,13,-60,185,0.82,false,col);           // Soul: solid open comma, no eye
+  }
+}
+// base silhouette variants, returns inner svg (minus aura+sigil wrapper added by frame)
+function baseShape(kind, accent){
+  if(kind==='soul')
+    return `<circle cx="100" cy="100" r="54" fill="#140826" stroke="${accent}" stroke-width="2.5"/>
+            <circle cx="100" cy="100" r="54" fill="none" stroke="var(--red-bone)" stroke-width="1" stroke-dasharray="3 6" opacity=".7"/>`;
+  if(kind==='mask') // noh oval
+    return `<path d="M100 44 C132 44 150 70 150 104 C150 140 126 158 100 158 C74 158 50 140 50 104 C50 70 68 44 100 44 Z"
+              fill="#140826" stroke="${accent}" stroke-width="2.5"/>
+            <line x1="100" y1="52" x2="100" y2="150" stroke="var(--red-bone)" stroke-width="1" opacity=".55"/>`;
+  if(kind==='optic') // hex core + ring
+    return `<g class="ring"><circle cx="100" cy="100" r="60" fill="none" stroke="${accent}" stroke-width="2" stroke-dasharray="40 14"/></g>
+            <polygon points="100,46 148,74 148,126 100,154 52,126 52,74" fill="#140826" stroke="${accent}" stroke-width="2.5"/>
+            <polygon points="100,46 148,74 148,126 100,154 52,126 52,74" fill="none" stroke="var(--red-bone)" stroke-width="1" opacity=".6" transform="scale(.82)" transform-origin="100 100"/>`;
+  if(kind==='ofuda') // talisman
+    return `<rect x="66" y="40" width="68" height="120" rx="6" fill="#140826" stroke="${accent}" stroke-width="2.5"/>
+            <rect x="66" y="40" width="68" height="120" rx="6" fill="none" stroke="var(--red-bone)" stroke-width="1" stroke-dasharray="4 5" opacity=".6" transform="scale(.92)" transform-origin="100 100"/>
+            <path d="M92 40 q8 -14 16 0" fill="none" stroke="var(--yellow)" stroke-width="2"/>`;
+}
+// accessories for outfits (drawn over base), accent color passed in
+function accessory(kind){
+  switch(kind){
+    case 'netrunner': return `<path d="M58 72 A52 52 0 0 1 142 72" fill="none" stroke="var(--yellow)" stroke-width="3"/>
+      <rect x="60" y="66" width="10" height="4" fill="var(--yellow)"/><rect x="130" y="66" width="10" height="4" fill="var(--yellow)"/>`;
+    case 'tinfoil': return `<path d="M72 58 L100 30 L128 58 Q100 50 72 58 Z" fill="#c9c9d2" stroke="#fff" stroke-width="1.5"/>
+      <path d="M78 56 L100 38 L120 56" fill="none" stroke="#9a9aa6" stroke-width="1"/>`;
+    case 'oni': return `<path d="M64 60 q-10 -26 6 -34 q2 16 10 24 Z" fill="var(--purple)" stroke="#fff" stroke-width="1"/>
+      <path d="M136 60 q10 -26 -6 -34 q-2 16 -10 24 Z" fill="var(--purple)" stroke="#fff" stroke-width="1"/>`;
+    case 'kitsune': return `<path d="M66 58 L58 24 L84 46 Z" fill="var(--magenta)" stroke="#fff" stroke-width="1"/>
+      <path d="M134 58 L142 24 L116 46 Z" fill="var(--magenta)" stroke="#fff" stroke-width="1"/>
+      <path d="M70 50 L62 30 L78 44 Z" fill="#140826"/><path d="M130 50 L138 30 L122 44 Z" fill="#140826"/>`;
+    case 'omamori': return `<path d="M100 40 q-16 -14 0 -22 q16 8 0 22" fill="none" stroke="var(--yellow)" stroke-width="2.5"/>
+      <rect x="94" y="152" width="12" height="18" fill="var(--magenta)"/><rect x="94" y="152" width="12" height="4" fill="var(--yellow)"/>
+      <line x1="97" y1="156" x2="97" y2="168" stroke="#140826" stroke-width="1"/><line x1="103" y1="156" x2="103" y2="168" stroke="#140826" stroke-width="1"/>`;
+    case 'glitch': return `<g opacity=".9">
+      <rect x="46" y="88" width="108" height="6" fill="var(--red-glitch)" opacity=".8"/>
+      <rect x="46" y="112" width="108" height="3" fill="var(--cyan)" opacity=".7"/>
+      <rect x="46" y="70" width="108" height="2" fill="var(--magenta)" opacity=".7"/></g>`;
+    default: return '';
+  }
+}
+// build one mitama svg
+function mitama({base='soul',accent='var(--yellow)',aura='var(--yellow)',sigilCol='var(--yellow)',sigVariant='v1',tilt=0,lean=0,acc='',glitch=false,ringspin=false}){
+  const id=Math.random().toString(36).slice(2,7);
+  const cls = glitch?'jit':'float';
+  return `<svg viewBox="0 0 200 200" aria-hidden="true">
+    ${defs(id,aura)}
+    <ellipse cx="100" cy="104" rx="78" ry="78" fill="url(#g${id})"/>
+    <g class="${cls}" transform="translate(0 ${lean}) rotate(${tilt} 100 104)">
+      ${baseShape(base,accent)}
+      ${acc?accessory(acc):''}
+      ${sigilFor(sigVariant,100,104,sigilCol)}
+      ${glitch?`<rect x="40" y="96" width="120" height="4" fill="var(--red-glitch)" opacity=".85"/>`:''}
+    </g>
+  </svg>`;
+}
+function card(parent,{svg,cap,sub,tag,rec}){
+  const c=document.createElement('div'); c.className='card'+(rec?' rec':'');
+  c.innerHTML=`${tag?`<div class="tag">${tag}</div>`:''}<div class="stage">${svg}</div>
+    <div class="cap">${cap}${sub?`<small>${sub}</small>`:''}</div>`;
+  parent.appendChild(c);
+}
+
+// ---- base forms ----
+const bases=[
+  {base:'soul',cap:'Soul',sub:'Round core + magatama sigil',rec:true,tag:'chosen ✓'},
+  {base:'mask',cap:'Noh',sub:'Blank theatrical mask, seam crest'},
+  {base:'optic',cap:'Optic',sub:'Hex core + orbiting ring',ringspin:true},
+  {base:'ofuda',cap:'Ofuda',sub:'Floating paper charm / omamori'},
+];
+const be=document.getElementById('bases');
+bases.forEach(b=>card(be,{svg:mitama({base:b.base,accent:'var(--yellow)',aura:'var(--yellow)',sigilCol:'var(--yellow)'}),cap:b.cap,sub:b.sub,rec:b.rec,tag:b.tag}));
+
+// ---- magatama sigil variants ----
+function sigShowcase(variant,col){
+  return `<svg viewBox="0 0 200 200" aria-hidden="true">
+    <g transform="translate(100 100) scale(1.9) translate(-100 -100)">${sigilFor(variant,100,100,col)}</g></svg>`;
+}
+const sigs=[
+  {v:'v1',cap:'Soul',sub:'Solid open comma — no eye',rec:true,tag:'fixed'},
+  {v:'tight',cap:'Soul · tight',sub:'Fuller head, shorter curl'},
+  {v:'dot',cap:'Soul · pair',sub:'Comma + accent dot'},
+];
+const sg=document.getElementById('sigils');
+sigs.forEach(s=>card(sg,{svg:sigShowcase(s.v,'var(--yellow)'),cap:s.cap,sub:s.sub,rec:s.rec,tag:s.tag||''}));
+
+// ---- expression states (recommended = soul) ----
+const moods=[
+  {cap:'Calm',aura:'var(--yellow)',sig:'var(--yellow)',tilt:0,lean:0},
+  {cap:'Curious',aura:'var(--cyan)',sig:'var(--cyan)',tilt:-13,lean:0},
+  {cap:'Smug',aura:'var(--green)',sig:'var(--green)',tilt:0,lean:-4},
+  {cap:'Passive-agg.',aura:'var(--magenta)',sig:'var(--magenta)',tilt:10,lean:0},
+  {cap:'Alarmed',aura:'var(--red-glitch)',sig:'var(--red-glitch)',tilt:0,lean:0,glitch:true},
+];
+const me=document.getElementById('moods');
+moods.forEach(m=>card(me,{svg:mitama({base:'soul',accent:m.glitch?'var(--red-glitch)':'var(--yellow)',aura:m.aura,sigilCol:m.sig,tilt:m.tilt,lean:m.lean,glitch:m.glitch}),cap:m.cap}));
+document.getElementById('moodlegend').innerHTML=[
+  ['Calm','steady bob, dim yellow aura, even sigil'],
+  ['Curious','head-cock tilt, cyan tick-up, slight speed'],
+  ['Smug','same calm pose — neon-green glow, quietly pleased with itself'],
+  ['Passive-agg.','slow magenta orbit, a pointed pause'],
+  ['Alarmed','recoil + jitter, red bones bleed through — never panic, just colder'],
+].map(([a,b])=>`<div class="legendline"><b>${a}</b><span>${b}</span></div>`).join('');
+
+// ---- outfits ----
+const skins=[
+  {acc:'netrunner',cap:'Netrunner',sub:'Default — visor bar, yellow',aura:'var(--yellow)',sig:'var(--yellow)',accent:'var(--yellow)'},
+  {acc:'tinfoil',cap:'Tinfoil',sub:'Paranoia skin (SquachWatch nod)',aura:'var(--cyan)',sig:'var(--cyan)',accent:'#c9c9d2'},
+  {acc:'oni',cap:'Oni',sub:'Soft horns — SMT, not scary',aura:'var(--purple)',sig:'var(--purple)',accent:'var(--purple)'},
+  {acc:'kitsune',cap:'Kitsune',sub:'Fox ears + magenta accent',aura:'var(--magenta)',sig:'var(--magenta)',accent:'var(--magenta)'},
+  {acc:'omamori',cap:'Omamori',sub:'Charm cord + tassel, protective',aura:'var(--yellow)',sig:'var(--yellow)',accent:'var(--cyan)'},
+  {acc:'glitch',cap:'Braindance',sub:'Red-bones bleed, RGB split',aura:'var(--red-glitch)',sig:'var(--cyan)',accent:'var(--magenta)',glitch:true},
+];
+const se=document.getElementById('skins');
+skins.forEach(s=>card(se,{svg:mitama({base:'soul',accent:s.accent,aura:s.aura,sigilCol:s.sig,acc:s.acc,glitch:s.glitch}),cap:s.cap,sub:s.sub}));
+
+// ---- palette ----
+const pal=[
+  ['Bones Red','#E5162B','layer'],['Dim Red','#7A0A18','layer'],['Glitch Red','#FF1133','layer'],
+  ['Yellow','#FCEE0A',''],['Magenta','#FF2A6D',''],['Purple','#B026FF',''],['Cyan','#05D9E8',''],['Neon Green','#39FF14',''],
+  ['BG Violet','#0A0118',''],['Panel','#1A0B2E',''],
+];
+document.getElementById('pal').innerHTML=pal.map(([n,h,l])=>
+  `<div class="sw"><span class="chip ${l}" style="background:${h}"></span>${n}<span style="color:var(--dim)">${h}</span></div>`).join('');
+</script>
+</body>
+</html>
