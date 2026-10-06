@@ -96,7 +96,7 @@ none of which exists in any of the sources:
   lives in. No other Cardputer OS has a character/awareness layer.
 - **Behavioral network detection as a first-class background service** — the
   SquachWatch engine lifted out of a single-purpose detector and run under a new
-  **kernel radio manager** (Warding/Link modes, §18) so it watches *while you use
+  **kernel radio manager** (Scry/Ward postures, §19) so it watches *while you use
   every other app*. SquachWatch is detection-only; PaperOS/AdvanceOS have no
   detection at all. MitamaOS fuses them.
 - **The SMT Compendium** — detections as a collected, gamified bestiary
@@ -1027,6 +1027,17 @@ AdvanceOS/PaperOS use.
      button to our Pages site using the same esptool-js/WebSerial approach (like
      PaperOS's esphome.io link) pointing at our `.bin`.
 
+### Bjorn — the companion inversion (infinition/Bjorn, MIT)
+The original "defensive-buddy flip" inspiration. Bjorn is a Tamagotchi-like
+**autonomous** network tool on a Pi + e-Paper: an **Orchestrator** brain picks
+actions per discovered target, and a **`comments.json` line-bank keyed by state**
+(IDLE, …) voices a character on the display. MitamaOS **inverts it**: Bjorn
+*raids* the network (scan→exploit→exfil); the Mitama *wards* it (passive Scry +
+defensive Ward, §19). Reusable patterns (MIT): the state-keyed line-bank
+(mirrors our authored bank, §14) and the autonomous-brain loop (maps to our
+background detection service + mode toolsets). We write our own GLaDOS lines and
+only defensive actions.
+
 ### Architecture references (patterns, not code)
 - **Bruce** (pr3y): a `src/core` (config / display / `bus_HAL` / `configPins`) +
   `src/modules` structure with a `boards/<name>/pins_arduino.h` + JSON HAL —
@@ -1065,6 +1076,39 @@ M5CardRemote (VolosR) · M5Stick-Launcher (bmorcelli) · m5cardputer_doom
 
 ---
 
+## 19. Dual security postures — Scry & Ward (the radio manager, reframed)
+
+The one-radio limit (§18 #1) is turned into a **feature**: two deliberate
+security postures, each a radio mode with its own toolset. Only one is active at
+a time (that's what keeps it stable — see §18). The Mitama narrates the switch.
+*(Names: Scry locked; the defensive mode is **Ward** pending final confirmation —
+alts: Walled / Bulwark / Aegis / Bastion.)*
+
+### SCRY — passive RF divination (default, "offline")
+- **Radio:** unassociated, promiscuous, **channel-hopping** → full-band.
+- **Purpose:** perceive the whole airspace; the Mitama reads the aether.
+- **Toolset (RF / observational):** full demon detection (all races) across every
+  channel; deauth / evil-twin / rogue-AP spotting band-wide; BLE + tracker
+  scanning; device cataloging over time; wardriving / GPS logging; channel-
+  activity / spectrum view; the Compendium fills here.
+
+### WARD — active network defense (on-demand, "online")
+- **Radio:** associated to **your** network, parked on its channel.
+- **Purpose:** protect the specific network you're joined to — things only
+  possible from *inside* it. Browsing / Store / updates ride along here.
+- **Toolset (LAN-side, still 100% receive-only / no attacks):** ARP-spoof / MITM
+  watch; rogue-DHCP detection; live "who's on my network" inventory + new-device
+  alerts; evil-twin **confirmation** (real BSSID is known); your-channel deauth
+  watch; network signal / health map; hardening hints (WPS / open / weak auth).
+
+### Switching
+Scry is the default (a defensive device watches by default). An app or the user
+requests **Ward**; the manager associates, detection narrows to your channel +
+the LAN toolset, and returns to Scry when released. **Sweep**: a one-shot
+full-band hop from within Ward (briefly drop, scan all channels, report,
+reconnect) for an on-demand whole-picture without leaving Ward. The Mitama's
+temperament colors each mode (watchful/mystical in Scry; vigilant/martial in Ward).
+
 ## 18. Build hazards & mitigations (headache list)
 
 Verified against real code (PaperOS, SquachWatch-CYD, M5GFX, official M5 libs).
@@ -1077,12 +1121,11 @@ Ordered by how much pain they'd cause if hit blind.
    fixed channel**. (The **LLM is NOT in this list — it is fully offline**, see
    #10.) These are **mutually exclusive** — you cannot channel-hop
    while holding an association. Mitigation: a **kernel radio manager** with two
-   modes — default **Warding** (promiscuous + hop, full detection) and on-demand
-   **Link** (apps request it; stop hopping, associate; detection narrows to the
-   connected channel — still hears deauth/mgmt aimed at you, loses multi-channel
-   coverage). The Mitama narrates the trade ("looking away from the spectrum
-   while you browse"). SquachWatch confirms the split: it sniffs for detection
-   and only `WiFi.begin()`s separately for OTA/LoRa feed.
+   postures — **Scry** (default: promiscuous + hop, full-band detection) and
+   on-demand **Ward** (associate to your network; detection narrows to your
+   channel + LAN-defense toolset). Only one is active at a time, which is what
+   keeps both stable. Full design in **§19**. SquachWatch confirms the split:
+   it sniffs for detection and only `WiFi.begin()`s separately for OTA/LoRa feed.
 2. **RAM: ~320 KB shared heap, NO PSRAM (governing budget).** WiFi sniffer +
    NimBLE scan + the LLM + UI sprites + fonts all compete (PaperOS's own note).
    Mitigations: LLM stays async/streamed from SD (§14); sniffer paused in Link
