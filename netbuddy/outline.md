@@ -684,6 +684,36 @@ Logic: the device's signature *systems* get names (Pip-Boy / Codec style);
 commodity tools stay commodity. The layer split, not a coat of paint, carries
 the theme.
 
+### Accessibility & comfort (LOCKED)
+
+Settings, available from day one. The aesthetic is intense by design, so these
+let people dial it down.
+
+- **Visual:** High contrast (brighter text, near-white secondary, pure-black bg,
+  thicker rules) · Large text (bump the type tier where layouts allow — needs a
+  larger font bake) · Reduce glitch (kills scanlines/chromatic-split/flicker/FX,
+  keeps palette + layout). All default off.
+- **Motion:** Reduce motion (static Mitama, no bob/jitter/aura-pulse/ring-spin/
+  transitions — vestibular). Default off.
+- **Audio:** UI sounds (on) · **Alert sounds — separate toggle** (on) so muting
+  the Mitama never silences a security alarm · Volume (~60%).
+- **Mitama / cognitive:** Sass dial 0–3 (Aspect 4; 0 = facts-only low-distraction)
+  · Ticker speed (slow/normal/fast) · Toast dwell (short/normal/long).
+- **Calm Mode** — one-tap preset bundling Reduce motion + Reduce glitch + Sass 1
+  + steady (non-flashing) alerts.
+
+**Hard invariants (not settings):**
+1. **Photosensitivity:** nothing ever flashes faster than **3 flashes/sec**
+   (WCAG), even at full FX — the alarm "surge" is a slow/steady pulse, never a
+   strobe. Hard rule given the glitch aesthetic.
+2. **Safety never hidden:** no comfort setting suppresses a security alert's
+   facts — Sass 0 still shows them, Reduce-glitch still renders the alert, and
+   only *Alert sounds* can quiet the alarm tone.
+
+**Colorblind support → handled by Themes.** A colorblind-safe palette is just
+another `.thm` served by the theme manager (M4); the race accent remap lives
+there, not as its own toggle.
+
 ### Proposed (confirm before M0)
 
 - **Severity → presentation** (ties to the §3 event bus):
@@ -709,8 +739,9 @@ in-universe app naming, accessibility toggles, logo lockup.
    default 2, visual/audio drift, clock-dependency fallback.
 5. ~~**In-universe naming**~~ — ✓ LOCKED (see §15 "In-universe naming"):
    layer-split register; Proxima home screen; Grimoire kept; tools plain.
-6. **Accessibility / comfort toggles** — reduce-motion / reduce-glitch, high-
-   contrast, sass level, ticker speed. Settings from day one.
+6. ~~**Accessibility / comfort toggles**~~ — ✓ LOCKED (see §15): visual/motion/
+   audio/cognitive toggles, Calm Mode preset, flash-safety + safety-never-hidden
+   invariants, colorblind via Themes.
 7. **Logo lockup** — the MitamaOS wordmark (magatama + Rajdhani) for boot + icon.
 
 ## 14. The Mitama — personality & faceless expression
