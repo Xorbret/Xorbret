@@ -622,6 +622,46 @@ player types: *melody* (discrete sung notes), *phrase* (one continuous glide),
 | Alarm | Fiend / full-screen | phrase / square | siren 880⇄440 glide ×3, 1.1s — the only harsh cue |
 | New entry | demon logged | melody / triangle | sparkly run E5 G5 B5 A5 C6 (rest) E6 D6 E6-held, 1.2s |
 
+### Idle cadence & temperament (LOCKED)
+
+Three inputs feed a running **temperament**; two scalars come out and bend
+cadence, tone, visuals, and sound. **Time of day drains Energy; session fatigue
+drains Patience.** They stack (4h+ after 9pm = tired *and* short-tempered).
+
+- **Time → Energy:** 6–11 Fresh (chipper) · 11–21 Default · **21–01 Sleepy**
+  (yawns, dim aura, slow bob) · 01–06 Drowsy/cranky (wants you in bed).
+- **Fatigue → Patience** (continuous uptime): <2h Normal · 2–4h Settled ·
+  **≥4h Weary** (terser, barbs about you still being here) · ≥6h Exasperated.
+
+**What temperament changes** (reuses locked systems):
+- **Idle cadence** — base: quiet ≥2 min, then ~1 unprompted remark every 3–6 min
+  at Sass 2. Low Energy ×2–3 the gap (dozing); low Patience keeps frequency but
+  sharpens tone. **Annoyed = meaner, not chattier** (never nags more).
+- **Visuals** (§14) — Sleepy: aura ~60% dim, slow bob, slight droop; late-night
+  idle → the Mitama **dozes**, a keypress wakes it with a grumble. Annoyed:
+  sharper jitter, more red-bones flicker.
+- **Sound** (§15) — Sleepy: cues ~2 semitones down + slightly slower. Annoyed:
+  snappier.
+- **Lines** — line bank gets temperament-tagged variants (fresh/default/sleepy/
+  weary), chosen by current state.
+
+**Sass dial (user setting, default = 2):**
+
+| Lvl | Name | Idle freq | Bite |
+|-----|------|-----------|------|
+| 0 | Mute Muse | never (facts only) | none — accessibility |
+| 1 | Dry | ~10–15 min | minimal |
+| **2** | **Default** | ~3–6 min | Clippy×GLaDOS balance |
+| 3 | Insufferable | ~1–2 min | maximum |
+
+**Invariants:** security-alert **facts** are never rate-limited or suppressed,
+even at Sass 0; identical events collapse (same demon within ~60s → no repeat
+flavor, counts still update); nothing here gates the UI.
+
+**Clock dependency:** time-based behavior needs the RTC (ESP32Time seeded by
+GPS/NTP/manual). With no set clock and no GPS/WiFi, fall back to **fatigue-only**
+(uptime works from boot) until the clock is set.
+
 ### Proposed (confirm before M0)
 
 - **Severity → presentation** (ties to the §3 event bus):
@@ -642,8 +682,9 @@ in-universe app naming, accessibility toggles, logo lockup.
 2. ~~**Icon system**~~ — ✓ LOCKED (see §15 "Icon system").
 3. ~~**Sound set**~~ — ✓ LOCKED (see §15 "Sound set").
    (boot melody, mhmm approval, MGS-style notice, kept Hmph, PCM synthesis path)
-4. **Idle cadence & sass dial** — how often the Mitama speaks/emotes when idle
-   (anti-annoyance rate-limit), and the default sass level (1–3 → "just facts").
+4. ~~**Idle cadence & sass dial**~~ — ✓ LOCKED (see §15 "Idle cadence &
+   temperament"): Energy/Patience model, time-of-day + fatigue tiers, sass dial
+   default 2, visual/audio drift, clock-dependency fallback.
 5. **In-universe naming** — which apps get themed names (Environment,
    Compendium) vs plain (Files, Notes, Music). Proposed: theme the buddy/security
    surfaces, keep utilities plain.
