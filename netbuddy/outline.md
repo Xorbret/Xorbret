@@ -566,6 +566,37 @@ alert, toast). Rendered at the real 240×135, 16px top bar + 14px status bar.
   Bake as M5GFX bitmap fonts at 8/10/14 + 20px. 8px is the floor (1-bit, no
   AA) — Small/Badge verified on hardware at M0; bump to 9 if muddy.
 
+### Icon system (LOCKED)
+
+Visual language: **esoteric sigils**, not literal objects — occult / alchemical /
+sacred-geometry forms sharing the Environment glyph's core-and-ring grammar, so
+the set reads as one arcane family. 2px neon stroke on a 24-unit grid, each in
+its own per-app accent color; selected launcher tiles override to yellow.
+
+- **App sigils:** Compendium = magatama sealed in a dashed ring (the crest) ·
+  Environment = core + dashed orbit + cardinal ticks · Files = warded
+  archive-diamond (cardinal nodes + inscribed lines) · Paint = the squared
+  circle (▢○△, alchemical creation) · Music = cymatic sound-mandala · Games =
+  **pentagram** + center point · Lua = `>_` bound in a hexagon · Notes =
+  **grimoire** (spine + clasp + circle-and-triangle seal) · Browser = astrolabe ·
+  Settings = orrery (nested rings + orbiting nodes).
+- **Per-app accents:** Compendium yellow · Environment green · Files cyan ·
+  Paint magenta · Music purple · Games green · Lua cyan · Notes yellow ·
+  Browser cyan · Settings dim/violet. (Refinable; not all unique.)
+- **Avoided:** Star of David (→ pentagram), cross/Bible glyph (→ grimoire seal),
+  the eye on anything but Vile.
+
+### Race glyphs (LOCKED)
+
+One sigil per demon race, used on Compendium cards, list rows, and Mitama
+reaction flavor; readable at badge size, evocative not scary:
+Vile = shield + eye (the watchers) · Night = camera aperture · Fairy = winged
+location-pin + sparkle · Avian = drone quad top-view · Herald = beacon
+broadcast rings · Foul = card + hook (skimmer) · Jaki = waveform in a ring ·
+**Fiend = corrupted-Mitama** (the magatama pixel-sampled into cyan data blocks
+with the **red bones behind each pixel**; dropped pixels reveal the bones — the
+threats are a corruption of the companion itself).
+
 ### Proposed (confirm before M0)
 
 - **Severity → presentation** (ties to the §3 event bus):
@@ -583,8 +614,7 @@ in-universe app naming, accessibility toggles, logo lockup.
 ## 16. Remaining design aspects to lock (pre-code checklist)
 
 1. ~~**Type scale**~~ — ✓ LOCKED (see §15).
-2. **Icon system** — neon line-icon style (2px stroke, per-app accent) + the
-   per-app accent map; **race glyphs** for the Compendium (Vile/Night/Fairy/…).
+2. ~~**Icon system**~~ — ✓ LOCKED (see §15 "Icon system").
 3. **Sound set** — the small tone vocabulary: approval chirp, disappointment
    tone, alarm double-blip, "hmph", boot sting, key-blip. (Mood channel §14.)
 4. **Idle cadence & sass dial** — how often the Mitama speaks/emotes when idle
