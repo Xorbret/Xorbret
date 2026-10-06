@@ -302,9 +302,10 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 0. **Fork & rebrand (M0).** Copy PaperOS v1.3 source into `netbuddy/` under
    GPLv2, add the GPLv2 `LICENSE` and a `CREDITS`/`NOTICE` attributing PaperOS,
    AdvanceOS, SquachWatch (+ the §17 references). **FIRST hardware task — the
-   ADV keyboard: add a TCA8418 I2C driver (@0x34)** and route it into PaperOS's
-   input layer; PaperOS reads the original Cardputer's matrix keyboard, which is
-   dead on the ADV (see §17). Then build for the ADV (no-PSRAM already matches),
+   ADV keyboard: bump `m5stack/M5Cardputer` to ≥1.1.1 + a matching M5Unified**
+   (official ADV/TCA8418 support, MIT); PaperOS pins 1.0.3 which reads the old
+   matrix keyboard and reboot-loops on the ADV (see §17). Mind the **GPIO5-HIGH
+   SD gotcha**. Then build for the ADV (no-PSRAM already matches),
    confirm it boots, keys work, and the stock apps run; rebrand PaperOS →
    MitamaOS; apply the Cyberpunk palette (swap `config.h` color macros) +
    Rajdhani font (see Visual identity). Everything else lands on top.
@@ -915,12 +916,24 @@ device profile:
   SD — CS 12, MISO 39, MOSI 14, SCK 40. I2S speaker — SCK 41, SD 42, WS 43.
   PDM mic, IR blaster, WiFi+BT, G0 on pin 0. No PSRAM.
 
-This is the single most important finding: **M0 adds a TCA8418 keyboard layer**
-before anything else works on real hardware.
+This is the single most important finding: **the ADV needs TCA8418 keyboard
+handling** before anything works on real hardware — resolved cleanly below.
 
-**COMPLETE solution — bmorcelli's Launcher already supports the ADV** (its
-`unified_inputs` branch + `boards/m5stack-cardputer/CardputerADV.md`). It
-supersedes the "reimplement from MicroHydra" note — use its recipe:
+**BEST solution — the official M5Cardputer library already supports the ADV
+(MIT).** `m5stack/M5Cardputer` **v1.1.1** README: "library for M5Cardputer and
+**M5Cardputer-ADV**"; `Keyboard.cpp` branches on
+`board_type == m5::board_t::board_M5CardputerADV` to a built-in
+`TCA8418KeyboardReader` (uses an M5-adapted Adafruit_TCA8418, `matrix(7,8)`,
+INT pin 11). **So `M5Cardputer.Keyboard` "just works" on the ADV with a current
+lib — no custom driver, MIT-clean.** The real M0 task is a **version bump**:
+PaperOS pins `m5stack/M5Cardputer @ ^1.0.3` (pre-ADV); M0 moves to **≥1.1.1**
+with a matching recent **M5Unified** (which also provides the ADV's **BMI270
+IMU** via `M5.Imu` — free tilt/shake for the Mitama). Keep the GPIO5 SD gotcha
+below in mind regardless.
+
+Still useful as corroboration / fallback — **bmorcelli's Launcher** (its
+`unified_inputs` branch + `boards/m5stack-cardputer/CardputerADV.md`), the same
+recipe at the register level:
 - Library: **`adafruit/Adafruit TCA8418 @ ^1.0.1`** (no hand-written driver).
 - **Keyboard I2C is its own bus: SDA=GPIO8, SCL=GPIO9, INT=GPIO11**, TCA8418 @
   0x34, 7×8 matrix. **Interrupt is unreliable — poll at ~100ms** instead.
@@ -1002,6 +1015,18 @@ We port **no** attack code. Their *techniques* (how deauth / evil-portal / BLE
 spam are performed) only inform our passive **detection signatures** — which
 SquachWatch already encodes. They also target the original Cardputer
 (`ARDUINO_M5STACK_CARDPUTER`), not the ADV.
+
+### Where the official docs / more threads live
+- **Reachable from here (GitHub, MIT):** `m5stack/M5Cardputer` (v1.1.1, ADV +
+  TCA8418 reader), `m5stack/M5Unified` (board detection, `M5.Imu` BMI270),
+  `m5stack/M5GFX` (display/canvas/fonts — our whole UI API), `m5stack/M5-LoRa-
+  E220-JP`, `adafruit/Adafruit_TCA8418`. These are the authoritative source.
+- **Blocked by this container's egress proxy** (403), but the user can open:
+  `docs.m5stack.com` (Cardputer ADV product page, pinmap, schematic PDF),
+  `bmorcelli.github.io/Launcher` (catalog/flasher), `api.launcherhub.net`,
+  `cardputer.wiki`, and the r/CardPuter subreddit + M5 Discord (from the list).
+- **M5 examples** (`m5stack/M5Cardputer/examples`): display, sdcard, mic/WAV,
+  ir_nec, keyboard, buzzer, REPL — copy-paste-level API references for M0+.
 
 ### Credits to carry (verify licenses before porting any code)
 MicroHydra (echo-lalia, GPLv3 — facts only) · M5Cardputer & M5-LoRa-E220-JP &
