@@ -82,6 +82,33 @@ exploit payloads. There is no call to `esp_wifi_80211_tx` anywhere in the
 codebase, and that stays true as the project grows. This is a *defensive*
 companion, the inverse of offensive firmware like Porkchop.
 
+## Positioning — this is NOT a fork/reskin
+
+MitamaOS is **not** AdvanceOS, and not "a theme on PaperOS." PaperOS,
+AdvanceOS and SquachWatch are **components and prior art we stand on so we don't
+reinvent a file manager, a launcher or a detection engine** — the plumbing every
+handheld OS needs. The *product* is the thing none of them is: a **companion-
+centric, always-on defensive OS** with a real identity. The net-new engineering
+and design that make it "the final OS you install on the Cardputer ADV" —
+none of which exists in any of the sources:
+- **A persistent companion layer** — the Mitama, always on screen, with a
+  temperament, a voice (local LLM + authored lines), and the Proxima home it
+  lives in. No other Cardputer OS has a character/awareness layer.
+- **Behavioral network detection as a first-class background service** — the
+  SquachWatch engine lifted out of a single-purpose detector and run under a new
+  **kernel radio manager** (Warding/Link modes, §18) so it watches *while you use
+  every other app*. SquachWatch is detection-only; PaperOS/AdvanceOS have no
+  detection at all. MitamaOS fuses them.
+- **The SMT Compendium** — detections as a collected, gamified bestiary
+  (races/Fiends/achievements). Nothing like it on the platform.
+- **A cohesive designed identity** — Night City over red bones, the esoteric
+  sigils, the faceless magatama, the sung PCM voice. A product, not a tool grab-bag.
+
+So PaperOS is the **skeleton we heavily re-architect** (radio manager, background
+services, companion layer, Proxima-as-home), not a base we lightly reskin. If
+all we did was reskin it, there'd be no point — agreed. The differentiation is
+the whole point, and it's substantial.
+
 ---
 
 ## 1. Platform & toolchain
@@ -1046,8 +1073,9 @@ Ordered by how much pain they'd cause if hit blind.
 1. **Radio arbitration — sniff vs. connect (THE big one, M1 design).**
    SquachWatch detection = `esp_wifi_set_promiscuous(true)` + **channel-hopping**
    in `WIFI_STA` mode, **not associated** to any AP. PaperOS connectivity
-   (Browser, Store, LLM/OTA fetch, NTP) = `WiFi.begin()` **associated on one
-   fixed channel**. These are **mutually exclusive** — you cannot channel-hop
+   (Browser, Store, OTA/model download, NTP) = `WiFi.begin()` **associated on one
+   fixed channel**. (The **LLM is NOT in this list — it is fully offline**, see
+   #10.) These are **mutually exclusive** — you cannot channel-hop
    while holding an association. Mitigation: a **kernel radio manager** with two
    modes — default **Warding** (promiscuous + hop, full detection) and on-demand
    **Link** (apps request it; stop hopping, associate; detection narrows to the
@@ -1085,6 +1113,17 @@ Ordered by how much pain they'd cause if hit blind.
 9. **Board target.** `board = m5stack-stamps3` compiles for the S3; rely on
    M5Unified **runtime** detection of `board_M5CardputerADV`. Keep flash 8 MB /
    qio / 240 MHz; LittleFS + SD. Bootloader: hold GPIO0 + reset.
+10. **The LLM is 100% local — it does NOT use the internet.** Verified in
+   PaperOS: `myai_engine.h` reads `/PaperOS/model.bin` from **SD** and runs the
+   matmul/token inference **on-device**; `myai_app.h` literally *turns WiFi OFF*
+   during generation ("myAI runs fully offline") to reclaim ~83 KB for the model
+   cache. So the LLM never touches the network and never needs a connection. The
+   *only* interaction with detection is **RAM/radio sharing**: while it
+   generates, WiFi (and thus the sniffer) is briefly paused to free heap — so a
+   Mitama line costs a short, async detection gap, not an internet dependency.
+   Mitigation: keep LLM use occasional/async (§14 already does); the Mitama can
+   flag "…thinking" so the gap is intentional. A model *download/update* is the
+   only networky part, and that can be done over SD, never required at runtime.
 
 ---
 
