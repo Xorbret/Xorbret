@@ -1229,6 +1229,57 @@ seasoning, not the recipe.*
 
 ---
 
+## 21. SD card layout (LOCKED)
+
+**Everything under a single `/MitamaOS/` namespace — MitamaOS never writes to SD
+root.** This keeps it a clean tenant: swapping firmware via the Launcher leaves
+no orphaned MitamaOS files at root, and other firmwares' root files never
+collide with ours. FAT32 only (SD lib can't do exFAT/NTFS), ≤32 GB.
+
+```
+/MitamaOS/
+  VERSION                     layout version int (migrations)
+  config/
+    settings.conf             brightness, sass, sound, a11y, tz, active theme (key=val)
+    networks.json             trusted nets: SSID, BSSID(s), gateway, DHCP baseline, trust flag
+    devices.json              known-device allowlist, per network (MAC/IP/host)
+  state/
+    compendium.dat            bestiary: seen demons, counts, first-seen, records (binary)
+    outfits.dat               unlocked Mitama skins / achievements
+    mitama.dat                temperament counters, uptime stats, last mood
+    hexes.jsonl               Ward incident log (attacks caught + defenses), append-only
+  ai/model.bin                on-device LLM weights (binary)
+  fonts/rajdhani_{8,10,14,20}.vlw
+  themes/<name>/{theme.thm, wallpaper.png, icons/<AppName>.png}   (cyberpunk = default)
+  logs/{system.log, scry/wardrive-YYYYMMDD.csv, scry/sightings.jsonl}
+  games/{roms/, saves/, content/, *.extension}
+  apps/lua/                   Lua apps from the Store
+  browser/{bookmarks.json, saved/, images/}
+  screenshots/
+  tmp/                        scratch, safe to wipe
+  user/{Notes, Paint, Music, Models, Recordings}   user-created content (was root)
+```
+
+### Locked decisions
+1. **NVS vs SD split.** The *minimum to boot sanely* lives in ESP32 **NVS**
+   (always present even with no card): brightness, active-theme name, last mode,
+   WiFi creds. Everything bulk/portable is on **SD**. Device still boots with
+   the card pulled.
+2. **No-SD graceful degrade.** With no card: boot + run **Scry/Ward detection +
+   the Mitama** from NVS/compiled defaults; **no LLM, no SD themes, no games, no
+   Compendium persistence** (in-RAM, lost on reboot). The Mitama snarks about
+   its missing card.
+3. **Atomic writes.** No clean shutdown on a handheld, so every save is
+   write-`*.tmp` → fsync → rename-over-real. Cheap insurance against a corrupt
+   Compendium after a dead battery.
+4. **Formats.** Human-readable (conf / JSON / CSV / JSONL) for config, trust
+   lists, logs, Hexes — editable on a PC, debuggable, on-ethos. Binary only for
+   `model.bin`, VLW fonts, and the compendium/save blobs (size / write-freq).
+5. **Namespaced, no root writes** (above). User content under `/MitamaOS/user/`.
+6. **FAT32 only, ≤32 GB** — same constraint as PaperOS/AdvanceOS.
+
+---
+
 ## 10. Session-1 scaffold (NOT yet recovered)
 
 The first build session scaffolded a `netbuddy/` project (platformio.ini, an
