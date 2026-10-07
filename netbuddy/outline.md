@@ -1188,6 +1188,47 @@ Ordered by how much pain they'd cause if hit blind.
 
 ---
 
+## 20. Games
+
+Not a throwaway pillar — on a guardian OS, which games can run *while the Mitama
+keeps Scrying* is a real design axis. The ESP32-S3 is **dual-core**: detection +
+radio pinned to one core, game + UI on the other.
+
+### Two classes
+- **Co-op (Mitama keeps watching):** turn-based or low-FPS, tiny RAM, no network.
+  Detection stays fully live; the Mitama can kibitz. The locked set
+  (Snake/Solitaire/Chess/Poker) + **puzzle games** (2048, Minesweeper, Sudoku,
+  Sokoban, Lights Out, Mastermind, …) all qualify.
+- **Off-duty (guardian sleeps):** emulators (nofrendo NES/GB, Doom), anything
+  60fps/3D/full-framebuffer — in PaperOS these boot a separate app slot and take
+  over the device, so detection stops. Framed as an explicit, Mitama-narrated
+  **"drop your guard"** mode ("I'll stop watching so you can play; try not to
+  get owned").
+
+### Full games are feasible here
+A turn-based roguelike or a text adventure fits this hardware *because its size
+lives on SD, not in RAM* — rooms/levels/text stream from SD as you go, so the
+game can be long and story-rich while the heap only holds the current screen.
+Both are turn-based → **co-op** (guardian stays up). Planned flagships:
+- **Themed roguelike** — descend the "corrupted aether"; the demon **races** are
+  the enemies; the Mitama is your in-game companion. Shares the world/bestiary.
+- **Choice-based ("gamebook") adventure engine** — arrow-key navigation (no
+  parser fight on the tiny keyboard), story authored on SD, unbounded length.
+- **Authored content; the on-device LLM only flavors** (varies a description) —
+  it cannot run a coherent plot or parse commands (same rule as the Mitama's
+  voice). The real work is writing/design, not the engine.
+
+### ACCESSIBILITY PRINCIPLE (LOCKED)
+**Every game is 100% completable standalone — with zero detections and with
+detection turned off entirely.** Real-world Scry/Compendium discoveries grant
+**only optional bonuses**: one-time buffs/consumables, cosmetic skins, bonus
+lore, optional side-areas (the amiibo model). They **never** gate required items,
+areas, bosses, story beats, or the ending. A rural/offline/airplane player gets
+the whole game; a city player just gets extra sprinkles. *Discoveries are
+seasoning, not the recipe.*
+
+---
+
 ## 10. Session-1 scaffold (NOT yet recovered)
 
 The first build session scaffolded a `netbuddy/` project (platformio.ini, an
