@@ -1,0 +1,14 @@
+{
+  "name": "lua",
+  "version": "5.4.7",
+  "frameworks": ["arduino"],
+  "platforms": ["espressif32"],
+  "build": {
+    "srcDir": "src",
+    "srcFilter": ["+<lua_all.c>"],
+    "flags": [
+      "-DLUA_USE_ESP32",
+      "-DLUA_32BITS=1"
+    ]
+  }
+}

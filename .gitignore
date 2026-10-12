@@ -1,0 +1,45 @@
+# MitamaOS repository ignore rules
+#
+# Policy (decision "Option A"): the repo tracks code and SMALL assets. Large,
+# rarely-changing binaries are distributed via GitHub Releases, not committed,
+# so clones stay small and fast.
+
+# --- Big distributables: ship via Releases, never commit ---
+# The on-device assistant model (~4.7 MB, streamed from SD at runtime).
+model.bin
+**/model.bin
+# Emulator binaries (the ".extension" blobs) and game ROMs.
+*.extension
+*.nes
+*.gb
+*.gbc
+*.gba
+*.sfc
+*.smc
+*.n64
+*.z64
+*.rom
+
+# --- Build output ---
+.pio/
+**/.pio/
+build/
+*.elf
+*.map
+# Note: we deliberately do NOT blanket-ignore *.bin here beyond model.bin,
+# because the only .bin we'd ever track is distributed via Releases anyway.
+
+# --- Python (merge.py / tooling scratch) ---
+__pycache__/
+*.pyc
+
+# --- Editor / OS cruft ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Kept on purpose (documented for future contributors) ---
+# Small assets ARE committed: Rajdhani VLW fonts (*.vlw), theme files (*.thm),
+# icon/boot PNGs, Lua scripts, and the compendium seed data. They are small,
+# human-reviewable, and part of the source.

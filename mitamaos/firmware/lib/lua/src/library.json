@@ -1,0 +1,11 @@
+{
+  "name": "lua",
+  "version": "5.4.7",
+  "build": {
+    "flags": [
+      "-DLUA_USE_C89",
+      "-DLUA_ANSI",
+      "-DLUA_32BITS"
+    ]
+  }
+}

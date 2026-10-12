@@ -49,4 +49,4 @@ offline except the Google-Fonts request for Rajdhani.
 - `sound.html` — interactive sound set
 - `logo.html` — wordmark lockups + app icon
 
-The full written design lives in [`../netbuddy/outline.md`](../netbuddy/outline.md).
+The full written design lives in [`../mitamaos/outline.md`](../mitamaos/outline.md).

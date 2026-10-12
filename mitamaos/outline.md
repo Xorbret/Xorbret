@@ -326,7 +326,7 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 
 ## 8. Build order (revised for the PaperOS base — see §13 decision)
 
-0. **Fork & rebrand (M0).** Copy PaperOS v1.3 source into `netbuddy/` under
+0. **Fork & rebrand (M0).** Copy PaperOS v1.3 source into `mitamaos/firmware/` under
    GPLv2, add the GPLv2 `LICENSE` and a `CREDITS`/`NOTICE` attributing PaperOS,
    AdvanceOS, SquachWatch (+ the §17 references). **FIRST hardware task — the
    ADV keyboard: bump `m5stack/M5Cardputer` to ≥1.1.1 + a matching M5Unified**
@@ -1282,7 +1282,7 @@ collide with ours. FAT32 only (SD lib can't do exFAT/NTFS), ≤32 GB.
 
 ## 10. Session-1 scaffold (NOT yet recovered)
 
-The first build session scaffolded a `netbuddy/` project (platformio.ini, an
+The first build session scaffolded a `mitamaos/firmware/` project (platformio.ini, an
 `os/` event-bus + kernel + app interface, `net/` wifi_monitor / ble_monitor /
 device_tracker, `apps/` buddy_app / dashboard_app / launcher_app, and main.cpp).
 That source was never captured into a repo and is **not recoverable
