@@ -1,9 +1,11 @@
 # MitamaOS — Credits & Third-Party Notices
 
 MitamaOS is **free and open source** under the **GNU General Public License,
-version 2** (see [`LICENSE`](LICENSE)). It is a defensive, **receive-only**
-companion firmware for the M5Cardputer ADV — it observes the surrounding
-radio environment and never transmits attacks.
+version 2** (see [`LICENSE`](LICENSE)). It is a defensive, **receive-first**
+companion firmware for the M5Cardputer ADV. It **never transmits attacks and
+never injects 802.11 frames** (no `esp_wifi_80211_tx`); monitoring is
+receive-only, and the only packets it ever sends are ordinary client traffic
+(ARP/ICMP/mDNS) on a network the user owns and marks trusted.
 
 Because the OS core is GPLv2, the combined firmware is distributed under GPLv2.
 That is deliberate: it keeps MitamaOS open. Anyone may use, study, modify and
@@ -45,9 +47,17 @@ project and are not licensed for use on derivative distributions.
 
 These inform later milestones and are credited now so provenance is clear:
 
-- **SquachWatch-CYD** — © its authors, **MIT License**. Source of the planned
-  passive Wi-Fi detection engine (promiscuous channel-hopping, receive-only).
-  Lifted as a background service; no transmit paths are ported.
+- **ESP32Marauder** — © justcallmekoko, **MIT License**. We adapt its
+  **receive-only** scanning code (Wi-Fi sniffer, AP/station/probe/beacon parsing,
+  BLE scan, OUI lookup) for the detection engine. **No transmit/attack code is
+  ported** — MitamaOS stays receive-only by construction. MIT is GPLv2-compatible.
+- **flock-you** — © colonelpanichacks, **MIT License**. Source of Flock-camera
+  OUI signature data.
+- **SquachWatch-CYD** — © skizzophrenic, **GPLv3**. **Reference only** — its
+  detection ideas and signature provenance inform our own engine. GPLv3 is
+  incompatible with our GPLv2 core, so **none of its code is used or vendored**.
+- **ESP-IDF / NimBLE** — © Espressif & contributors, **Apache-2.0**. The radio
+  plumbing (promiscuous Wi-Fi + BLE scanning) underneath the detection engine.
 - **AdvanceOS for Cardputer** — © bomberman30, **MIT License**. Reference for
   the theme manager and productivity apps.
 - **Bjorn** — © its authors, **MIT License**. Companion-architecture

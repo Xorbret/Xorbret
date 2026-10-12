@@ -75,30 +75,35 @@ intensifies (bleeds through more) in alert/Fiend states — that's the glitch.
 - Optional CRT/scanline + glitch flourishes (the red substrate flickering
   through) fit the Mitama's alert states and Fiend cards.
 
-**Design commitment (non-negotiable):** everything network-facing is
-**receive-only / passive**. MitamaOS detects, observes, and informs — it never
-transmits attacks. No deauth frames, no evil-portal, no credential capture, no
-exploit payloads. There is no call to `esp_wifi_80211_tx` anywhere in the
-codebase, and that stays true as the project grows. This is a *defensive*
-companion, the inverse of offensive firmware like Porkchop.
+**Design commitment (non-negotiable):** MitamaOS **never transmits attacks and
+never injects 802.11 frames** — no deauth, no evil-portal, no credential capture,
+no exploit payloads, and no call to `esp_wifi_80211_tx` anywhere in the codebase,
+ever. Monitoring is receive-only; the only packets it ever sends are **ordinary
+client traffic** (ARP/ICMP/mDNS) on a network the user owns and marks trusted
+(the Ward tier, §19). It detects, observes, and informs — a sentry that watches
+and warns, never a weapon that strikes back. That stays true as the project
+grows. This is a *defensive* companion, the inverse of offensive firmware like
+Porkchop. (Full precise wording: §4.)
 
 ## Positioning — this is NOT a fork/reskin
 
-MitamaOS is **not** AdvanceOS, and not "a theme on PaperOS." PaperOS,
-AdvanceOS and SquachWatch are **components and prior art we stand on so we don't
-reinvent a file manager, a launcher or a detection engine** — the plumbing every
-handheld OS needs. The *product* is the thing none of them is: a **companion-
+MitamaOS is **not** AdvanceOS, and not "a theme on PaperOS." PaperOS and
+AdvanceOS are **components we stand on so we don't reinvent a file manager or a
+launcher**; SquachWatch and Marauder are **prior art we study for the detection
+layer** (which we write ourselves — see §5/§13 on why we can't copy SquachWatch's
+code). The *product* is the thing none of them is: a **companion-
 centric, always-on defensive OS** with a real identity. The net-new engineering
 and design that make it "the final OS you install on the Cardputer ADV" —
 none of which exists in any of the sources:
 - **A persistent companion layer** — the Mitama, always on screen, with a
   temperament, a voice (local LLM + authored lines), and the Proxima home it
   lives in. No other Cardputer OS has a character/awareness layer.
-- **Behavioral network detection as a first-class background service** — the
-  SquachWatch engine lifted out of a single-purpose detector and run under a new
-  **kernel radio manager** (Scry/Ward postures, §19) so it watches *while you use
-  every other app*. SquachWatch is detection-only; PaperOS/AdvanceOS have no
-  detection at all. MitamaOS fuses them.
+- **Behavioral network detection as a first-class background service** — our own
+  receive-only detection engine (adapted from Marauder's MIT scanner + public
+  signature data, §5) run under a new **kernel radio manager** (Scry/Ward
+  postures, §19) so it watches *while you use every other app*. SquachWatch is a
+  standalone detection-only firmware; PaperOS/AdvanceOS have no detection at all.
+  MitamaOS folds detection into a full companion OS.
 - **The SMT Compendium** — detections as a collected, gamified bestiary
   (races/Fiends/achievements). Nothing like it on the platform.
 - **A cohesive designed identity** — Night City over red bones, the esoteric
@@ -175,9 +180,17 @@ specified in full in §14.
 
 ---
 
-## 4. Proximity monitoring (passive / receive-only)
+## 4. Proximity monitoring (receive-first / no attacks)
 
-What the buddy legitimately watches for, all receive-only:
+**Charter (precise wording).** MitamaOS **never transmits attacks and never
+injects 802.11 frames** — there is no `esp_wifi_80211_tx` in the codebase, ever.
+Monitoring is receive-only. The *only* packets it ever sends are **ordinary
+client traffic** (ARP / ICMP / mDNS), and only on a network the user owns and has
+marked **trusted** (the Ward "active defense" tier, §19). Everywhere else it is
+passive-listen only. That is the whole line: a sentry that watches and warns,
+never a weapon that strikes back.
+
+What the buddy legitimately watches for (receive-only unless noted):
 
 - **Deauth / disassoc flood detection** — promiscuous-mode 802.11 management-
   frame sniffing, sliding-window flood detection. Detecting, never sending.
@@ -196,17 +209,40 @@ What the buddy legitimately watches for, all receive-only:
 
 ---
 
-## 5. Detection engine strategy — port SquachWatch-CYD (LOCKED IN)
+## 5. Detection engine strategy — build our own, adapt Marauder (LOCKED, revised 2026-10-12)
 
-**Decision:** port the detection engine, signature tables, pet, and Dex from
-[SquachWatch-CYD](https://github.com/skizzophrenic/SquachWatch-CYD) **wholesale**
-into MitamaOS's kernel architecture, *replacing* session-1's from-scratch
-monitors rather than extending them. It's MIT, it's Robert's own prior work, it
-already targets the Cardputer-ADV, and it's far more battle-tested.
+**Target set:** the **same devices SquachWatch detects** (see list below) — that
+goal is unchanged.
 
-SquachWatch already detects, with per-signature High/Medium/Low confidence
-grading (a pattern worth copying directly — it refuses to promise more than the
-evidence supports):
+**How we build it — and why not "just port SquachWatch":**
+[SquachWatch-CYD](https://github.com/skizzophrenic/SquachWatch-CYD) is
+**GPLv3-licensed** (earlier notes here wrongly said MIT). Our OS core is PaperOS,
+which is **GPLv2-only**, and GPLv2-only and GPLv3 are **legally incompatible** —
+we cannot copy SquachWatch's code into the MitamaOS binary. So the engine is
+**our own code**, assembled from license-clean parts:
+
+- **Plumbing:** ESP-IDF promiscuous Wi-Fi + NimBLE scanning (Apache-2.0).
+  Receive-only is simply "we never call the TX functions."
+- **Scanner:** adapt the **receive-only** portions of
+  [ESP32Marauder](https://github.com/justcallmekoko/ESP32Marauder) (**MIT** —
+  GPLv2-compatible): its sniffer, AP/station/probe/beacon parsing, BLE scan, OUI
+  lookup. We port **none** of its transmit/attack code — which keeps MitamaOS
+  receive-only by construction.
+- **Signatures:** public, non-copyrightable data — IEEE OUI list, Bluetooth SIG
+  company IDs, the Apple FindMy/AirTag format, and
+  [flock-you](https://github.com/colonelpanichacks/flock-you) (**MIT**, the Flock
+  OUI source SquachWatch itself cites).
+- **SquachWatch's role:** read for **ideas and signature provenance only**
+  (its `docs/DETECTIONS.md` documents where each signature came from — we go to
+  those original public sources). No code copied.
+
+> If Robert turns out to hold copyright on SquachWatch, say so — he could then
+> relicense it and we'd have the option to use its code directly. Absent that, we
+> treat it strictly as third-party GPLv3.
+
+The target set (same as SquachWatch), with per-signature High/Medium/Low
+confidence grading (a pattern worth reproducing — it refuses to promise more than
+the evidence supports):
 
 - **Flipper Zero** — reliably detectable, High confidence, multiple independent
   BLE/MAC signatures. (SquachWatch even documents an error other tools ship —
@@ -219,9 +255,12 @@ evidence supports):
   **AirTags/Tile/Samsung/Google** trackers, **drones** (OpenDroneID), **ALPR**
   cameras, branded **IP cameras**, **Pwnagotchi** (near-perfect — announces
   itself), **Ring**, **Raven** (gunshot detectors), **iBeacon**.
-- **GPS** — `gnss.h`/`gnss.cpp` port directly; unlocks wardrive logging and real
-  timestamps for Calendar/World Clock.
-- **Dual-band (WiFi 2.4/5 GHz)** — ports directly from the `SQW_WIFI_5G` flag.
+- **GPS** — reimplement from NMEA parsing (a trivial, well-trodden parser; an
+  MIT/LGPL lib like TinyGPS++ if we want one) → unlocks wardrive logging and real
+  timestamps for Calendar/World Clock. (Not a port of SquachWatch's `gnss.*`.)
+- **Dual-band note:** the ESP32-S3 radio is **2.4 GHz only**, so 5 GHz detection
+  is not possible on the stock ADV — it would need an external radio HAT. (The
+  `SQW_WIFI_5G` idea only applies to boards with a 5 GHz-capable part.)
 
 **Honest limitation (independently confirmed):** fingerprinting "other
 Cardputers on malicious firmware" is not really possible — every ESP32 project
@@ -245,13 +284,13 @@ gets no card, so `Dex::ENTRIES = COUNT - 1`) and **19 outfits/skins**
   VOID EYE, SNOW PARKA, SHARK SUIT, YZZERD, OVER 9000, SHAMBLER, TH3 0N3 —
   hidden Easter eggs on specific background screens.
 
-The SMT reframe maps cleanly onto the existing engine: the **Compendium** is the
-Dex, a detected device is a **demon** registered to it, and **device categories
-= demon races**. The outfit-threshold system is already "encounter N, unlock
-reward," so a **race-complete achievement** ("register every Tracker") slots
-into the existing `OutfitDef`/`outfitUnlocked()` mechanism as a third unlock
-condition alongside threshold and event — no new infrastructure. (Outfits are
-reframed as the Mitama's unlockable forms/skins.)
+The SMT reframe maps cleanly onto this proven design (which we reimplement in our
+own engine, not inherit): the **Compendium** is the Dex, a detected device is a
+**demon** registered to it, and **device categories = demon races**. SquachWatch's
+outfit-threshold system is already "encounter N, unlock reward," so our
+equivalent gets a **race-complete achievement** ("register every Tracker") as a
+third unlock condition alongside threshold and event. (Outfits are reframed as
+the Mitama's unlockable forms/skins.)
 
 ### Finalized taxonomy (device category → SMT race)
 
@@ -296,7 +335,7 @@ modality (audio, not camera/network).
 
 ---
 
-## 6. Prior-art notes from SquachWatch worth copying
+## 6. Prior-art notes from SquachWatch worth drawing on (ideas, not code)
 
 - **Better evil-twin test:** same-SSID-**different-encryption**, not
   same-SSID-different-BSSID (which false-positives on every mesh network).
@@ -314,8 +353,8 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 
 | HAT        | Status                                                              |
 |------------|---------------------------------------------------------------------|
-| Dual-band  | = WiFi 2.4/5 GHz scanning. Ports from SquachWatch `SQW_WIFI_5G`.     |
-| GPS        | Solved. Ports from `gnss.h`/`gnss.cpp`; unlocks wardrive + RTC-less time. |
+| Dual-band  | N/A on stock ADV — ESP32-S3 is **2.4 GHz only**. 5 GHz needs an external radio HAT. |
+| GPS        | Reimplement NMEA parsing (TinyGPS++-class, MIT/LGPL); unlocks wardrive + RTC-less time. |
 | Sub-GHz    | **LoRa = M5 LoRa-E220 (JP) Unit** + `M5-LoRa-E220-JP` lib, with an ESP-NOW fallback mode (ref: CardputerLoRaChat, §17). Hold a generic CC1101-style receiver until that module is known. |
 | NFC        | **PN532 over I2C** — `PN532`/`PN532_I2C`/`NfcAdapter` libs, `readPassiveTargetID` (ref: RFID-PN532-i2c-CARDPUTER, §17). Resolved. |
 
@@ -326,27 +365,30 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 
 ## 8. Build order (revised for the PaperOS base — see §13 decision)
 
-0. **Fork & rebrand (M0).** Copy PaperOS v1.3 source into `mitamaos/firmware/` under
-   GPLv2, add the GPLv2 `LICENSE` and a `CREDITS`/`NOTICE` attributing PaperOS,
-   AdvanceOS, SquachWatch (+ the §17 references). **FIRST hardware task — the
-   ADV keyboard: bump `m5stack/M5Cardputer` to ≥1.1.1 + a matching M5Unified**
-   (official ADV/TCA8418 support, MIT); PaperOS pins 1.0.3 which reads the old
-   matrix keyboard and reboot-loops on the ADV (see §17). Mind the **GPIO5-HIGH
-   SD gotcha**. Then build for the ADV (no-PSRAM already matches),
-   confirm it boots, keys work, and the stock apps run; rebrand PaperOS →
-   MitamaOS; apply the Cyberpunk palette (swap `config.h` color macros) +
-   Rajdhani font (see Visual identity). Everything else lands on top.
-1. **Background detection service (M1).** Lift SquachWatch's `DetectionEngine` +
-   signature tables in as a background FreeRTOS task using PaperOS's `DispLock`
-   so it runs regardless of focused app. A minimal "Proxima" screen lists live
-   detections. Watch the heap — detection + WiFi + (later) the LLM all contend
+0. **Fork & rebrand (M0 — DONE 2026-10-12, pushed).** PaperOS v1.3 vendored into
+   `mitamaos/firmware/` under GPLv2 with the GPLv2 `LICENSE` + `CREDITS.md`
+   (PaperOS, Lua, M5 libs; Marauder/SquachWatch/AdvanceOS/Bjorn credited as
+   reference). `m5stack/M5Cardputer` bumped to ≥1.1.1 + M5Unified (official
+   ADV/TCA8418 keyboard); **GPIO5-HIGH SD fix** applied; Cyberpunk palette
+   swapped into `config.h`; SD paths rebranded `/MitamaOS/`. **Deferred to M1:**
+   the Rajdhani VLW font swap (PaperOS layouts are pixel-tuned to the built-in
+   font; wiring Rajdhani globally breaks them — it belongs with the UI pass).
+   **Still needs a local build/flash pass** to shake out library versions on real
+   hardware (can't compile/flash from the Claude session).
+1. **Background detection service + UI/type pass (M1).** Build our own
+   receive-only `DetectionEngine` (adapt Marauder's MIT scanner + public
+   signatures, §5) as a background FreeRTOS task using PaperOS's `DispLock` so it
+   runs regardless of focused app. A minimal "Proxima" screen lists live
+   detections. Fold in the deferred Rajdhani font + begin the Cyberpunk UI
+   restyle here. Watch the heap — detection + WiFi + (later) the LLM all contend
    for the no-PSRAM free heap.
 2. **Mitama (M2).** Persistent companion driven by detection events; wire
    PaperOS's `myai` LLM so the Mitama can generate text, with a mood state
    machine (Calm→Curious→Worried→Alarmed) layered on top. Decide when the LLM is
    resident vs streamed (RAM).
-3. **Compendium (M3).** Port SquachWatch's Dex/pet as the Compendium + the §5a
-   race/Fiend taxonomy and race-complete achievements (Mitama forms).
+3. **Compendium (M3).** Build the Compendium (our own engine modeled on
+   SquachWatch's Dex/pet design, §5a) + the race/Fiend taxonomy and
+   race-complete achievements (Mitama forms).
 4. **Runtime themes (M4 — the Option-2 addition).** Port AdvanceOS's Theme
    Manager (`.thm` JSON + SD PNG icons/wallpaper) to replace the compile-time
    palette with runtime SD themes; ship the Cyberpunk palette as the default
@@ -510,24 +552,31 @@ the Cardputer ADV's PSRAM would relax this considerably.
 
 ## 13. Three-way comparison & the license fork in the road
 
-| Capability                | SquachWatch (MIT) | AdvanceOS (MIT) | PaperOS (GPLv2) |
+| Capability                | SquachWatch (**GPLv3**) | AdvanceOS (MIT) | PaperOS (GPLv2) |
 |---------------------------|:---:|:---:|:---:|
-| Detection engine + Dex/pet | ★ best | — | — |
+| Detection engine + Dex/pet | ★ best (but GPLv3) | — | — |
 | Background monitors off-focus | (its whole model) | ✗ single-app | ★ DispLock multitask |
 | Runtime SD themes          | — | ★ best | ✗ compile-time |
 | Productivity app suite     | — | ★ huge | ✓ good |
 | On-device AI buddy         | — | — | ★ only one |
 | Lua scripting + app store  | — | — | ★ only one |
 | Emulator / games           | — | ✓ blob | ✓ blob (shared) |
-| License                    | MIT | MIT | **GPLv2** |
+| License                    | **GPLv3** | MIT | **GPLv2** |
+
+> **Correction (2026-10-12):** SquachWatch is **GPLv3**, not MIT as this section
+> originally assumed. That does **not** change the locked base (PaperOS/GPLv2) —
+> but it does mean **SquachWatch's code can never be in the binary**: GPLv2-only
+> (PaperOS) and GPLv3 are incompatible. Detection is therefore built from our own
+> code + Marauder (MIT) + public data (§5). The analysis below is kept for the
+> record; read "absorb SquachWatch" as "absorb AdvanceOS (MIT) only."
 
 **The license is the decision's hinge.** GPLv2 is copyleft: any firmware that
 incorporates PaperOS source must itself be released under GPLv2 with full
-source. GPLv2 *can* legally absorb the MIT SquachWatch and AdvanceOS code, so a
+source. GPLv2 *can* legally absorb **MIT** code (AdvanceOS, Marauder), so a
 combined MitamaOS built on PaperOS is fine — but **the whole project then
-becomes GPLv2**, not MIT. If staying MIT/permissive matters to Robert, PaperOS
-source is off the table (its *ideas* — a tiny on-device LLM, a Lua app layer —
-could still be reimplemented independently, but that's real work, not a port).
+becomes GPLv2**, not MIT. GPLv2 **cannot** absorb **GPLv3** code (SquachWatch),
+which is why its engine is reference-only. If staying MIT/permissive mattered,
+PaperOS source would be off the table — but open-source GPLv2 is the locked call.
 
 ### Revised strategy options (supersedes §11's A/B/C)
 
@@ -538,8 +587,8 @@ could still be reimplemented independently, but that's real work, not a port).
 - **Option 2 — GPL stack (PaperOS core + SquachWatch + AdvanceOS themes).**
   Fork PaperOS as the OS core (its multitask/DispLock already solves
   background-off-focus; its myAI gives the buddy a real voice; its Lua/Store
-  gives extensibility), lift SquachWatch's detection engine in as a background
-  service, and port AdvanceOS's runtime Theme Manager on top to regain custom
+  gives extensibility), build our own detection engine (Marauder MIT + public
+  data, §5) as a background service, and port AdvanceOS's runtime Theme Manager on top to regain custom
   themes. Most capable result by far. **Becomes GPLv2.** Most integration work
   (three codebases, two styles).
 - **Option 3 — PaperOS core, skip the themes port initially.** Option 2 minus
@@ -556,11 +605,12 @@ make, which is the one thing worth deciding before any code moves.
 ### DECISION LOCKED (2026-10-05)
 
 - **License:** GPLv2. Robert confirmed open-source is fine. MitamaOS is a GPLv2
-  project; the AdvanceOS/SquachWatch MIT code it absorbs stays attributed but
-  the combined work ships under GPLv2 with full source.
+  project; absorbed **MIT** code (AdvanceOS themes, Marauder's receive-only
+  scanner) stays attributed but the combined work ships under GPLv2 with full
+  source. SquachWatch (GPLv3) code is **not** absorbed — reference only.
 - **Base:** **Option 2**, delivered **Option 3 first** — fork PaperOS as the OS
-  core, lift SquachWatch's detection engine in as a background service, add
-  AdvanceOS's runtime Theme Manager in a later milestone.
+  core, build our own detection engine (Marauder MIT + public signatures, §5) as
+  a background service, add AdvanceOS's runtime Theme Manager in a later milestone.
 - **Hardware:** stock Cardputer ADV has **NO PSRAM** — the *same class of board*
   PaperOS already targets (ESP32-S3, 8MB flash, no PSRAM). PaperOS's entire v1.3
   RAM-budget effort (WiFi-off-by-default, trimmed Lua stdlib, model streamed
@@ -1066,13 +1116,20 @@ SquachWatch already encodes. They also target the original Cardputer
 - **M5 examples** (`m5stack/M5Cardputer/examples`): display, sdcard, mic/WAV,
   ir_nec, keyboard, buzzer, REPL — copy-paste-level API references for M0+.
 
-### Credits to carry (verify licenses before porting any code)
-MicroHydra (echo-lalia, GPLv3 — facts only) · M5Cardputer & M5-LoRa-E220-JP &
-M5GFX (m5stack) · cardputer-nofrendo (lxyMiao) → arduino-nofrendo
-(moononournation) → Nofrendo · RFID-PN532 (Jojorel) + PN532 lib (Seeed/Adafruit)
-· CardputerLoRaChat (nonik0) · m5Cardputer_audiospectrum (cyberwisk) ·
-M5CardRemote (VolosR) · M5Stick-Launcher (bmorcelli) · m5cardputer_doom
-(romalik) · Bruce (pr3y) & ESP32Marauder (justcallmekoko/marivaaldo) — reference.
+### Credits to carry (licenses verified 2026-10-12)
+**Detection sources** — **ESP32Marauder** (justcallmekoko, **MIT** → adapt its
+*receive-only* scanner; port no TX/attack code) · **flock-you** (colonelpanichacks,
+**MIT** → Flock OUI data) · **SquachWatch-CYD** (skizzophrenic, **GPLv3** →
+ideas + signature provenance ONLY, no code) · **ESP-IDF/NimBLE** (Espressif,
+Apache-2.0 → the radio plumbing). **Distribution** — **Launcher**
+(bmorcelli, **MIT** → catalog/flasher, native ADV support; §17 "flashing").
+**Hardware/refs** — MicroHydra (echo-lalia, GPLv3 — pin facts only) · M5Cardputer
+& M5-LoRa-E220-JP & M5GFX & M5Unified (m5stack, MIT) · cardputer-nofrendo
+(lxyMiao) → arduino-nofrendo (moononournation) → Nofrendo · RFID-PN532 (Jojorel)
++ PN532 lib (Seeed/Adafruit) · CardputerLoRaChat (nonik0) · m5Cardputer_audiospectrum
+(cyberwisk) · M5CardRemote (VolosR) · m5cardputer_doom (romalik, MIT) ·
+m5stick-nemo (Noah Axon, **GPL-2 option** → usable) · Bruce (pr3y, AGPLv3 —
+reference only, no code).
 
 ---
 
@@ -1109,13 +1166,23 @@ short occult verbs, "perceive the unseen" / "raise protection".
 - **The Hexes tab (LOCKED).** Ward keeps its own log, the **Hexes** tab — attacks caught + successful
   defenses (a defense reads as "the Ward broke the Hex") — distinct from the Compendium (which stays the
   demon bestiary of airspace sightings). Ward incidents are events, not species.
-- **Sentinel mode — design goal, power-aware.** Park-it-on-the-desk 24/7 Warding
-  is viable *because firmware can manage power*: `M5.Power.setBatteryCharge(false)`
-  / `setChargeCurrent()` on the ADV's charge IC (AW32001 per M5Unified) lets us
-  **stop charging at full** (avoid LiPo hold-at-100% degradation), plus an **eco
-  profile** (screen off, downclock, radio duty-cycled) to cut heat. Run on USB;
-  if the cell is removable, best to run without it. **Verify charge-control on
-  real hardware at M0.**
+- **Sentinel mode — the always-on, plugged-in guard posture (LOCKED).** Park it on
+  the desk 24/7 Warding, powered from USB, without cooking the battery. The ADV's
+  power chip is the **M5PM1** (verified in M5Unified, not AW32001). What it can
+  and can't do, confirmed by reading the driver:
+    - `setBatteryCharge(true/false)` — **works.** This is the key lever.
+    - `setChargeCurrent()` / `setChargeVoltage()` — **permanent stubs** on M5PM1
+      (no hardware register); we can't throttle current or cap voltage.
+    - `isCharging()` — **stub, returns false**; "am I plugged in?" must be
+      **inferred** (watch the battery-voltage trend, or a VBUS flag) — a build-time
+      detail, not a blocker.
+  - **Charge-band strategy** (the single most effective LiPo-longevity trick, and
+    all we need): poll battery %; at a **high mark (~80%)** → `setBatteryCharge(false)`
+    and run off USB; at a **low mark (~65%)** → `setBatteryCharge(true)` to top up.
+    Never pins the cell at a hot 100%.
+  - **Eco profile** on top: screen off/dimmed, CPU downclocked when idle, radio
+    duty-cycled — cuts heat. If the cell is removable, running without it is also
+    fine. **Still verify charge-control on real hardware during the M1 build pass.**
 - **Deferred to work-scoping:** the passive-first tool tiering (MVP vs later) and
   IPv6 (leaning IPv4-only for v1).
 

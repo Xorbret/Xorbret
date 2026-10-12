@@ -15,11 +15,13 @@ Styled after **Cyberpunk 2077** — the **Rajdhani** font and a Night City palet
 
 ## Design commitment
 
-MitamaOS is a **defensive** companion. Everything network-facing is
-**receive-only / passive**: it detects, observes, and informs — it never
-transmits attacks. No deauth, no evil-portal, no credential capture, no exploit
-payloads. There is no use of `esp_wifi_80211_tx` anywhere in the codebase, and
-that stays true as the project grows.
+MitamaOS is a **defensive** companion. It **never transmits attacks and never
+injects 802.11 frames** — no deauth, no evil-portal, no credential capture, no
+exploit payloads, and no `esp_wifi_80211_tx` anywhere in the codebase, ever.
+Monitoring is receive-only. The *only* packets it ever sends are **ordinary
+client traffic** (ARP/ICMP/mDNS), and only on a network you own and mark
+**trusted** (the Ward "active defense" tier). A sentry that watches and warns —
+never a weapon that strikes back. That stays true as the project grows.
 
 ## Status
 
@@ -66,9 +68,12 @@ In brief:
 - **OS core** (multitasking launcher, app framework, on-device myAI, Lua
   engine + store) — [PaperOS](https://github.com/Artem76228/PaperOS)
   (**GPLv2**, © Artem76228). *Vendored.*
-- **Detection engine** (passive, receive-only Wi-Fi scanning) —
-  [SquachWatch-CYD](https://github.com/skizzophrenic/SquachWatch-CYD) (MIT).
-  *Planned.*
+- **Detection engine** (receive-only Wi-Fi/BLE scanning) — our own code,
+  adapting the **receive-only** parts of
+  [ESP32Marauder](https://github.com/justcallmekoko/ESP32Marauder) (MIT) + public
+  signature data. [SquachWatch-CYD](https://github.com/skizzophrenic/SquachWatch-CYD)
+  (**GPLv3**) is a detection *reference only* — incompatible with our GPLv2 core,
+  so none of its code is used. *Planned.*
 - **Theme manager & productivity apps** —
   [AdvanceOS-for-cardputer](https://github.com/bomberman30/AdvanceOS-for-cardputer)
   (MIT, © bomberman30). *Planned.*
