@@ -4,19 +4,36 @@ Early concept mockups for review. Self-contained HTML pages (Rajdhani loads from
 Google Fonts; no other dependencies). These are **mockups for discussion**, not
 final art or shipping firmware.
 
-## Make them browsable (GitHub Pages — recommended)
+## Make them browsable + the web flasher (GitHub Pages via Actions)
 
-This folder is laid out to publish directly with GitHub Pages:
+The site is now published by the **`firmware` GitHub Actions workflow**, which
+also builds the firmware and drops the flashable binaries next to the flasher
+page (so the one-click installer can load them same-origin). To turn it on:
 
 1. On GitHub: **Settings → Pages**.
-2. **Build and deployment → Source:** "Deploy from a branch".
-3. **Branch:** `claude/cardputer-adv-os-firmware-okqopr`  •  **Folder:** `/docs` → **Save**.
-4. Wait ~1 minute. The site goes live at:
+2. **Build and deployment → Source:** **"GitHub Actions"**  (not "Deploy from a
+   branch" — the workflow handles deployment).
+3. Push anything under `mitamaos/firmware/**` or `docs/**` (or run the workflow
+   manually from the **Actions** tab). When it finishes, the site is live at:
    **https://xorbret.github.io/Xorbret/**
 
-Then `index.html` is the entry point and all the in-page links work. (When this
-branch is merged to your default branch, you can point Pages at that branch
-instead.)
+Pages:
+- `index.html` — design overview + links
+- **`flash.html` — the web flasher** → **https://xorbret.github.io/Xorbret/flash.html**
+
+> First run doubles as the **M0 compile test**. If the build is red, the
+> binaries (and the flasher) won't appear yet — check the Actions log.
+>
+> The github-pages *environment* may restrict deployments to the default branch;
+> if the `deploy` job is blocked on this feature branch, allow it in
+> **Settings → Environments → github-pages**, or merge to the default branch.
+
+### Flashing routes (all fed by the same CI build)
+- **Web flasher** (`flash.html`) — one click, **desktop Chrome/Edge only** (Web
+  Serial; no phones).
+- **Launcher OTA** — add the `m0-test` release's merged `.bin` as a Favorite in
+  [Launcher](https://github.com/bmorcelli/Launcher); installs on-device, no PC.
+- **esptool / web.esphome.io** — flash the merged `.bin` at `0x0` manually.
 
 ## View right now (no setup — htmlpreview)
 

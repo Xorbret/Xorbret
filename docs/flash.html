@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flash MitamaOS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0118; --panel:#1A0B2E; --text:#FFFFFF; --dim:#8A7CA8;
+    --yellow:#FCEE0A; --magenta:#FF2A6D; --purple:#B026FF; --cyan:#05D9E8;
+    --green:#39FF14; --bones:#E5162B;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Rajdhani',system-ui,sans-serif; line-height:1.5;
+    padding:0 16px; display:flex; flex-direction:column; align-items:center;
+  }
+  main{width:100%; max-width:720px; padding:48px 0 64px}
+  .bones{color:var(--bones)}
+  h1{font-size:clamp(34px,8vw,56px); font-weight:700; letter-spacing:.02em; margin:0 0 4px}
+  h1 .os{color:var(--yellow)}
+  .tag{color:var(--cyan); font-weight:600; text-transform:uppercase; letter-spacing:.18em; font-size:13px; margin:0 0 28px}
+  .card{
+    background:var(--panel); border:1px solid rgba(176,38,255,.35);
+    border-left:3px solid var(--bones); border-radius:10px;
+    padding:22px 22px 24px; margin:0 0 20px;
+  }
+  .card h2{margin:0 0 10px; font-size:22px; font-weight:600}
+  .card h2 .n{color:var(--magenta); font-weight:700; margin-right:8px}
+  p{margin:0 0 12px; color:var(--text)}
+  .dim{color:var(--dim)}
+  code,kbd{font-family:ui-monospace,Menlo,Consolas,monospace; background:#00000055;
+    border:1px solid rgba(255,255,255,.12); border-radius:5px; padding:1px 6px; font-size:.88em}
+  a{color:var(--cyan); text-decoration:none; border-bottom:1px solid rgba(5,217,232,.4)}
+  a:hover{color:var(--yellow); border-bottom-color:var(--yellow)}
+  esp-web-install-button{ --esp-tools-button-color:var(--bg); --esp-tools-button-text-color:var(--yellow); display:block; margin:6px 0 2px}
+  .btn{
+    display:inline-block; background:var(--yellow); color:#0A0118; font-weight:700;
+    text-transform:uppercase; letter-spacing:.08em; font-size:16px;
+    padding:12px 22px; border-radius:8px; border:none; cursor:pointer;
+  }
+  .note{background:#00000033; border:1px dashed rgba(252,238,10,.4); border-radius:8px;
+    padding:12px 14px; font-size:14px; color:var(--dim); margin:14px 0 0}
+  .note b{color:var(--yellow)}
+  ol{margin:8px 0 0; padding-left:20px} li{margin:4px 0}
+  .warn{color:var(--bones); font-weight:600}
+  footer{color:var(--dim); font-size:13px; margin-top:28px; text-align:center}
+  .steps{counter-reset:step}
+</style>
+</head>
+<body>
+<main>
+  <h1>Mitama<span class="os">OS</span></h1>
+  <p class="tag">Flash &middot; M5Cardputer ADV &middot; M0 test build</p>
+
+  <div class="card">
+    <h2><span class="n">1</span>Plug in &amp; flash</h2>
+    <p>Connect the Cardputer ADV to your computer by USB-C, then click Install
+      and pick its serial port. The installer erases and writes the firmware.</p>
+    <esp-web-install-button manifest="./manifest-mitamaos-adv.json">
+      <button class="btn" slot="activate">Install MitamaOS</button>
+      <span slot="unsupported" class="warn">This browser can't flash over USB —
+        use <b>desktop Chrome or Edge</b> (see below).</span>
+      <span slot="not-allowed" class="warn">Serial access was blocked. Reload and
+        allow the port prompt.</span>
+    </esp-web-install-button>
+    <div class="note">
+      <b>Desktop Chrome or Edge only.</b> One-click web flashing uses the Web
+      Serial API, which exists only in desktop Chromium browsers — <b>not</b> on
+      Firefox, Safari, or any phone (Android/iOS included). On a phone, use the
+      Launcher route below instead.
+    </div>
+    <p class="dim" style="margin-top:12px">If the button errors with a missing
+      file, the firmware hasn't been built yet — the GitHub Actions
+      <code>firmware</code> workflow publishes the binaries on each push.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">2</span>No computer? Flash on-device with Launcher</h2>
+    <p>If you already run <a href="https://github.com/bmorcelli/Launcher">Launcher</a>
+      on the Cardputer (it supports the ADV), you can install MitamaOS from the
+      device itself — no PC, works from a phone-charged setup:</p>
+    <ol>
+      <li>Grab the merged image URL from the
+        <a href="https://github.com/Xorbret/Xorbret/releases/tag/m0-test">m0-test release</a>
+        (<code>mitamaos-cardputer-adv-merged.bin</code>).</li>
+      <li>In Launcher, add it as a <b>Favorite</b> link, then install it.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">3</span>Manual flash (esptool / ESPHome-Web)</h2>
+    <p>Download the merged image from the
+      <a href="https://github.com/Xorbret/Xorbret/releases/tag/m0-test">m0-test release</a>
+      and flash it at offset <code>0x0</code>:</p>
+    <p><code>esptool.py --chip esp32s3 write_flash 0x0 mitamaos-cardputer-adv-merged.bin</code></p>
+    <p class="dim">Or drop that file into <a href="https://web.esphome.io/">web.esphome.io</a>.
+      Bootloader mode if needed: hold <kbd>G0</kbd>, tap <kbd>reset</kbd>.</p>
+  </div>
+
+  <footer>
+    MitamaOS is free &amp; open source (GPLv2). This is an early
+    <b>M0 test</b> build — expect rough edges.<br>
+    <a href="./index.html">&larr; Back to the design site</a>
+  </footer>
+</main>
+<script type="module" src="https://unpkg.com/esp-web-tools@10.0.3/dist/web/install-button.js?module"></script>
+</body>
+</html>

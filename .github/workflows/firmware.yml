@@ -1,0 +1,112 @@
+name: firmware
+
+# Builds MitamaOS for the M5Cardputer ADV on GitHub's runners (where the ESP32
+# toolchain is reachable — the Claude cloud container can't fetch it), then:
+#   1) publishes the flashable binaries to the `m0-test` prerelease, and
+#   2) deploys the docs site + those binaries to GitHub Pages, so the one-click
+#      web flasher (docs/flash.html) can fetch them same-origin.
+#
+# Pages note: this deploys via the "GitHub Actions" Pages source. In the repo,
+# set Settings -> Pages -> Build and deployment -> Source = "GitHub Actions".
+
+on:
+  push:
+    branches: [ "claude/cardputer-adv-os-firmware-okqopr" ]
+    paths:
+      - "mitamaos/firmware/**"
+      - "docs/**"
+      - ".github/workflows/firmware.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write      # create/update the Release
+  pages: write         # deploy Pages
+  id-token: write       # Pages deployment attestation
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-${{ hashFiles('mitamaos/firmware/platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+
+      - name: Install PlatformIO + esptool
+        run: pip install --upgrade platformio "esptool~=4.8"
+
+      - name: Build firmware
+        run: pio run -d mitamaos/firmware
+
+      - name: Collect binaries
+        run: |
+          set -euo pipefail
+          ENVDIR=mitamaos/firmware/.pio/build/mitamaos-cardputer-adv
+          OUT=_site/firmware
+          mkdir -p "$OUT"
+          cp "$ENVDIR/bootloader.bin" "$OUT/bootloader.bin"
+          cp "$ENVDIR/partitions.bin" "$OUT/partitions.bin"
+          cp "$ENVDIR/firmware.bin"   "$OUT/firmware.bin"
+          # boot_app0 ships inside the Arduino framework package
+          BOOTAPP0=$(find ~/.platformio/packages -name boot_app0.bin | head -1)
+          cp "$BOOTAPP0" "$OUT/boot_app0.bin"
+          # Single merged image (for esptool / esphome-web / Launcher OTA)
+          python -m esptool --chip esp32s3 merge_bin \
+            -o "$OUT/mitamaos-cardputer-adv-merged.bin" \
+            --flash_mode qio --flash_freq 80m --flash_size 8MB \
+            0x0     "$OUT/bootloader.bin" \
+            0x8000  "$OUT/partitions.bin" \
+            0xe000  "$OUT/boot_app0.bin" \
+            0x10000 "$OUT/firmware.bin"
+          ls -la "$OUT"
+
+      - name: Assemble Pages site (docs + firmware)
+        run: |
+          set -euo pipefail
+          # copy the docs site next to the already-populated _site/firmware/
+          cp -R docs/. _site/
+          test -f _site/flash.html
+          test -f _site/manifest-mitamaos-adv.json
+
+      - name: Publish binaries to the m0-test prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: m0-test
+          name: "MitamaOS M0 (test build)"
+          prerelease: true
+          body: |
+            Automated M0 test build for the M5Cardputer ADV.
+            Flash the merged image, or the four parts at their offsets
+            (bootloader 0x0, partitions 0x8000, boot_app0 0xe000, firmware 0x10000).
+            One-click web flasher (desktop Chrome/Edge): see the Pages site.
+          files: _site/firmware/*.bin
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
