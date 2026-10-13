@@ -10,10 +10,10 @@
 
 // App launcher, restyled as a Windows-95-style desktop: teal background,
 // a "My Computer" desktop icon followed by every registered app as its own
-// icon, a bottom taskbar with a Start button + clock, and an arrow
-// mouse-pointer sprite that glides between icons as you move the keyboard
+// icon, and a bottom taskbar with a Start button + clock. Selection is shown
+// by the highlighted label only (no mouse pointer), moved with the keyboard
 // "arrows" (;,./  =  up,left,down,right, matching the rest of the OS's key
-// mapping since this hardware has no real arrow keys or a mouse).
+// mapping since this hardware has no real arrow keys).
 
 #define GRID_COLS     3
 #define TILE_W       78
@@ -44,7 +44,6 @@ public:
         _scroll     = 0;
         _needRedraw = true;
         _wifiRetry  = 0;
-        _cursorX = _cursorY = -100; // off-screen until first layout pass places it
         WiFiManager::get().ensureConnected();
         if (WiFiManager::get().isConnected() && !_ntpStarted) {
             PaperClock::syncTime();
@@ -86,15 +85,6 @@ public:
             }
         }
 
-        // glide the mouse-pointer sprite toward the selected icon
-        int tx, ty; _tilePos(_sel, tx, ty);
-        int targetX = tx + 6, targetY = ty + 6;
-        if (_cursorX < -50) { _cursorX = targetX; _cursorY = targetY; } // first frame: snap
-        if (_cursorX != targetX || _cursorY != targetY) {
-            _cursorX += _step(targetX - _cursorX);
-            _cursorY += _step(targetY - _cursorY);
-            changed = true;
-        }
         if (_startFlash > 0) { _startFlash--; changed = true; }
 
         if (changed || _needRedraw) { _needRedraw=false; _draw(items, appItems); }
@@ -108,16 +98,7 @@ private:
     bool _ntpStarted = false;
     int  _clockTick  = 0;
     int  _wifiRetry  = 0;
-    int  _cursorX = -100, _cursorY = -100;
     int  _startFlash = 0;
-
-    static int _step(int delta) {
-        if (delta == 0) return 0;
-        // Fast glide: cover most of the gap each frame so the pointer
-        // keeps up with key presses instead of trailing behind them.
-        if (abs(delta) <= 4) return delta;
-        return (delta * 2) / 3;
-    }
 
     static bool _isHiddenFromGrid(App* a) {
         // SysInfo is reachable via the "My Computer" desktop icon instead,
@@ -243,28 +224,9 @@ private:
             _canvas.fillRect(SCREEN_W-7, ty, 4, max(4,th), COL_BEVEL_LO);
         }
 
-        // arrow mouse pointer, gliding toward the selected icon
-        _drawCursor(_cursorX, _cursorY);
-
         _drawTaskbar();
 
         { DispLock _lk; _canvas.pushSprite(0,0); }
-    }
-
-    void _drawCursor(int x, int y) {
-        // classic 1-bit arrow: white fill, black outline, drawn as a small
-        // filled polygon approximation using stacked lines (cheap, no font
-        // dependency).
-        static const uint8_t W = 7, H = 10;
-        static const uint8_t rowLen[10] = {1,2,3,4,5,6,7,3,2,1};
-        for (int r = 0; r < H; r++) {
-            int len = rowLen[r];
-            _canvas.drawFastHLine(x, y+r, len, COL_TEXT);
-        }
-        for (int r = 1; r < H-1; r++) {
-            int len = rowLen[r]-2;
-            if (len > 0) _canvas.drawFastHLine(x+1, y+r, len, 0xFFFF);
-        }
     }
 
     void _drawTaskbar() {
