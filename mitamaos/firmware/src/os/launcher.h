@@ -113,10 +113,10 @@ private:
 
     static int _step(int delta) {
         if (delta == 0) return 0;
-        int s = delta / 3;
-        if (s == 0) s = (delta > 0) ? 1 : -1;
-        if (abs(s) > 10) s = (delta > 0) ? 10 : -10;
-        return s;
+        // Fast glide: cover most of the gap each frame so the pointer
+        // keeps up with key presses instead of trailing behind them.
+        if (abs(delta) <= 4) return delta;
+        return (delta * 2) / 3;
     }
 
     static bool _isHiddenFromGrid(App* a) {

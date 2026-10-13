@@ -1569,7 +1569,7 @@ static void lua_register_all(lua_State* L) {
 
     luaL_dostring(L,
         "function help()\n"
-        "  print('=== PaperOS Lua 5.4  core:'..os.core()..' ===')\n"
+        "  print('=== MitamaOS Lua 5.4  core:'..os.core()..' ===')\n"
         "  print('os: heap psram cpu flash millis micros core gc mem')\n"
         "  print('fs: ls read write rm mkdir exists size copy rename free total')\n"
         "  print('io: open lines write')\n"
@@ -1683,7 +1683,7 @@ static void lua_core1_task(void* param) {
     // install interrupt hook every 1000 instructions
     lua_sethook(g_lstate, lua_interrupt_hook, LUA_MASKCOUNT, 1000);
 
-    g_lt.push("Lua 5.4  core1  PaperOS", COL_OK);
+    g_lt.push("Lua 5.4  core1  " OS_NAME, COL_OK);
     g_lt.push("Tab=complete  Ctrl+C=interrupt  exit()=home", COL_DIM);
 
     while (!g_exec.quit) {

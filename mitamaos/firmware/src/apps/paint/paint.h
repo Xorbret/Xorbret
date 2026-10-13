@@ -500,7 +500,7 @@ private:
 
     // ── Quick menu (Save/Save As/Open/New/Exit) ─────────────────────────
     void _quickMenu() {
-        const char* items[] = { "Save", "Save As...", "Open...", "New", "Exit to PaperOS" };
+        const char* items[] = { "Save", "Save As...", "Open...", "New", "Exit to " OS_NAME };
         int sel = 0, n = 5;
         bool pEnt = false;
         while (true) {

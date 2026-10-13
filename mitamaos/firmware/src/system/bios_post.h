@@ -24,8 +24,8 @@ public:
         _y = 4;
         _fast = false;
 
-        _line(canvas, "PaperOS(tm) System BIOS", TERM_FG, 1);
-        _line(canvas, "(C) " + String(OS_AUTHOR) + ", All Rights Reserved", TERM_DIM, 1);
+        _line(canvas, OS_NAME " System BIOS", TERM_FG, 1);
+        _line(canvas, "(C) " + String(OS_AUTHOR) + ", GPLv2 free software", TERM_DIM, 1);
         _line(canvas, "", TERM_FG, 1);
 
         char buf[56];
@@ -201,7 +201,7 @@ private:
             ? String((unsigned long)(SD.totalBytes() / (1024 * 1024))) + " MB"
             : String("Not Detected"));
         row("Boot Device", "Internal Flash");
-        row("BIOS Version", "PaperOS " OS_VERSION);
+        row("BIOS Version", OS_NAME " " OS_VERSION);
 
         canvas.drawFastHLine(4, y + 2, SCREEN_W - 8, 0xFFFF);
         canvas.setTextColor(0xFFE0, 0x0015);

@@ -458,7 +458,7 @@ private:
             OsUI::drawFooter(_canvas, "`=back  ENT=erase");
         }
         else if (_section == 4) {
-            OsUI::drawHeader(_canvas, "About PaperOS", COL_HEADER);
+            OsUI::drawHeader(_canvas, "About " OS_NAME, COL_HEADER);
             _canvas.setTextSize(1);
             int y = CONTENT_Y + 8;
             auto row = [&](const char* label, const char* val) {

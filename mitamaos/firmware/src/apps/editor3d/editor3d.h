@@ -754,7 +754,7 @@ private:
     void _saveOBJ(String path){
         if(SD.cardType()==CARD_NONE){snprintf(_st,35,"No SD!");_needRedraw=true;return;}
         File f=SD.open(path,FILE_WRITE);if(!f){snprintf(_st,35,"Write fail!");_needRedraw=true;return;}
-        f.println("# PaperOS 3D Editor");f.println("o Mesh");
+        f.println("# " OS_NAME " 3D Editor");f.println("o Mesh");
         for(int i=0;i<_vc;i++) f.printf("v %.4f %.4f %.4f\n",_verts[i].x,_verts[i].y,_verts[i].z);
         for(int i=0;i<_ec;i++) f.printf("l %d %d\n",_edges[i].a+1,_edges[i].b+1);
         for(int i=0;i<_fc;i++){

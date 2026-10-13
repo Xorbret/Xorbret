@@ -1,5 +1,6 @@
 #pragma once
 #include <M5Cardputer.h>
+#include "../config.h"
 
 // PaperOS notebook mark, drawn entirely out of fillRect() calls instead of
 // a converted photo. The embedded-raster version of this logo came out
@@ -58,7 +59,7 @@ namespace PaperLogo {
         canvas.setTextSize(2);
         canvas.setTextColor(0xFFFF); // transparent bg - sits on whatever's already drawn
         canvas.setCursor(tx, ty);
-        canvas.print("PaperOS");
+        canvas.print(OS_NAME);
 
         canvas.setTextSize(1);
         canvas.setTextColor(0xC618);

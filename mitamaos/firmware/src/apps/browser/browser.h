@@ -218,7 +218,7 @@ private:
         _canvas.drawFastHLine(0, SCREEN_H - FOOTER_H, SCREEN_W, COL_ACCENT);
         _canvas.setTextColor(COL_DIM, COL_FOOTER);
         _canvas.setCursor(5, SCREEN_H - FOOTER_H + 3);
-        _canvas.print("Loading PaperOS Browser...");
+        _canvas.print("Loading " OS_NAME " Browser...");
 
         _canvas.pushSprite(0, 0);
     }
