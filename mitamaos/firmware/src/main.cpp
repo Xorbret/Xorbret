@@ -44,7 +44,7 @@
 #include "system/emu_compat.h"
 #include "system/paper_clock.h"
 #include "system/bios_post.h"
-#include "system/paper_logo.h"
+#include "system/mitama_logo.h"
 
 #define SD_CS   12
 #define SD_MOSI 14
@@ -94,25 +94,22 @@ static void _clearBootTo() {
     p.putInt("BootTo", 0); p.end();
 }
 
-// Windows-95-style startup banner: solid navy field, a little 4-pane
-// "flag" logo standing in for the Windows one, and a chunky segmented
-// loading bar (Win95's own startup bar was a fixed animation, not a real
-// progress readout - this one is too, since there's nothing meaningful to
-// measure between "apps are registered" and "jump to the launcher").
+// Boot splash: the locked stacked lockup (sealed magatama crest over the
+// MitamaOS wordmark) on near-black violet, then a segmented loading bar.
+// The bar is a fixed animation, not a real progress readout - there's
+// nothing meaningful to measure between "apps are registered" and "jump to
+// the launcher".
 static void showBootScreen() {
     canvas.fillSprite(COL_BG); // near-black violet
     int cx = SCREEN_W / 2;
 
-    // Hand-drawn logo mark, floating directly on the navy background.
-    int lw = PaperLogo::lockupW(2);
-    int lx = cx - lw / 2;
-    int ly = 10;
-    PaperLogo::drawLockup(canvas, lx, ly, 2);
-    int logoBottom = ly + PaperLogo::markH(2);
+    // Stacked lockup: sealed magatama crest over the MitamaOS wordmark.
+    MitamaLogo::drawCrest(canvas, cx, 35, 68);
+    MitamaLogo::drawWordmark(canvas, cx, 70);
 
     canvas.setTextSize(1);
     canvas.setTextColor(COL_DIM, COL_BG);
-    canvas.drawCenterString("v" + String(OS_VERSION) + "  by " + String(OS_AUTHOR), cx, logoBottom + 6);
+    canvas.drawCenterString("v" + String(OS_VERSION) + "  by " + String(OS_AUTHOR), cx, 90);
 
     const char* msgs[] = {
         "Starting up...",
@@ -121,12 +118,12 @@ static void showBootScreen() {
         "Loading applications..."
     };
     for (int i = 0; i < 4; i++) {
-        canvas.fillRect(0, 96, SCREEN_W, 12, COL_BG);
+        canvas.fillRect(0, 102, SCREEN_W, 12, COL_BG);
         canvas.setTextColor(COL_DIM, COL_BG);
-        canvas.drawCenterString(msgs[i], cx, 96);
+        canvas.drawCenterString(msgs[i], cx, 102);
 
         // segmented bar, sunken groove
-        int bx = 20, by = 112, bw = SCREEN_W - 40, bh = 8;
+        int bx = 20, by = 116, bw = SCREEN_W - 40, bh = 8;
         canvas.fillRect(bx, by, bw, bh, COL_BG);
         OsUI::drawBevel(canvas, bx, by, bw, bh, false);
         int filled = map(i + 1, 0, 4, 0, bw - 2);
