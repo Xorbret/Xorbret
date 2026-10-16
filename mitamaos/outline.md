@@ -1373,10 +1373,12 @@ step-down module; 2×7 2.54 mm straight pin header; 4× M2×5 flat-head and
 3× M2×5 cylinder-head hex bolts; 7 PLA parts (D1 D2 D3 L1 R1 S1 C1, 0.12 mm
 layers, ~1.5 h). Wire ~0.65 mm OD.
 
-**Wiring (EXT header → panel).** Reconstructed from the page's table (its
-text rendering is garbled) and cross-checked against the ADV pin map and an
-independent ILI9341-on-ADV build (IAforIA/cardputerADV-CSI-Human-detector),
-which uses the identical signal mapping:
+**Wiring (EXT header → panel).** Confirmed wire-by-wire against the page's
+three tables (Robert, 2026-10-16). The page numbers the 10 wires: panel
+GND 1, VCC 2, SCL 3, SDA 4, RES 5, DC 6, CS 7, BLK 8; step-down GND 9, VIN 10.
+Its Cardputer table's "SDA/SCL" labels are the EXT header's own I2C pins
+(G8/G9) across from G40/G14 and are not wired. Same mapping as the independent
+IAforIA/cardputerADV-CSI-Human-detector build.
 
 | EXT pin | ADV signal | Goes to |
 |---|---|---|
