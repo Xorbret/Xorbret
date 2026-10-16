@@ -399,7 +399,8 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 6. **Games (M6).** Native lightweight games (Snake → Solitaire → Chess
    medium-easy → Poker) alongside the existing emulator extension.
 7. **HAT expansion (M7).** dual-band, GPS/wardrive, LoRa sub-GHz, then NFC.
-8. **Second screen (M8).** Route buddy rendering to a second display.
+8. **Second screen (M8).** Route buddy rendering to a second display (hardware
+   and wiring locked in §22).
 
 ---
 
@@ -407,7 +408,7 @@ Robert's list: dual-band, GPS, NFC, sub-GHz.
 
 - Sub-GHz exact module (LoRa vs generic CC1101 receiver).
 - NFC exact module (likely PN532).
-- Second-screen wiring plan.
+- ~~Second-screen wiring plan.~~ Locked in §22 (Cap TFT V2 build).
 - Onboard RTC presence (low priority — GPS covers time).
 - RAVEN type placement (Acoustic legendary vs folded into Official).
 
@@ -1356,3 +1357,56 @@ That source was never captured into a repo and is **not recoverable
 verbatim**. Per §5 the plan replaces those from-scratch monitors with the
 SquachWatch port anyway, so the rebuild starts from the §8 build order rather
 than trying to reconstruct lost code.
+
+---
+
+## 22. Second screen — "Cap TFT V2" (hardware LOCKED 2026-10-16, firmware = M8)
+
+**The build.** Prokyon's "Cap TFT V2 - Display Expansion for Cardputer ADV"
+(MakerWorld model 3235288, CC BY-NC-SA 4.0 — print files only, no code taken).
+It is a printed cap that plugs into the ADV's EXT 2.54-14P header and holds a
+2.8" panel. Its firmware is a modified area512 (unrelated to us).
+
+**Parts:** 2.8" **ILI9341** SPI panel, 320×240, 8-pin module
+(GND, VCC, SCL, SDA, RES, DC, CS, BLK; no touch, no MISO); **AMS1117-3.3V**
+step-down module; 2×7 2.54 mm straight pin header; 4× M2×5 flat-head and
+3× M2×5 cylinder-head hex bolts; 7 PLA parts (D1 D2 D3 L1 R1 S1 C1, 0.12 mm
+layers, ~1.5 h). Wire ~0.65 mm OD.
+
+**Wiring (EXT header → panel).** Reconstructed from the page's table (its
+text rendering is garbled) and cross-checked against the ADV pin map and an
+independent ILI9341-on-ADV build (IAforIA/cardputerADV-CSI-Human-detector),
+which uses the identical signal mapping:
+
+| EXT pin | ADV signal | Goes to |
+|---|---|---|
+| 1 | G3 (RESET) | panel RES |
+| 5 | G6 (BUSY) | panel DC |
+| 7 | G40 (SCK) | panel SCL (clock) |
+| 9 | G14 (MOSI) | panel SDA (data in) |
+| 13 | G5 (CS) | panel CS |
+| 6 | 5VOUT | AMS1117 VIN |
+| 4 | GND | AMS1117 GND + panel GND |
+| — | AMS1117 3V3 out | panel VCC + BLK |
+
+**What this means for the firmware**
+- **Shares the SD card's SPI bus** (G40/G14; SD CS = G12). The SD bus is the
+  Arduino `SPIClass(HSPI)` set up in `main.cpp`; the panel must sit on that
+  same host with bus locking, and every SD access and panel flush must take
+  the lock. The existing "drive G5 HIGH before SD.begin" already keeps the
+  panel deselected during mount.
+- **No backlight control** (BLK hard-wired to 3.3 V) — it is lit whenever the
+  ADV is on. "Off" = ILI9341 sleep + black, backlight still drawing. Settings
+  should say so; a later hardware mod could move BLK to a GPIO.
+- **No MISO → can't auto-detect** the panel. Enable it with a Settings
+  toggle ("Second screen: off/on"), off by default.
+- **RAM:** a full 320×240 16-bit frame is 150 KB — impossible with no PSRAM.
+  Draw to it with small sprites / strips (buddy sprite + text rows), never a
+  full-frame canvas.
+- **Conflicts with the LoRa Cap** (§7): both use the EXT header and both use
+  G5 as CS and G3/G6. One or the other at a time; a stacked setup would need
+  a splitter and a different CS for one of them.
+- **Main-screen payoff:** with the second screen on, the Mitama + ticker move
+  there and the 14 px status bar is given back to apps (the §3 "render to a
+  surface" rule is what makes this a routing change).
+
