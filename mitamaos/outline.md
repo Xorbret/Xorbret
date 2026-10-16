@@ -1368,7 +1368,13 @@ It is a printed cap that plugs into the ADV's EXT 2.54-14P header and holds a
 2.8" panel. Its firmware is a modified area512 (unrelated to us).
 
 **Parts:** 2.8" **ILI9341** SPI panel, 320×240, 8-pin module
-(GND, VCC, SCL, SDA, RES, DC, CS, BLK; no touch, no MISO); **AMS1117-3.3V**
+(GND, VCC, SCL, SDA, RES, DC, CS, BLK; no touch, no MISO). The build's photo
+shows board marking **ZJY280S0800TG02** ("2.8'TFT_LCD 240*320 RGB" on the
+front), PCB 51 × 81.2 mm, mounting holes 45 × 75.2 mm. Buy the 8-pin no-touch
+module, not the common red 14-pin ILI9341 + touch + SD board (different size,
+won't fit the print). Some listings of this 8-pin board ship an ST7789 chip
+instead of ILI9341, so the driver should support both (Settings choice);
+ **AMS1117-3.3V**
 step-down module; 2×7 2.54 mm straight pin header; 4× M2×5 flat-head and
 3× M2×5 cylinder-head hex bolts; 7 PLA parts (D1 D2 D3 L1 R1 S1 C1, 0.12 mm
 layers, ~1.5 h). Wire ~0.65 mm OD.
