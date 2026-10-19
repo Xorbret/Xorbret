@@ -168,9 +168,13 @@ private:
         y += 3;
         e = MUI::text(_canvas, MUI::small(), "RECENT", x, y, MUI::DIM, 1);
         // Which radios are listening, on the right of the RECENT label.
-        const char* ears = st.wifiOn && st.ble == DetectionEngine::BLE_ON ? "WIFI+BLE"
-                         : st.wifiOn ? (st.ble == DetectionEngine::BLE_LOW_MEM ? "WIFI  BLE:mem" : "WIFI")
-                         : st.ble == DetectionEngine::BLE_ON ? "BLE" : "paused";
+        char ears[24];
+        if (st.ble == DetectionEngine::BLE_LOW_MEM)   // free RAM in KB, to see how short it is
+            snprintf(ears, sizeof(ears), "%sBLE:%uK", st.wifiOn ? "WIFI  " : "", (unsigned)(st.freeHeap / 1024));
+        else
+            snprintf(ears, sizeof(ears), "%s", st.wifiOn && st.ble == DetectionEngine::BLE_ON ? "WIFI+BLE"
+                                             : st.wifiOn ? "WIFI"
+                                             : st.ble == DetectionEngine::BLE_ON ? "BLE" : "paused");
         int ew = MUI::width(_canvas, MUI::small(), ears);
         MUI::text(_canvas, MUI::small(), ears, SCREEN_W - 4 - ew, y, MUI::DIM);
         y += 13;

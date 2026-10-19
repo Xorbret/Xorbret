@@ -43,6 +43,7 @@ public:
         bool     wifiOn = false;
         uint8_t  ble = BLE_OFF;
         uint32_t nowMs = 0;
+        uint32_t freeHeap = 0;               // bytes, for the low-memory hint
     };
 
     void begin() {
@@ -66,6 +67,7 @@ public:
         s.nowMs = millis();
         s.wifiOn = _wifiOn;
         s.ble = _ble;
+        s.freeHeap = ESP.getFreeHeap();
         if (!_lock) return s;
         xSemaphoreTake(_lock, portMAX_DELAY);
         for (int i = 0; i < MAX_SIGHT; i++) {
@@ -96,7 +98,9 @@ private:
     static constexpr uint32_t ACTIVE_MS = 10UL * 60 * 1000;
     static constexpr uint32_t HOP_MS = 250, BLE_RESTART_MS = 20000;
     static constexpr int      DEAUTH_LIMIT = 40;              // frames per 2s window
-    static constexpr uint32_t BLE_MIN_HEAP = 80000;
+    // NimBLE's controller + host take roughly 40KB; init aborts (reboots)
+    // if an allocation fails, so leave a margin for the rest of the OS.
+    static constexpr uint32_t BLE_MIN_HEAP = 64000;
 
     struct Event {
         uint8_t type, grade, via;

@@ -1,5 +1,8 @@
 #pragma once
 // M5 speaker sink for ESP8266Audio (triple buffer, no I2S).
+// The 24KB triple buffer lives on the heap only while sound is playing:
+// two of these sinks exist (Music, Lua sound.play) and holding both
+// buffers permanently left too little RAM for the Bluetooth scanner.
 
 #include <Arduino.h>
 #include <AudioOutput.h>
@@ -14,7 +17,7 @@ public:
         _m5sound   = m5sound;
         _virtual_ch = virtual_sound_channel;
     }
-    virtual ~AudioOutputM5Speaker() {}
+    virtual ~AudioOutputM5Speaker() { free(_tri_buffer); }
     virtual bool begin() override { return true; }
 
     virtual bool ConsumeSample(int16_t sample[2]) override {
@@ -63,6 +66,12 @@ public:
         sample[0] = (int16_t)l;
         sample[1] = (int16_t)r;
 
+        if (!_tri_buffer) {
+            _tri_buffer = (int16_t(*)[tri_buf_size])malloc(sizeof(int16_t) * 3 * tri_buf_size);
+            if (!_tri_buffer) return true;     // out of memory: drop the sample
+            _tri_buffer_index = 0; _tri_index = 0;
+        }
+
         if (_tri_buffer_index < tri_buf_size) {
             _tri_buffer[_tri_index][_tri_buffer_index]     = sample[0];
             _tri_buffer[_tri_index][_tri_buffer_index + 1] = sample[1];
@@ -74,7 +83,7 @@ public:
     }
 
     virtual void flush() override {
-        if (_tri_buffer_index) {
+        if (_tri_buffer && _tri_buffer_index) {
             // stereo=true, channel=_virtual_ch
             _m5sound->playRaw(_tri_buffer[_tri_index], _tri_buffer_index,
                               hertz, true, 1, _virtual_ch);
@@ -86,11 +95,16 @@ public:
     virtual bool stop() override {
         flush();
         _m5sound->stop(_virtual_ch);
+        // The channel is stopped, so nothing still reads the buffer.
+        free(_tri_buffer);
+        _tri_buffer = nullptr;
+        _tri_buffer_index = 0;
         return true;
     }
 
     const int16_t* getBuffer() const {
-        return _tri_buffer[(_tri_index + 2) % 3];
+        static const int16_t silence[tri_buf_size] = {};
+        return _tri_buffer ? _tri_buffer[(_tri_index + 2) % 3] : silence;
     }
 
 private:
@@ -100,7 +114,7 @@ private:
     int32_t            smoothL = 0, smoothR = 0;
 
     static constexpr size_t tri_buf_size = 4096;
-    int16_t _tri_buffer[3][tri_buf_size];
+    int16_t (*_tri_buffer)[tri_buf_size] = nullptr;   // [3][tri_buf_size] when playing
     size_t  _tri_buffer_index = 0;
     size_t  _tri_index        = 0;
 };
