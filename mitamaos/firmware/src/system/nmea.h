@@ -13,7 +13,8 @@ struct Fix {
     bool     valid = false;       // RMC status A and GGA quality > 0
     double   lat = 0, lon = 0;    // degrees, south/west negative
     float    altM = 0, hdop = 99;
-    uint8_t  sats = 0;
+    uint8_t  sats = 0;            // satellites used in the fix (GGA)
+    uint8_t  inView = 0;          // satellites visible, all systems (GSV)
     // UTC from RMC; year 0 until a date has been seen
     uint16_t year = 0; uint8_t mon = 0, day = 0, hour = 0, min = 0, sec = 0;
     uint32_t sentences = 0;       // good sentences seen, any type
@@ -40,6 +41,16 @@ private:
     bool   _on = false;
     bool   _rmcValid = false;
     uint8_t _ggaQual = 0;
+    uint8_t _view[6] = {0};       // in-view count per talker: GP GL GA BD/GB GQ other
+
+    static int _talker(const char* f0) {
+        if (f0[0] == 'G' && f0[1] == 'P') return 0;
+        if (f0[0] == 'G' && f0[1] == 'L') return 1;
+        if (f0[0] == 'G' && f0[1] == 'A') return 2;
+        if ((f0[0] == 'B' && f0[1] == 'D') || (f0[0] == 'G' && f0[1] == 'B')) return 3;
+        if (f0[0] == 'G' && f0[1] == 'Q') return 4;
+        return 5;
+    }
 
     static int _hex(char c) {
         if (c >= '0' && c <= '9') return c - '0';
@@ -95,6 +106,14 @@ private:
             fix.hdop = *f[8] ? (float)atof(f[8]) : 99;
             fix.altM = (float)atof(f[9]);
             if (_ggaQual > 0 && *f[2]) { fix.lat = _coord(f[2], f[3]); fix.lon = _coord(f[4], f[5]); }
+        } else if (strcmp(type, "GSV") == 0 && nf >= 4) {
+            // 3 = satellites in view for this system
+            _view[_talker(f[0])] = (uint8_t)atoi(f[3]);
+            int sum = 0;
+            for (uint8_t v : _view) sum += v;
+            fix.inView = sum > 255 ? 255 : (uint8_t)sum;
+            fix.sentences++;
+            return true;
         } else {
             fix.sentences++;
             return true;

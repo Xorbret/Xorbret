@@ -31,6 +31,13 @@ public:
             if (_parser.feed((char)Serial1.read(), _fix)) _lastMs = millis();
         }
         uint32_t now = millis();
+        // Once the module talks: ask it to use GPS + BeiDou + GLONASS
+        // (CASIC PCAS04; more satellites, faster fix than its default).
+        if (_lastMs && !_configured) {
+            _configured = true;
+            _searchMs = now;
+            Serial1.print("$PCAS04,7*1E\r\n");
+        }
         // No sentences yet: alternate between 115200 and the module's other
         // common rate (9600) until one of them talks.
         if (_fix.sentences == 0 && now - _sinceSwitch > 4000) {
@@ -41,6 +48,9 @@ public:
         if (_fix.valid && _fix.year >= 2024 && now - _clockSetMs > 600000UL) _setClock();
         MUI::gpsState = !present() ? 0 : hasFix() ? 2 : 1;
     }
+
+    // Milliseconds spent searching since the GPS was first heard.
+    uint32_t searchingMs() const { return _searchMs ? millis() - _searchMs : 0; }
 
     bool present() const { return _lastMs && millis() - _lastMs < 5000; }
     bool hasFix()  const { return present() && _fix.valid; }
@@ -54,6 +64,8 @@ private:
     Nmea::Fix    _fix;
     uint32_t     _lastMs = 0, _sinceSwitch = 0, _clockSetMs = 0;
     uint8_t      _baudIdx = 0;
+    bool         _configured = false;
+    uint32_t     _searchMs = 0;
 
     uint32_t _baud() const { return _baudIdx ? 9600 : 115200; }
 

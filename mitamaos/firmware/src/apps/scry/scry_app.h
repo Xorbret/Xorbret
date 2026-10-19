@@ -177,7 +177,8 @@ private:
         if (!g.present()) {
             MUI::text(_canvas, MUI::small(), "not found - is the cap on?", e, y, MUI::BONES);
         } else if (!g.hasFix()) {
-            snprintf(buf, sizeof(buf), "searching (%u sats)", fx.sats);
+            uint32_t m = g.searchingMs() / 60000;
+            snprintf(buf, sizeof(buf), "searching  %u in view  %lum", fx.inView, (unsigned long)m);
             MUI::text(_canvas, MUI::small(), buf, e, y, MUI::YELLOW);
         } else {
             snprintf(buf, sizeof(buf), "fix  %u sats  +/-%.0fm", fx.sats, g.accuracyM());
@@ -187,6 +188,8 @@ private:
         if (g.hasFix()) {
             snprintf(buf, sizeof(buf), "%.5f, %.5f", fx.lat, fx.lon);
             MUI::text(_canvas, MUI::small(), buf, x, y, MUI::DIM);
+        } else if (g.present()) {
+            MUI::text(_canvas, MUI::small(), "Needs open sky the first time", x, y, MUI::DIM);
         }
         y += 14;
 
