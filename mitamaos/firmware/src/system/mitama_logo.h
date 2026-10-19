@@ -14,7 +14,7 @@ namespace MitamaLogo {
 
     // Dashed ring: dashes of `on` units then `off` units along the circle.
     inline void _dashRing(LGFX_Sprite& c, int cx, int cy, float r, float w,
-                          float on, float off, uint16_t col) {
+                          float on, float off, uint16_t col, float startDeg = 0) {
         float circ = 2.0f * M_PI * r;
         int n = (int)(circ / (on + off) + 0.5f);
         if (n < 1) n = 1;
@@ -22,7 +22,7 @@ namespace MitamaLogo {
         int r0 = (int)(r - w / 2), r1 = (int)(r + w / 2 + 0.5f);
         if (r1 <= r0) r1 = r0 + 1;
         for (int i = 0; i < n; i++)
-            c.fillArc(cx, cy, r0, r1, i * step, i * step + dash, col);
+            c.fillArc(cx, cy, r0, r1, startDeg + i * step, startDeg + i * step + dash, col);
     }
 
     // Tapered comma: a band around (cx,cy) of mid-radius Rm from angle a0

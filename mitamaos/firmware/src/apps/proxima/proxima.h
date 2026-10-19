@@ -42,10 +42,15 @@ public:
             return;
         }
 
-        // Refresh once a second for the clock / Wi-Fi; change the Mitama's
-        // line every ~45s, or straight away when the network state flips.
-        if (++_tick % 50 == 0) {
+        // The bones ring turns slowly (a full turn every ~12s): redraw at
+        // ~10fps for it, which also keeps the clock / Wi-Fi fresh. Change
+        // the Mitama's line every ~45s, or when the network state flips.
+        ++_tick;
+        if (_tick % 5 == 0) {
+            _spin = fmodf(_spin + 3.0f, 360.0f);
             _needRedraw = true;
+        }
+        if (_tick % 50 == 0) {
             bool online = WiFi.status() == WL_CONNECTED;
             if (online != _wasOnline || _tick >= 50 * 45) { _tick = 0; _pickLine(); }
         }
@@ -59,6 +64,7 @@ private:
     uint32_t _tick = 0;
     bool     _wasOnline = false;
     const char* _line = "";
+    float    _spin = 0;
 
     // Placeholder line-bank until the M2 Mitama brain (event x mood, sass
     // dial) arrives. Kept short enough to fit the status bar.
@@ -97,7 +103,7 @@ private:
         uint16_t aura = online ? MUI::GREEN : MUI::YELLOW;
 
         MUI::header(_canvas, "PROXIMA", aura);
-        MUI::soul(_canvas, 40, 68, 92, MUI::YELLOW, aura);
+        MUI::soul(_canvas, 40, 68, 92, MUI::YELLOW, aura, _spin);
 
         const int x = 84;
         int y = HEADER_H + 3;
