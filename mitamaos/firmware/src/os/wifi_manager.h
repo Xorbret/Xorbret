@@ -13,6 +13,10 @@ public:
     }
 
     struct Slot { String ssid, pass; };
+
+    // millis() of the last WiFi.begin(); the detection watcher holds its
+    // channel hopping off for a while after it so joins aren't disturbed.
+    volatile uint32_t lastBeginMs = 0;
     Slot slots[MAX_WIFI_SLOTS];
 
     void loadFromPrefs() {
@@ -54,6 +58,7 @@ public:
         for (int i = 0; i < MAX_WIFI_SLOTS; i++) {
             if (slots[i].ssid != "") {
                 if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == slots[i].ssid) return;
+                lastBeginMs = millis();
                 WiFi.begin(slots[i].ssid.c_str(), slots[i].pass.c_str());
                 started = true;
                 break;
@@ -76,7 +81,8 @@ public:
             || st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) {
             for (int i = 0; i < MAX_WIFI_SLOTS; i++) {
                 if (slots[i].ssid != "") {
-                    WiFi.begin(slots[i].ssid.c_str(), slots[i].pass.c_str());
+                    lastBeginMs = millis();
+                WiFi.begin(slots[i].ssid.c_str(), slots[i].pass.c_str());
                     return;
                 }
             }
@@ -91,6 +97,7 @@ public:
         if (idx < 0 || idx >= MAX_WIFI_SLOTS) return;
         WiFi.disconnect(true);
         WiFi.mode(WIFI_STA);
+        lastBeginMs = millis();
         WiFi.begin(slots[idx].ssid.c_str(), slots[idx].pass.c_str());
     }
 

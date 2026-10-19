@@ -48,22 +48,35 @@ project and are not licensed for use on derivative distributions.
 - **M5Unified / M5GFX** — © M5Stack & lovyan03, **MIT License**.
 - **ESP8266Audio** — © Earle F. Philhower III, **GPLv3 / LGPL** components.
 - **Arduino-ESP32 / ESP-IDF** — © Espressif & contributors, **LGPL / Apache-2.0**.
+- **NimBLE-Arduino** (1.4.3) — © h2zero & Apache NimBLE contributors,
+  **Apache-2.0**. Built with only the observer (scanner) role, so the
+  firmware can't advertise or connect over Bluetooth.
+
+## Detection signature data (`src/detect/`)
+
+The detection engine (`signatures.h`, `detection.h`) is MitamaOS's own code.
+Its rules are public facts, not anyone's code:
+
+- **IEEE MA-L (OUI) registry** — `oui_table.h` is generated from it by
+  `tools/mkoui.py`; each row is a block registered to the named company.
+- **Bluetooth SIG** assigned numbers — company identifiers and 16-bit
+  service UUIDs.
+- Apple's Find My accessory advertisement layout, the **ASTM F3411** Remote
+  ID broadcast format, and names/SSIDs the devices broadcast themselves.
 
 ## Planned / design-inspiration sources (not yet integrated)
 
 These inform later milestones and are credited now so provenance is clear:
 
-- **ESP32Marauder** — © justcallmekoko, **MIT License**. We adapt its
-  **receive-only** scanning code (Wi-Fi sniffer, AP/station/probe/beacon parsing,
-  BLE scan, OUI lookup) for the detection engine. **No transmit/attack code is
-  ported** — MitamaOS stays receive-only by construction. MIT is GPLv2-compatible.
-- **flock-you** — © colonelpanichacks, **MIT License**. Source of Flock-camera
-  OUI signature data.
+- **ESP32Marauder** — © justcallmekoko, **MIT License**. Its receive-only
+  scanning (promiscuous sniffer, deauth-flood counting, passive BLE scan, OUI
+  lookup) informed the approach of the M1 detection engine, which was written
+  fresh. **No transmit/attack code is used** — MitamaOS stays receive-only.
+- **flock-you** — © colonelpanichacks, **MIT License**. Pointed to the
+  Flock-camera names and the IEEE registry copy used for `oui_table.h`.
 - **SquachWatch-CYD** — © skizzophrenic, **GPLv3**. **Reference only** — its
   detection ideas and signature provenance inform our own engine. GPLv3 is
   incompatible with our GPLv2 core, so **none of its code is used or vendored**.
-- **ESP-IDF / NimBLE** — © Espressif & contributors, **Apache-2.0**. The radio
-  plumbing (promiscuous Wi-Fi + BLE scanning) underneath the detection engine.
 - **AdvanceOS for Cardputer** — © bomberman30, **MIT License**. Reference for
   the theme manager and productivity apps.
 - **Bjorn** — © its authors, **MIT License**. Companion-architecture

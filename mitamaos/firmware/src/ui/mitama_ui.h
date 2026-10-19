@@ -35,6 +35,7 @@ namespace MUI {
     constexpr uint16_t CREAM      = 0xEF36;  // Mitama's voice
     constexpr uint16_t LABEL      = 0xCE1C;  // tile labels
     constexpr uint16_t WHITE      = 0xFFFF;
+    constexpr uint16_t RED        = 0xF800;  // alarm - Fiend sightings
 
     // ---- fonts ----------------------------------------------------------
     // Baked Rajdhani (SIL OFL) as anti-aliased VLW in flash. Each font is

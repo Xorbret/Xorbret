@@ -19,6 +19,7 @@
 #include "os/launcher.h"
 #include "os/wifi_manager.h"
 #include "apps/proxima/proxima.h"
+#include "detect/detection.h"
 #if PAPEROS_ENABLE_BROWSER
 #include "apps/browser/browser.h"
 #endif
@@ -227,6 +228,8 @@ void setup() {
         PaperClock::syncTime();
     }
 
+    DetectionEngine::get().begin();
+
     if (bootTo == BOOT_GAMES) {
         AppManager::get().launch("Games");
     } else {
@@ -254,8 +257,19 @@ static void _checkGoButton() {
     else AppManager::get().requestLaunch("Proxima");
 }
 
+// Tell the detection watcher when the foreground app changes, so it can
+// step aside for the apps that need the RAM or the radio.
+static void _watchActiveApp() {
+    static App* last = nullptr;
+    App* a = AppManager::get().getActive();
+    if (a == last) return;
+    last = a;
+    DetectionEngine::get().appChanged(a ? a->getName() : "");
+}
+
 void loop() {
     _checkGoButton();
+    _watchActiveApp();
     AppManager::get().tick();
     delay(TICK_MS);
 }
