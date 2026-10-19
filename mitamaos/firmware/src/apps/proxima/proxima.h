@@ -175,6 +175,7 @@ private:
             snprintf(ears, sizeof(ears), "%s", st.wifiOn && st.ble == DetectionEngine::BLE_ON ? "WIFI+BLE"
                                              : st.wifiOn ? "WIFI"
                                              : st.ble == DetectionEngine::BLE_ON ? "BLE" : "paused");
+        if (ScryLogger::get().recording()) strncat(ears, "  REC", sizeof(ears) - strlen(ears) - 1);
         int ew = MUI::width(_canvas, MUI::small(), ears);
         MUI::text(_canvas, MUI::small(), ears, SCREEN_W - 4 - ew, y, MUI::DIM);
         y += 13;

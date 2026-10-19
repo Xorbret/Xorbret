@@ -19,6 +19,8 @@
 #include <esp_wifi.h>
 #include <NimBLEDevice.h>
 #include "signatures.h"
+#include "scry.h"
+#include "../system/gps.h"
 #include "../os/wifi_manager.h"
 
 class DetectionEngine {
@@ -50,6 +52,7 @@ public:
         if (_q) return;
         _lock = xSemaphoreCreateMutex();
         _q = xQueueCreate(24, sizeof(Event));
+        Gps::get().begin();
         xTaskCreatePinnedToCore(_taskTrampoline, "mitama-watch", 4096, this, 1, nullptr, 0);
     }
 
@@ -59,8 +62,14 @@ public:
         static const char* HEAVY[] = { "myAI", "PaperWeb", "Store", "Games", "Lua" };
         bool heavy = false;
         for (auto h : HEAVY) if (strcmp(name, h) == 0) heavy = true;
-        _wantPause = heavy;
+        _heavyApp = heavy;
+        _wantPause = _heavyApp || _hold;
     }
+
+    // Pauses the radios while something needs the RAM for a moment (e.g.
+    // a TLS upload). Wait for paused() before relying on the memory.
+    void hold(bool on) { _hold = on; _wantPause = _heavyApp || _hold; }
+    bool paused() const { return !_wifiOn && _ble != BLE_ON; }
 
     Stats stats() {
         Stats s;
@@ -126,7 +135,7 @@ private:
     QueueHandle_t     _q = nullptr;
     SemaphoreHandle_t _lock = nullptr;
     Sighting          _store[MAX_SIGHT];
-    volatile bool     _wantPause = false;
+    volatile bool     _wantPause = false, _heavyApp = false, _hold = false;
     volatile bool     _wifiOn = false;
     volatile uint8_t  _ble = BLE_OFF;
     Recent            _wifiRecent, _bleRecent;
@@ -150,6 +159,8 @@ private:
         auto* p = (const wifi_promiscuous_pkt_t*)buf;
         int len = p->rx_ctrl.sig_len - 4;          // drop the FCS
         if (len < 24) return;
+        if (type == WIFI_PKT_MGMT)
+            ScryLogger::get().onWifi(p->payload, len, p->rx_ctrl.channel, p->rx_ctrl.rssi);
         Sig::WifiResult r = Sig::matchWifi(p->payload, len);
         if (r.kind == Sig::W_DEAUTH) {
             self._deauthFrames++;
@@ -207,6 +218,7 @@ private:
             uint8_t mac[6];
             for (int i = 0; i < 6; i++) mac[i] = le[5 - i];
             bool pub = d->getAddressType() == BLE_ADDR_PUBLIC;
+            ScryLogger::get().onBle(mac, d->getPayload(), d->getPayloadLength(), (int8_t)d->getRSSI());
             Sig::Hit h = Sig::matchBle(d->getPayload(), d->getPayloadLength(), mac, pub);
             if (!h.ok() || h.type == Sig::T_IBEACON) return;   // Herald: off by default
             if (self._bleRecent.seen(mac, h.type, millis())) return;
@@ -280,7 +292,9 @@ private:
         uint32_t lastHop = 0, lastKeep = 0, lastDeauth = 0, lastBle = millis();
         for (;;) {
             Event e;
-            while (xQueueReceive(_q, &e, pdMS_TO_TICKS(50)) == pdTRUE) _record(e);
+            while (xQueueReceive(_q, &e, pdMS_TO_TICKS(20)) == pdTRUE) _record(e);
+            Gps::get().poll();
+            ScryLogger::get().drain();
 
             uint32_t now = millis();
             if (now - lastKeep >= 1000) {

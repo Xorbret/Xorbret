@@ -20,6 +20,7 @@
 #include "os/wifi_manager.h"
 #include "apps/proxima/proxima.h"
 #include "detect/detection.h"
+#include "apps/scry/scry_app.h"
 #if PAPEROS_ENABLE_BROWSER
 #include "apps/browser/browser.h"
 #endif
@@ -33,8 +34,12 @@
 #if PAPEROS_ENABLE_MUSIC
 #include "apps/music/music.h"
 #endif
+#if PAPEROS_ENABLE_PIANO
 #include "apps/piano/piano.h"
+#endif
+#if PAPEROS_ENABLE_PAINT
 #include "apps/paint/paint.h"
+#endif
 #include "apps/settings/settings_app.h"
 #if PAPEROS_ENABLE_EDITOR3D
 #include "apps/editor3d/editor3d.h"
@@ -65,6 +70,7 @@ LGFX_Sprite canvas(&M5Cardputer.Display);
 
 Launcher      launcherApp(canvas);
 ProximaApp    proximaApp(canvas);
+ScryApp       scryApp(canvas);
 #if PAPEROS_ENABLE_BROWSER
 Browser       browserApp(canvas);
 #endif
@@ -77,8 +83,12 @@ Store         storeApp(canvas);
 #if PAPEROS_ENABLE_MUSIC
 MusicPlayer   musicApp(canvas);
 #endif
+#if PAPEROS_ENABLE_PIANO
 Piano         pianoApp(canvas);
+#endif
+#if PAPEROS_ENABLE_PAINT
 Paint         paintApp(canvas);
+#endif
 SysInfo       sysinfoApp(canvas);
 SettingsApp   settingsApp(canvas);
 #if PAPEROS_ENABLE_MYAI
@@ -193,9 +203,12 @@ void setup() {
     // the order their tiles appear.
     AppManager::get().registerApp(&launcherApp);
     AppManager::get().registerApp(&proximaApp);
+    AppManager::get().registerApp(&scryApp);
     AppManager::get().registerApp(&filesApp);
     AppManager::get().registerApp(&notesApp);
+#if PAPEROS_ENABLE_PAINT
     AppManager::get().registerApp(&paintApp);
+#endif
 #if PAPEROS_ENABLE_MUSIC
     AppManager::get().registerApp(&musicApp);
 #endif
@@ -205,7 +218,9 @@ void setup() {
     AppManager::get().registerApp(&browserApp);
 #endif
     AppManager::get().registerApp(&storeApp);
+#if PAPEROS_ENABLE_PIANO
     AppManager::get().registerApp(&pianoApp);
+#endif
     AppManager::get().registerApp(&calcApp);
     AppManager::get().registerApp(&clockApp);
 #if PAPEROS_ENABLE_EDITOR3D

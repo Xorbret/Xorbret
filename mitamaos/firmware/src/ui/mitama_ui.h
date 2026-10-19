@@ -163,6 +163,19 @@ namespace MUI {
         if (bw > 0) c.fillRect(x + 2, y + 2, bw, 3, col);
     }
 
+    // GPS state for the top bar, set by the GPS service: 0 no GPS cap,
+    // 1 searching, 2 fix.
+    inline volatile uint8_t gpsState = 0;
+
+    // Small satellite-dish glyph: a ring with a centre dot, centred (x,y).
+    inline void _gpsGlyph(LGFX_Sprite& c, int x, int y) {
+        uint16_t col = gpsState == 2 ? GREEN : DIM;
+        c.drawCircle(x, y, 4, col);
+        c.fillCircle(x, y, 1, col);
+        c.drawFastHLine(x - 6, y, 2, col);
+        c.drawFastHLine(x + 5, y, 2, col);
+    }
+
     // Shared top bar (rows 0..HEADER_H-1): mood magatama + title on the
     // left, clock / Wi-Fi / battery on the right, red bones rule under it.
     // `accent` tints the magatama and the rule for state (e.g. bones red
@@ -182,6 +195,7 @@ namespace MUI {
         int tw = width(c, small(), tbuf);
         int tx = SCREEN_W - 38 - tw;
         text(c, small(), tbuf, tx, 1, set ? CYAN : DIM);
+        if (gpsState) { _gpsGlyph(c, tx - 9, 7); tx -= 16; }   // left of the clock
 
         c.setClipRect(17, 0, tx - 21, HEADER_H - 1);
         text(c, title(), name ? name : "", 17, 1, YELLOW, 1);
@@ -219,7 +233,7 @@ namespace MUI {
     enum Sigil : uint8_t {
         SIG_COMPENDIUM, SIG_PROXIMA, SIG_FILES, SIG_PAINT, SIG_MUSIC, SIG_GAMES,
         SIG_LUA, SIG_GRIMOIRE, SIG_BROWSER, SIG_SETTINGS, SIG_STORE, SIG_PIANO,
-        SIG_CUBE, SIG_CALC, SIG_CLOCK, SIG_ORACLE, SIG_SYSTEM, SIG_UNKNOWN
+        SIG_CUBE, SIG_CALC, SIG_CLOCK, SIG_ORACLE, SIG_SYSTEM, SIG_SCRY, SIG_UNKNOWN
     };
 
     struct _Pen {
@@ -341,6 +355,14 @@ namespace MUI {
             break; }
         case SIG_ORACLE: // three linked circles
             p.ring(12, 9, 4); p.ring(8.8f, 14.6f, 4); p.ring(15.2f, 14.6f, 4);
+            break;
+        case SIG_SCRY: // scrying eye: almond lids, iris, pupil, sight-line ticks
+            p.arc(12, 21, 12, 223, 317);
+            p.arc(12, 3, 12, 43, 137);
+            p.ring(12, 12, 3.4f);
+            p.dot(12, 12, 1.2f);
+            p.line(12, 1.5f, 12, 4.5f); p.line(12, 19.5f, 12, 22.5f);
+            p.line(1.5f, 12, 3.2f, 12); p.line(20.8f, 12, 22.5f, 12);
             break;
         case SIG_SYSTEM: // sealed chip
             p.rect(7.5f, 7.5f, 9, 9);

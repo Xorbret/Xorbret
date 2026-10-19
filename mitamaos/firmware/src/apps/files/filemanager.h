@@ -11,8 +11,12 @@
 #include "../../os/disp_lock.h"
 #include "../../config.h"
 #include "../../system/ota_tools.h"
+#if PAPEROS_ENABLE_MUSIC
 #include "../music/music.h"
+#endif
+#if PAPEROS_ENABLE_EDITOR3D
 #include "../editor3d/editor3d.h"
+#endif
 
 // If PNG/JPG/QOI decoding still fails to build on this M5GFX version after
 // moving SD.h above M5Cardputer.h in main.cpp, set this to 0 - it drops the
@@ -502,6 +506,9 @@ private:
     // Music app only scans its own /music folder - if the file lives
     // elsewhere, copy it there first, then switch to the app.
     void _launchAudio(const String& path) {
+#if !PAPEROS_ENABLE_MUSIC
+        (void)path; _showToast("No music player in MitamaOS"); return;
+#else
         if (!SD.exists("/MitamaOS")) SD.mkdir("/MitamaOS");
         if (!SD.exists("/MitamaOS/music")) SD.mkdir("/MitamaOS/music");
         String target = path;
@@ -517,6 +524,7 @@ private:
         g_musicPendingFile[sizeof(g_musicPendingFile) - 1] = '\0';
         _showToast("Opening in Music...");
         AppManager::get().launch("Music");
+#endif
     }
 
     // ── Actions (used by both hotkeys and the context menu) ────────────
@@ -765,6 +773,9 @@ private:
     // Editor3D only scans its own /MitamaOS/3d/ folder and only .obj files - same as
     // Music, copy it there if needed, then switch to the app.
     void _launch3D(const String& path, const String& low) {
+#if !PAPEROS_ENABLE_EDITOR3D
+        (void)path; (void)low; _showToast("No 3D editor in MitamaOS"); return;
+#else
         if (!low.endsWith(".obj")) {
             _showToast("Only .obj loads in 3D Editor (yet)");
             return;
@@ -783,6 +794,7 @@ private:
         g_editor3dPendingFile[sizeof(g_editor3dPendingFile) - 1] = '\0';
         _showToast("Opening in 3D Editor...");
         AppManager::get().launch("3D Editor");
+#endif
     }
 
     void _viewFile(const String& path) {
