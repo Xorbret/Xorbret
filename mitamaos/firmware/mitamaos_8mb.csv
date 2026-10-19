@@ -1,7 +1,9 @@
 # Name,   Type, SubType, Offset,    Size, Flags
+# app0 grew from 0x1B0000 to 0x230000 for the M1 detection service
+# (NimBLE); romxip (emulator ROM cache) shrank from 5MB to 4.5MB to pay.
 nvs,      data, nvs,      0x9000,   0x5000,
 otadata,  data, ota,      0xe000,   0x2000,
-app0,     app,  ota_0,    0x10000,  0x1B0000,
-app1,     app,  ota_1,    0x1C0000, 0xF0000,
-romxip,   data, spiffs,   0x2B0000, 0x500000,
+app0,     app,  ota_0,    0x10000,  0x230000,
+app1,     app,  ota_1,    0x240000, 0xF0000,
+romxip,   data, spiffs,   0x330000, 0x480000,
 spiffs,   data, spiffs,   0x7B0000, 0x50000,

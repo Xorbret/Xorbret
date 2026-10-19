@@ -1239,6 +1239,9 @@ Ordered by how much pain they'd cause if hit blind.
    `romxip` spiffs **5 MB** (emulator ROMs, XIP), spiffs 320 KB; `model.bin`
    lives on **SD**. Adding the SquachWatch engine + NimBLE + buddy may strain
    app0 — if it overflows, repartition (shrink `romxip`). Watch app0 size at M0/M1.
+   **Done at M1 (2026-10-19):** detection + NimBLE came to 1.78 MB, so
+   `mitamaos_8mb.csv` now gives app0 **2.25 MB** (0x230000) and `romxip`
+   **4.5 MB** (moved to 0x330000); app1 and spiffs are unchanged.
 9. **Board target.** `board = m5stack-stamps3` compiles for the S3; rely on
    M5Unified **runtime** detection of `board_M5CardputerADV`. Keep flash 8 MB /
    qio / 240 MHz; LittleFS + SD. Bootloader: hold GPIO0 + reset.
