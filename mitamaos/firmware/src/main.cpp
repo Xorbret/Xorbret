@@ -18,6 +18,7 @@
 #include "os/os_ui.h"
 #include "os/launcher.h"
 #include "os/wifi_manager.h"
+#include "apps/proxima/proxima.h"
 #if PAPEROS_ENABLE_BROWSER
 #include "apps/browser/browser.h"
 #endif
@@ -45,6 +46,7 @@
 #include "system/paper_clock.h"
 #include "system/bios_post.h"
 #include "system/mitama_logo.h"
+#include "ui/mitama_ui.h"
 
 #define SD_CS   12
 #define SD_MOSI 14
@@ -61,6 +63,7 @@
 LGFX_Sprite canvas(&M5Cardputer.Display);
 
 Launcher      launcherApp(canvas);
+ProximaApp    proximaApp(canvas);
 #if PAPEROS_ENABLE_BROWSER
 Browser       browserApp(canvas);
 #endif
@@ -105,11 +108,13 @@ static void showBootScreen() {
 
     // Stacked lockup: sealed magatama crest over the MitamaOS wordmark.
     MitamaLogo::drawCrest(canvas, cx, 35, 68);
-    MitamaLogo::drawWordmark(canvas, cx, 70);
-
-    canvas.setTextSize(1);
-    canvas.setTextColor(COL_DIM, COL_BG);
-    canvas.drawCenterString("v" + String(OS_VERSION) + "  by " + String(OS_AUTHOR), cx, 90);
+    {
+        int w = MUI::width(canvas, MUI::display(), "MitamaOS", 1);
+        int x = MUI::text(canvas, MUI::display(), "Mitama", cx - w / 2, 66, MUI::WHITE, 1);
+        MUI::text(canvas, MUI::display(), "OS", x + 1, 66, MUI::YELLOW, 1);
+    }
+    MUI::textCentered(canvas, MUI::small(), ("v" + String(OS_VERSION) + "  //  COMP ONLINE").c_str(),
+                      cx, 88, MUI::DIM, 1);
 
     const char* msgs[] = {
         "Starting up...",
@@ -118,9 +123,8 @@ static void showBootScreen() {
         "Loading applications..."
     };
     for (int i = 0; i < 4; i++) {
-        canvas.fillRect(0, 102, SCREEN_W, 12, COL_BG);
-        canvas.setTextColor(COL_DIM, COL_BG);
-        canvas.drawCenterString(msgs[i], cx, 102);
+        canvas.fillRect(0, 101, SCREEN_W, 14, COL_BG);
+        MUI::textCentered(canvas, MUI::small(), msgs[i], cx, 101, MUI::DIM);
 
         // segmented bar, sunken groove
         int bx = 20, by = 116, bw = SCREEN_W - 40, bh = 8;
@@ -183,31 +187,34 @@ void setup() {
     // WiFi
     WiFiManager::get().loadFromPrefs();
 
-    // Register apps (launcher is FIRST - index 0)
+    // Register apps. The launcher MUST be index 0 (every app's "home"
+    // goes there); Proxima is hidden from the grid. The rest register in
+    // the order their tiles appear.
     AppManager::get().registerApp(&launcherApp);
-#if PAPEROS_ENABLE_BROWSER
-    AppManager::get().registerApp(&browserApp);
-#endif
-    AppManager::get().registerApp(&gamesApp);
-    AppManager::get().registerApp(&storeApp);
+    AppManager::get().registerApp(&proximaApp);
+    AppManager::get().registerApp(&filesApp);
+    AppManager::get().registerApp(&notesApp);
+    AppManager::get().registerApp(&paintApp);
 #if PAPEROS_ENABLE_MUSIC
     AppManager::get().registerApp(&musicApp);
 #endif
+    AppManager::get().registerApp(&gamesApp);
+    AppManager::get().registerApp(&luaApp);
+#if PAPEROS_ENABLE_BROWSER
+    AppManager::get().registerApp(&browserApp);
+#endif
+    AppManager::get().registerApp(&storeApp);
     AppManager::get().registerApp(&pianoApp);
-    AppManager::get().registerApp(&paintApp);
+    AppManager::get().registerApp(&calcApp);
+    AppManager::get().registerApp(&clockApp);
 #if PAPEROS_ENABLE_EDITOR3D
     AppManager::get().registerApp(&editor3dApp);
 #endif
-    AppManager::get().registerApp(&filesApp);
-    AppManager::get().registerApp(&notesApp);
-    AppManager::get().registerApp(&calcApp);
-    AppManager::get().registerApp(&clockApp);
-    AppManager::get().registerApp(&sysinfoApp);
-    AppManager::get().registerApp(&settingsApp);
 #if PAPEROS_ENABLE_MYAI
     AppManager::get().registerApp(&myaiApp);
 #endif
-    AppManager::get().registerApp(&luaApp);
+    AppManager::get().registerApp(&sysinfoApp);
+    AppManager::get().registerApp(&settingsApp);
 
     // WiFi connect + NTP sync used to live only in the "normal boot" branch
     // below, so a stuck BootTo=BOOT_GAMES flag (e.g. after a game/emulator
@@ -225,11 +232,30 @@ void setup() {
     } else {
         BiosPost::run(canvas);
         showBootScreen();
-        AppManager::get().launchByIndex(0);
+        AppManager::get().launch("Proxima");
     }
 }
 
+// G0 (the side button) jumps to Proxima from anywhere, and back to the app
+// grid from Proxima. Skipped in apps where leaving abruptly would lose work
+// or interrupt something running (unsaved drawings/notes, Lua scripts,
+// emulator games, downloads, LLM generation) - those exit the normal way.
+static void _checkGoButton() {
+    static bool prev = false;
+    bool down = M5Cardputer.BtnA.isPressed();
+    bool edge = down && !prev;
+    prev = down;
+    if (!edge) return;
+    App* a = AppManager::get().getActive();
+    const char* n = a ? a->getName() : "";
+    static const char* KEEP[] = { "Paint", "Notes", "3D Editor", "Lua", "Games", "Store", "myAI" };
+    for (auto k : KEEP) if (strcmp(n, k) == 0) return;
+    if (strcmp(n, "Proxima") == 0) AppManager::get().requestHome();
+    else AppManager::get().requestLaunch("Proxima");
+}
+
 void loop() {
+    _checkGoButton();
     AppManager::get().tick();
     delay(TICK_MS);
 }

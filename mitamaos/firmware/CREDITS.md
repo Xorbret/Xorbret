@@ -35,6 +35,12 @@ project and are not licensed for use on derivative distributions.
   bridging ESP8266Audio to the M5 Speaker. Derived from M5Stack example code,
   **MIT License**.
 
+- **Rajdhani** typeface — baked to anti-aliased bitmap (VLW) fonts in
+  `src/ui/fonts/` by `tools/mkvlw.py`. © 2014 Indian Type Foundry,
+  **SIL Open Font License 1.1** (text in `src/ui/fonts/OFL.txt`). The font
+  data stays under the OFL; bundling it with GPLv2 software is permitted.
+  https://fonts.google.com/specimen/Rajdhani
+
 ## Build-time dependencies (fetched by PlatformIO, not vendored)
 
 - **M5Cardputer** (≥ 1.1.1) — © M5Stack, **MIT License**. Version 1.1.1 is the
@@ -69,7 +75,7 @@ These inform later milestones and are credited now so provenance is clear:
 
 The companion spirit ("the Mitama"), the Proxima home + Compendium, the
 Scry / Ward / Augury postures, the Cyberpunk-over-red-bones visual identity,
-the Rajdhani typography, the sound set, and all original art and writing are
+the sigil set, the sound set, and all original art and writing are
 new work by the MitamaOS project, © Xorbret, under GPLv2.
 
 > If a credit here is wrong or incomplete, please open an issue — correct

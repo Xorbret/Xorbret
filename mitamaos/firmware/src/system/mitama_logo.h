@@ -60,16 +60,4 @@ namespace MitamaLogo {
         _magatama(c, X(100), Y(106), 34 * s, 24 * s, -60, 185, 0.82f, COL_WARN);
     }
 
-    // "Mitama" in white + "OS" in cyber yellow, centred on cx.
-    inline void drawWordmark(LGFX_Sprite& c, int cx, int y, int textSize = 2) {
-        c.setTextSize(textSize);
-        int w = c.textWidth("MitamaOS");
-        int x = cx - w / 2;
-        c.setTextColor(COL_TEXT);
-        c.setCursor(x, y);
-        c.print("Mitama");
-        c.setTextColor(COL_WARN);
-        c.print("OS");
-        c.setTextSize(1);
-    }
 }

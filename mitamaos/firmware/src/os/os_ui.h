@@ -4,10 +4,12 @@
 #include <vector>
 #include "../config.h"
 #include "disp_lock.h"
+#include "../ui/mitama_ui.h"
 
-// Shared header/footer and dialog helpers - styled as Windows 95 chrome
-// (navy titlebar, sunken/raised 3D bevel panels). Every app in PaperOS goes
-// through these, so this is most of where the "Windows 95" look lives.
+// Shared header/footer and dialog helpers. Every app goes through these.
+// The top bar / status bar are MitamaOS chrome (ui/mitama_ui.h); the bevel
+// panels and dialogs below are still the inherited PaperOS (Win95-style)
+// widgets, restyled screen by screen during M1.
 class OsUI {
 public:
 
@@ -43,62 +45,20 @@ public:
         canvas.print(label);
     }
 
+    // Top bar and status bar for every app. They now draw the MitamaOS
+    // chrome (ui/mitama_ui.h) in the same rows the Win95 versions used, so
+    // inherited app layouts keep working unchanged. `color` keeps its old
+    // meaning as a state tint: COL_HEADER is the normal state, the
+    // others (disconnected / loading / warning) tint the magatama + rule.
     static void drawHeader(LGFX_Sprite& canvas,
                            const char*  appTitle,
                            uint16_t     color = COL_HEADER)
     {
-        // Cheap horizontal gradient (navy -> a lighter blue) to echo the
-        // Win95 active-titlebar gradient without per-pixel cost.
-        for (int i = 0; i < 6; i++) {
-            int x0 = i * SCREEN_W / 6, x1 = (i + 1) * SCREEN_W / 6;
-            uint16_t band = _lerp565(color, 0x2E9F, i / 5.0f);
-            canvas.fillRect(x0, 0, x1 - x0, HEADER_H - 2, band);
-        }
-        canvas.fillRect(0, HEADER_H - 2, SCREEN_W, 2, COL_BG2);
-        drawBevel(canvas, 0, HEADER_H - 2, SCREEN_W, 2, false);
-
-        // Small title-bar "window icon"
-        canvas.fillRect(3, 3, 10, 10, COL_BG2);
-        drawBevel(canvas, 3, 3, 10, 10, true);
-        canvas.setTextColor(COL_TEXT, COL_BG2);
-        canvas.setTextSize(1);
-        canvas.setCursor(6, 5);
-        canvas.print(appTitle[0] ? appTitle[0] : '*');
-
-        int bat = constrain(
-            map(M5Cardputer.Power.getBatteryVoltage(), 3300, 4200, 0, 100),
-            0, 100
-        );
-        const int BX = 218, BY = 4;
-        canvas.drawRect(BX, BY, 18, 8, 0xFFFF);
-        canvas.fillRect(BX + 18, BY + 2, 2, 4, 0xFFFF);
-        int bw = map(bat, 0, 100, 0, 16);
-        uint16_t bcol = bat > 30 ? (uint16_t)0x07E0 : (bat > 15 ? (uint16_t)COL_WARN : (uint16_t)COL_ERR);
-        if (bw > 0) canvas.fillRect(BX + 1, BY + 1, bw, 6, bcol);
-
-        // WiFi bars
-        _drawRSSI(canvas, 197, 3);
-
-        char titbuf[32];
-        strncpy(titbuf, appTitle, 31);
-        titbuf[31] = '\0';
-        canvas.setClipRect(17, 0, 176, HEADER_H - 2);
-        canvas.setTextColor(0xFFFF); // transparent-bg: sits on the gradient, no boxy fill
-        canvas.setTextSize(1);
-        canvas.setCursor(17, 4);
-        canvas.print(titbuf);
-        canvas.clearClipRect();
+        MUI::header(canvas, appTitle, color == COL_HEADER ? MUI::YELLOW : color);
     }
 
     static void drawFooter(LGFX_Sprite& canvas, const char* hint) {
-        drawPanel(canvas, 0, SCREEN_H - FOOTER_H, SCREEN_W, FOOTER_H, false, COL_FOOTER);
-        char buf[40];
-        strncpy(buf, hint, 38);
-        buf[38] = '\0';
-        canvas.setTextColor(COL_DIM, COL_FOOTER);
-        canvas.setTextSize(1);
-        canvas.setCursor(6, SCREEN_H - FOOTER_H + 3);
-        canvas.print(buf);
+        MUI::footer(canvas, hint);
     }
 
     // Chunky segmented Win95-style progress bar, sunken groove with solid
