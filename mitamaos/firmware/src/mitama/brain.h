@@ -8,6 +8,7 @@
 // the same demon within ~60s doesn't repeat flavor; nothing here blocks.
 #include <Arduino.h>
 #include <Preferences.h>
+#include "../system/sd_settings.h"
 #include <WiFi.h>
 #include "lines.h"
 #include "../detect/detection.h"
@@ -107,6 +108,7 @@ public:
     void cycleSass() {
         _sass = (_sass + 1) % 4;
         Preferences p; p.begin("mitama", false); p.putUChar("sass", _sass); p.end();
+        SdSettings::changed();
         _idleGapMs = _nextGap();
     }
     static const char* sassName(uint8_t s) {

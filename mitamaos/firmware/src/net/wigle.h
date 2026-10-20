@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <Preferences.h>
+#include "../system/sd_settings.h"
 #include <SD.h>
 #include <base64.h>
 #include "ca_bundle.h"
@@ -26,6 +27,7 @@ inline void save(const Account& a) {
     p.putString("name", a.name);
     p.putString("token", a.token);
     p.end();
+    SdSettings::changed();
 }
 
 // Uploads one file. On failure `msg` says why in a few words.

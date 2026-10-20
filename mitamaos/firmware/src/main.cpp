@@ -21,6 +21,7 @@
 #include "apps/proxima/proxima.h"
 #include "detect/detection.h"
 #include "mitama/brain.h"
+#include "system/sd_settings.h"
 #include "apps/scry/scry_app.h"
 #include "apps/compendium/compendium_app.h"
 #include "apps/molt/molt_app.h"
@@ -198,6 +199,7 @@ void setup() {
     // /MitamaOS/wigle.txt) before any app has written to the card.
     ScryLogger::ensureDirs();
     Compendium::get().load();   // before the watcher starts noting sightings
+    SdSettings::boot();         // restore settings an install wiped, before anything reads them
 
     // Brightness
     {
@@ -306,5 +308,6 @@ void loop() {
         MitamaBrain::get().update(DetectionEngine::get().stats());
     }
     AppManager::get().tick();
+    SdSettings::tick();
     delay(TICK_MS);
 }

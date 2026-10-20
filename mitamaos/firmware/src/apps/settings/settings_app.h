@@ -2,6 +2,7 @@
 #include <M5Cardputer.h>
 #include <WiFi.h>
 #include <Preferences.h>
+#include "../../system/sd_settings.h"
 #include "../../os/app.h"
 #include "../../os/app_manager.h"
 #include "../../os/os_ui.h"
@@ -327,6 +328,7 @@ private:
         p.begin("display", false);
         p.putInt("bright", b);
         p.end();
+        SdSettings::changed();
     }
 
     void _draw() {

@@ -1,6 +1,7 @@
 #pragma once
 #include <WiFi.h>
 #include <Preferences.h>
+#include "../system/sd_settings.h"
 #include "../config.h"
 
 //  WiFiManager - stores/loads credentials, connects
@@ -47,6 +48,7 @@ public:
         p.putString(("s" + String(idx)).c_str(), ssid);
         p.putString(("p" + String(idx)).c_str(), pass);
         p.end();
+        SdSettings::changed();
     }
 
   // Connect using the first non-empty slot (max timeoutMs, 0 = begin() only)

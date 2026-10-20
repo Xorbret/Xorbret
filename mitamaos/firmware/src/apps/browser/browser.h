@@ -3,6 +3,7 @@
 #include <M5Cardputer.h>
 #include <SD.h>
 #include <Preferences.h>
+#include "../../system/sd_settings.h"
 #include "paper_engine.h"
 #include "../../os/app.h"
 #include "../../os/app_manager.h"
@@ -1065,6 +1066,7 @@ private:
         for (int i = 0; i < _bmarkCount; i++)
             p.putString(("u" + String(i)).c_str(), _bookmarks[i]);
         p.end();
+        SdSettings::changed();
     }
 
     void _draw() {

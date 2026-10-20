@@ -1,6 +1,7 @@
 #pragma once
 #include <M5Cardputer.h>
 #include <Preferences.h>
+#include "../../system/sd_settings.h"
 #include "../../os/app.h"
 #include "../../os/app_manager.h"
 #include "../../os/os_ui.h"
@@ -75,6 +76,7 @@ private:
         Preferences p; p.begin("notes", false);
         p.putString(("n" + String(idx)).c_str(), text);
         p.end();
+        SdSettings::changed();
     }
 
     void _updateList() {
