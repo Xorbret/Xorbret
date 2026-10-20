@@ -8,6 +8,8 @@
 #include "../../os/mem_guard.h"
 #include "../../config.h"
 #include "../../system/paper_clock.h"
+#include <esp_partition.h>
+#include <esp_ota_ops.h>
 
 class SysInfo : public App {
 public:
@@ -32,7 +34,13 @@ public:
             return;
         }
 
-        if (millis() - _timer > 2000) {
+        if (M5Cardputer.Keyboard.isKeyPressed('p')) {
+            OsUI::waitRelease();
+            _parts = !_parts;
+            _draw();
+        }
+
+        if (!_parts && millis() - _timer > 2000) {
             _timer = millis();
             _draw();
         }
@@ -41,8 +49,37 @@ public:
 private:
     LGFX_Sprite& _canvas;
     uint32_t _timer = 0;
+    bool     _parts = false;
+
+    // Flash layout as the chip actually has it (P). Shows whether the
+    // installer kept MitamaOS's own partition table; * = running now.
+    void _drawParts() {
+        _canvas.startWrite();
+        _canvas.fillSprite(COL_BG);
+        OsUI::drawHeader(_canvas, "SysInfo  partitions", COL_HEADER);
+        _canvas.setTextSize(1);
+        int y = CONTENT_Y + 3;
+        const esp_partition_t* run = esp_ota_get_running_partition();
+        esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, nullptr);
+        for (; it && y < SCREEN_H - 20; it = esp_partition_next(it)) {
+            const esp_partition_t* p = esp_partition_get(it);
+            char line[48];
+            snprintf(line, sizeof(line), "%c%-8.8s %s%02x %06x %5uK",
+                     p == run ? '*' : ' ', p->label, p->type == ESP_PARTITION_TYPE_APP ? "a" : "d",
+                     (unsigned)p->subtype, (unsigned)p->address, (unsigned)(p->size / 1024));
+            _canvas.setTextColor(p == run ? COL_OK : COL_TEXT, COL_BG);
+            _canvas.setCursor(4, y);
+            _canvas.print(line);
+            y += 10;
+        }
+        if (it) esp_partition_iterator_release(it);
+        OsUI::drawFooter(_canvas, "P back  `=home");
+        _canvas.pushSprite(0, 0);
+        _canvas.endWrite();
+    }
 
     void _draw() {
+        if (_parts) { _drawParts(); return; }
         _canvas.startWrite();
         _canvas.fillSprite(COL_BG);
         OsUI::drawHeader(_canvas, "SysInfo  v" OS_VERSION, COL_HEADER);
@@ -127,7 +164,7 @@ private:
             snprintf(warnbuf, sizeof(warnbuf), "! %s  `=home", MemGuard::lastWarning());
             OsUI::drawFooter(_canvas, warnbuf);
         } else {
-            OsUI::drawFooter(_canvas, "Auto-refresh 2s  `=home");
+            OsUI::drawFooter(_canvas, "P partitions  `=home");
         }
         _canvas.pushSprite(0, 0);
         _canvas.endWrite();
