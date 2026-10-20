@@ -9,6 +9,7 @@
 #include "../../ui/mitama_ui.h"
 #include "../../detect/detection.h"
 #include "../../net/update.h"
+#include "../../system/crash_log.h"
 
 // Molt - updates MitamaOS. Checks the MitamaOS site for a newer build and
 // downloads it to the SD card (/MitamaOS/update/), then restarts so it can
@@ -71,7 +72,9 @@ private:
         if (!_online()) return;
         _say("Looking...", MUI::CYAN); _draw();
         String msg;
+        CrashLog::crumb("molt check");
         { Hold h; _latest = OsUpdate::latest(msg); }
+        CrashLog::done();
         if (!_latest.length()) { _say(msg, MUI::BONES); return; }
         if (_latest == OsUpdate::current()) {
             _state = S_CURRENT;
@@ -94,7 +97,9 @@ private:
         _self = this; _pct = 0;
         _say("Downloading...", MUI::CYAN); _draw();
         String msg;
+        CrashLog::crumb("molt download");
         { Hold h; _path = OsUpdate::download(_latest, &MoltApp::_progress, msg); }
+        CrashLog::done();
         _pct = -1;
         if (!_path.length()) { _say(msg, MUI::BONES); return; }
         _state = S_READY;

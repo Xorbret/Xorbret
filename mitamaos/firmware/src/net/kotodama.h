@@ -24,6 +24,7 @@
 #include "mesh_proto.h"
 #include "../system/sd_bus.h"
 #include "../system/sd_settings.h"
+#include "../system/crash_log.h"
 
 class Kotodama {
 public:
@@ -75,7 +76,8 @@ public:
     // that need every byte (as for the detection watcher) make the radio
     // stand down and free its buffers; it comes back when they close.
     void appChanged(const char* name) {
-        static const char* HEAVY[] = { "MiTalk", "PaperWeb", "Store", "Games", "Lua" };
+        // Molt too: its download needs the RAM for TLS and the SD card to itself.
+        static const char* HEAVY[] = { "MiTalk", "PaperWeb", "Store", "Games", "Lua", "Molt" };
         bool heavy = false;
         for (auto h : HEAVY) if (strcmp(name, h) == 0) heavy = true;
         if (heavy == _heavy) return;
@@ -120,7 +122,7 @@ public:
         _announceAt = millis() + 3000;      // say who we are shortly after starting
         // The task ends itself when the radio stops (frees its stack); the
         // lock makes "is it still running?" and its exit one step.
-        if (!_task) xTaskCreatePinnedToCore(_taskFn, "kotodama", 6144, this, 1, &_task, 0);
+        if (!_task) xTaskCreatePinnedToCore(_taskFn, "kotodama", 8192, this, 1, &_task, 0);
     }
 
     // Waits for the radio task to finish whatever it's sending (a few
@@ -203,6 +205,7 @@ public:
     void tick() {
         if (!_msgs || _serial == _loggedSerial) return;
         _loggedSerial = _serial;
+        _Crumb cr("kotodama log");
         if (SD.cardType() == CARD_NONE) return;
         if (!SD.exists("/MitamaOS/kotodama")) SD.mkdir("/MitamaOS/kotodama");
         File f = SD.open("/MitamaOS/kotodama/log.txt", FILE_APPEND);
@@ -230,6 +233,9 @@ private:
     static constexpr int LORA_CS = 5, LORA_IRQ = 4, LORA_RST = 3, LORA_BUSY = 6;
     static constexpr uint8_t IOE_ADDR = 0x43;
     static constexpr uint32_t ANNOUNCE_MS = 3UL * 3600 * 1000;   // Meshtastic's own default
+
+    // Marks what the radio is doing for the crash log, until scope end.
+    struct _Crumb { _Crumb(const char* w) { CrashLog::crumb(w); } ~_Crumb() { CrashLog::done(); } };
 
     SX1262*      _radio = nullptr;
     TaskHandle_t _task = nullptr;
@@ -341,6 +347,7 @@ private:
     }
 
     void _receive() {
+        _Crumb cr("kotodama rx");
         uint8_t buf[Mesh::MAX_PKT];
         size_t len = _radio->getPacketLength();
         int st = (len > 0 && len <= sizeof(buf)) ? _radio->readData(buf, len) : RADIOLIB_ERR_PACKET_TOO_LONG;
@@ -444,10 +451,13 @@ private:
         Mesh::crypt(Mesh::channel(ch).key, h.id, h.from, pkt + Mesh::HDR, n);
         _dup(h.from, h.id);
         if (_rxFlag) { _rxFlag = false; _receive(); }   // a packet that landed just now
+        CrashLog::crumb("kotodama cad");
         _waitClear();
+        CrashLog::crumb(ch ? "kotodama tx LongFast" : "kotodama tx Mitama");
         int st = _radio->transmit(pkt, Mesh::HDR + n);
         _rxFlag = false;                       // the "sent" interrupt, not a packet
         _radio->startReceive();
+        CrashLog::done();
         return st == RADIOLIB_ERR_NONE;
     }
 

@@ -26,6 +26,7 @@
 #include "apps/compendium/compendium_app.h"
 #include "apps/kotodama/kotodama_app.h"
 #include "apps/omikuji/omikuji_app.h"
+#include "system/crash_log.h"
 #include "apps/aether/aether_app.h"
 #include "apps/molt/molt_app.h"
 #include "system/sd_bus.h"
@@ -201,6 +202,7 @@ void setup() {
     // speed, drop it back down; 4000000 is always the safe fallback.
     SD.begin(SD_CS, *sd_spi, 20000000);
     SdBus::spi = sd_spi; SdBus::cs = SD_CS;
+    bool crashed = CrashLog::boot();   // save what the last crash left in RTC memory
     // The OS's own folders, so they're there to drop files into (e.g.
     // /MitamaOS/wigle.txt) before any app has written to the card.
     ScryLogger::ensureDirs();
@@ -213,6 +215,7 @@ void setup() {
         int b = p.getInt("bright", 80); p.end();
         M5Cardputer.Display.setBrightness(constrain(b, 10, 100) * 255 / 100);
     }
+    if (crashed) CrashLog::show();
 
     // WiFi
     WiFiManager::get().loadFromPrefs();
@@ -305,6 +308,7 @@ static void _watchActiveApp() {
     if (a == last) return;
     last = a;
     DetectionEngine::get().appChanged(a ? a->getName() : "");
+    { char b[28]; snprintf(b, sizeof(b), "in %s", a ? a->getName() : "?"); CrashLog::base(b); }
     Kotodama::get().appChanged(a ? a->getName() : "");
 }
 
