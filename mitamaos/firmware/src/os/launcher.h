@@ -106,6 +106,7 @@ private:
     struct Look { const char* name; const char* label; MUI::Sigil sigil; uint16_t color; };
     static const Look* _look(const char* name) {
         static const Look LOOKS[] = {
+            { "Compendium","Compendium",MUI::SIG_COMPENDIUM,MUI::YELLOW },
             { "Scry",      "Scry",     MUI::SIG_SCRY,     MUI::CYAN    },
             { "Files",     "Files",    MUI::SIG_FILES,    MUI::CYAN    },
             { "Notes",     "Grimoire", MUI::SIG_GRIMOIRE, MUI::YELLOW  },

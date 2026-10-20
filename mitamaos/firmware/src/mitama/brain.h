@@ -11,6 +11,7 @@
 #include <WiFi.h>
 #include "lines.h"
 #include "../detect/detection.h"
+#include "../detect/compendium.h"
 #include "../detect/scry.h"
 #include "../system/gps.h"
 #include "../ui/mitama_ui.h"
@@ -41,6 +42,14 @@ public:
             // the line is the dry one-liner on top). Others respect sass.
             if (Sig::isThreat(r.type) || _sass > 0)
                 _say((Lines::Event)(Lines::EV_VILE + race), &r, m, now, _countRace(st, race));
+        }
+        // First-ever meetings speak over the sighting line: a new page in
+        // the Compendium (or a finished race) is the bigger news.
+        Compendium::News news;
+        if (Compendium::get().takeNews(news) && _sass > 0) {
+            DetectionEngine::Sighting s; s.type = news.type;
+            _say(news.raceDone ? Lines::EV_RACE_DONE : Lines::EV_NEW_DEMON, &s,
+                 Sig::isThreat(news.type) ? M_ALARMED : M_SMUG, now);
         }
         if (_hadThreat && st.threats == 0) {
             _hadThreat = false;
@@ -215,6 +224,7 @@ private:
             if (strncmp(t, "{sp}", 4) == 0)     { sub = r ? Sig::typeName(r->type) : "something"; t += 4; }
             else if (strncmp(t, "{d}", 3) == 0) { sub = r && r->detail ? r->detail : (r ? Sig::typeName(r->type) : "Something"); t += 3; }
             else if (strncmp(t, "{n}", 3) == 0) { snprintf(num, sizeof(num), "%d", n); sub = num; t += 3; }
+            else if (strncmp(t, "{r}", 3) == 0) { sub = r ? Sig::raceName(Sig::raceOf(r->type)) : "demon"; t += 3; }
             if (sub) { while (*sub && k < sizeof(_line) - 1) _line[k++] = *sub++; }
             else _line[k++] = *t++;
         }

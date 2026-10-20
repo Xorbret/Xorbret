@@ -24,6 +24,7 @@ EVENTS = {
     "EV_BOOT": ["*boot*"], "EV_IDLE": ["*idle*"], "EV_LORE": ["*lore*"],
     "EV_OFFLINE": ["*offline*"], "EV_CLEAR": ["*clear*"], "EV_GPS_FIX": ["*gps fix*"],
     "EV_SCRY_ON": ["*scry on*"], "EV_WIFI_JOIN": ["*wifi joined*"], "EV_SINCERE": ["*sincere*"],
+    "EV_NEW_DEMON": ["*new demon*"], "EV_RACE_DONE": ["*race complete*"],
     # sightings: one prompt per species, so the model learns each one
     "EV_VILE": ["*seen FLOCK*", "*seen AXON*", "*seen ALPR*"],
     "EV_NIGHT": ["*seen CAMERA*", "*seen RING*", "*seen META*"],
@@ -96,7 +97,7 @@ def line_bank(path=LINES_H):
         text = text.encode().decode("unicode_escape")
         for prompt in EVENTS.get(ev, []):
             sp = prompt[6:-1] if prompt.startswith("*seen ") else "something"
-            a = text.replace("{sp}", sp).replace("{d}", DETAIL.get(sp, sp)).replace("{n}", "2")
+            a = text.replace("{sp}", sp).replace("{d}", DETAIL.get(sp, sp)).replace("{n}", "2").replace("{r}", "Fairy")
             pairs.append((prompt, a))
     # device-specific lines: { Sig::T_AIRTAG, "..." }
     names = {"T_SAMSUNG_TAG": "SMARTTAG", "T_GOOGLE_TAG": "GOOGLE TAG", "T_EVILTWIN": "EVIL TWIN"}

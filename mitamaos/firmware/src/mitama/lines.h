@@ -9,7 +9,7 @@
 // checkable (mythology, folklore, tabletop and JRPG conventions).
 //
 // Slots: {sp} species (CAMERA, AIRTAG...), {d} detail (maker / device),
-//        {n} how many of that race are active now.
+//        {n} how many of that race are active now, {r} race name.
 #include <stdint.h>
 #include "../detect/signatures.h"
 
@@ -22,6 +22,8 @@ enum Event : uint8_t {
     EV_CLEAR,      // last threat gone
     EV_GPS_FIX, EV_SCRY_ON, EV_WIFI_JOIN,
     EV_SINCERE,    // rare, after a threat passes
+    EV_NEW_DEMON,  // a species registered in the Compendium for the first time
+    EV_RACE_DONE,  // ...and that finished its race
     EV_COUNT
 };
 
@@ -158,6 +160,18 @@ static const Line BANK[] = {
     { EV_WIFI_JOIN, T_ANY, "Network joined. I'll keep an eye on it. Both of them. Metaphorically." },
     { EV_SINCERE, T_ANY, "...That was handled well. Don't let it go to your head." },
     { EV_SINCERE, T_ANY, "Good call stepping away. I mean it." },
+
+    // ── Compendium ──
+    { EV_NEW_DEMON, T_ANY, "New entry: {sp}. The Compendium grows. So does my judgment." },
+    { EV_NEW_DEMON, T_ANY, "{sp} registered. Gotta catch... no. We don't say that here." },
+    { EV_NEW_DEMON, T_ANY, "First {sp} ever. Logged, sealed, filed under 'concerning'." },
+    { EV_NEW_DEMON, T_ANY, "Compendium updated: {sp}. I wrote its page in my best hand." },
+    { EV_NEW_DEMON, T_ANY, "A new demon for the book: {sp}. Bestiary collectors would weep." },
+    { EV_NEW_DEMON, T_ANY, "{sp}. Never met one before. Now I'll never forget it." },
+    { EV_RACE_DONE, T_ANY, "Every {r} logged. A complete set. Congratulations, I suppose." },
+    { EV_RACE_DONE, T_ANY, "{r} complete. Somewhere a completionist sheds a single tear." },
+    { EV_RACE_DONE, T_ANY, "The whole {r} race is in the book. Achievement unlocked, sort of." },
+    { EV_RACE_DONE, T_ANY, "All {r} registered. That page of the Compendium is full." },
 };
 
 static constexpr int BANK_N = sizeof(BANK) / sizeof(BANK[0]);

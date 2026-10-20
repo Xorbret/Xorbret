@@ -1,7 +1,7 @@
 #pragma once
 // Detection service (outline §5): a background watcher that listens to Wi-Fi
 // and Bluetooth LE traffic around the Cardputer and keeps a short list of
-// sightings for Proxima and, later, the Compendium.
+// sightings for Proxima and the Compendium.
 //
 // Receive-only by construction:
 //  - Wi-Fi uses promiscuous receive. The radio's only transmissions are
@@ -20,6 +20,7 @@
 #include <NimBLEDevice.h>
 #include "signatures.h"
 #include "scry.h"
+#include "compendium.h"
 #include "../system/gps.h"
 #include "../os/wifi_manager.h"
 
@@ -270,6 +271,9 @@ private:
         if (slot < 0) slot = empty >= 0 ? empty : oldest;   // full: replace the stalest
         Sighting& x = _store[slot];
         bool fresh = !(x.type == e.type && memcmp(x.mac, e.mac, 6) == 0);
+        // An encounter: a device we weren't tracking, or one back after ten
+        // quiet minutes. Those are what the Compendium counts.
+        bool encounter = fresh || now - x.lastMs > ACTIVE_MS;
         if (fresh) {
             x = Sighting();
             x.type = e.type; memcpy(x.mac, e.mac, 6); x.firstMs = now;
@@ -280,6 +284,7 @@ private:
         x.lastMs = now;
         if (x.count < 0xFFFF) x.count++;
         xSemaphoreGive(_lock);
+        Compendium::get().note(e.type, e.rssi, encounter);
     }
 
     // ── watcher task ─────────────────────────────────────────────────────
@@ -295,6 +300,7 @@ private:
             while (xQueueReceive(_q, &e, pdMS_TO_TICKS(20)) == pdTRUE) _record(e);
             Gps::get().poll();
             ScryLogger::get().drain();
+            Compendium::get().tick(_wantPause);   // same task as Scry's writes: one SD writer
 
             uint32_t now = millis();
             if (now - lastKeep >= 1000) {

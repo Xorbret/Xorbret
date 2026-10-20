@@ -22,6 +22,7 @@
 #include "detect/detection.h"
 #include "mitama/brain.h"
 #include "apps/scry/scry_app.h"
+#include "apps/compendium/compendium_app.h"
 #include "apps/molt/molt_app.h"
 #include "system/sd_bus.h"
 #if PAPEROS_ENABLE_BROWSER
@@ -74,6 +75,7 @@ LGFX_Sprite canvas(&M5Cardputer.Display);
 Launcher      launcherApp(canvas);
 ProximaApp    proximaApp(canvas);
 ScryApp       scryApp(canvas);
+CompendiumApp compendiumApp(canvas);
 MoltApp       moltApp(canvas);
 #if PAPEROS_ENABLE_BROWSER
 Browser       browserApp(canvas);
@@ -195,6 +197,7 @@ void setup() {
     // The OS's own folders, so they're there to drop files into (e.g.
     // /MitamaOS/wigle.txt) before any app has written to the card.
     ScryLogger::ensureDirs();
+    Compendium::get().load();   // before the watcher starts noting sightings
 
     // Brightness
     {
@@ -211,6 +214,7 @@ void setup() {
     // the order their tiles appear.
     AppManager::get().registerApp(&launcherApp);
     AppManager::get().registerApp(&proximaApp);
+    AppManager::get().registerApp(&compendiumApp);
     AppManager::get().registerApp(&scryApp);
     AppManager::get().registerApp(&filesApp);
     AppManager::get().registerApp(&notesApp);
