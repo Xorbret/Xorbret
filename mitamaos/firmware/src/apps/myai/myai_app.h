@@ -76,6 +76,7 @@ public:
         const char* why = "";
         bool flash = ModelFlash::sync(&MyAiApp::_copyProgress, &why);
         _line_cnt--;   // drop the "checking" line
+        if (flash) _push("Model in flash (fast)", MSG_SYS);
         if (!flash) _push(String("Using SD: ") + why, MSG_SYS);
         if (!flash) _push(_fastSd ? "SD card at 40 MHz" : "SD card at 20 MHz", MSG_SYS);
 
