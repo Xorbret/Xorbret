@@ -11,8 +11,9 @@
 // A radio task (core 0) listens continuously while Kotodama is on, so
 // messages arrive whichever app is open, and sends what the chat screen
 // queues. It's a quiet node: it never relays other people's packets.
-// Messages are kept in RAM and appended to /MitamaOS/kotodama/log.txt by
-// the main loop (tick()).
+// Messages are kept in RAM (the newest MAX_MSGS per channel) and appended
+// to /MitamaOS/kotodama/log.txt by the main loop (tick()). Apps that need
+// all the RAM (see appChanged()) make it stand down until they close.
 #include <Arduino.h>
 #include <new>
 #include <M5Cardputer.h>
@@ -38,7 +39,7 @@ public:
     };
     struct Node { uint32_t num = 0; char shortName[5] = ""; char longName[25] = ""; };
 
-    static constexpr int MAX_MSGS = 24, MAX_NODES = 24;
+    static constexpr int MAX_MSGS = 16, MAX_NODES = 24;     // MAX_MSGS per channel
 
     enum State : uint8_t { ST_OFF, ST_NO_REGION, ST_NO_CAP, ST_RADIO_FAIL, ST_ON };
 
@@ -49,10 +50,12 @@ public:
     bool wantOn() { _loadPrefs(); return _on; }
 
     void setRegion(uint8_t r) {
+        if (r >= Mesh::REG_COUNT) r = Mesh::REG_UNSET;
         _loadPrefs(); _region = r;
         Preferences p; p.begin("kotodama", false); p.putUChar("region", r); p.end();
         SdSettings::changed();
         if (_state == ST_ON) { stop(); start(); }
+        else if (_on) start();              // was waiting for a region
     }
     void setName(const char* name) {
         _loadPrefs();
@@ -65,7 +68,27 @@ public:
         _loadPrefs(); _on = on;
         Preferences p; p.begin("kotodama", false); p.putUChar("on", on); p.end();
         SdSettings::changed();
-        if (on) start(); else stop();
+        if (on && !_heavy) start(); else stop();
+    }
+
+    // Called from the main loop when the foreground app changes. The apps
+    // that need every byte (as for the detection watcher) make the radio
+    // stand down and free its buffers; it comes back when they close.
+    void appChanged(const char* name) {
+        static const char* HEAVY[] = { "MiTalk", "PaperWeb", "Store", "Games", "Lua" };
+        bool heavy = false;
+        for (auto h : HEAVY) if (strcmp(name, h) == 0) heavy = true;
+        if (heavy == _heavy) return;
+        _heavy = heavy;
+        if (heavy) {
+            if (_state == ST_ON) { stop(); _resume = true; }
+            tick();                          // log what we have before freeing it
+            portENTER_CRITICAL(&_mux);
+            Msg* m = _msgs; _msgs = nullptr;
+            for (auto& r : _ring) r.head = r.count = 0;
+            portEXIT_CRITICAL(&_mux);
+            delete[] m;
+        } else if (_resume) { _resume = false; if (wantOn()) start(); }
     }
 
     // At boot: starts the radio if it was left on.
@@ -77,7 +100,10 @@ public:
         _Lock lk(this);
         if (_region == Mesh::REG_UNSET) { _state = ST_NO_REGION; return; }
         if (!_capFitted()) { _state = ST_NO_CAP; return; }
-        if (!_msgs) _msgs = new (std::nothrow) Msg[MAX_MSGS];
+        if (!_msgs) {
+            Msg* m = new (std::nothrow) Msg[MAX_MSGS * Mesh::CH_COUNT];
+            portENTER_CRITICAL(&_mux); _msgs = m; portEXIT_CRITICAL(&_mux);
+        }
         if (!_msgs || !SdBus::spi) { _state = ST_RADIO_FAIL; return; }
         _rfSwitch(true);
         if (!_radio) _radio = new SX1262(new Module(LORA_CS, LORA_IRQ, LORA_RST, LORA_BUSY, *SdBus::spi,
@@ -85,13 +111,15 @@ public:
         const auto& R = Mesh::region(_region);
         int st = _radio->begin(Mesh::frequency(_region), Mesh::BW_KHZ, Mesh::SF, Mesh::CR, Mesh::SYNC,
                                R.power, Mesh::PREAMBLE, 3.0f, true);
-        if (st != RADIOLIB_ERR_NONE) { _err = st; _state = ST_RADIO_FAIL; return; }
+        if (st != RADIOLIB_ERR_NONE) { _err = st; _state = ST_RADIO_FAIL; _rfSwitch(false); return; }
         _radio->setCurrentLimit(140);
         _radio->setDio1Action(_isr);
         _rxFlag = false;
         _radio->startReceive();
         _state = ST_ON;
         _announceAt = millis() + 3000;      // say who we are shortly after starting
+        // The task ends itself when the radio stops (frees its stack); the
+        // lock makes "is it still running?" and its exit one step.
         if (!_task) xTaskCreatePinnedToCore(_taskFn, "kotodama", 6144, this, 1, &_task, 0);
     }
 
@@ -132,14 +160,14 @@ public:
     // Set when the last queued message failed to go out; read once.
     bool takeSendFailed() { bool f = _txFailed; _txFailed = false; return f; }
 
-    // Messages, oldest first. Copies under the lock.
+    // One channel's messages, oldest first (up to MAX_MSGS).
     int messages(Msg* out, int max, uint8_t ch) {
         int n = 0;
-        if (!_msgs) return 0;
+        if (ch >= Mesh::CH_COUNT) return 0;
         portENTER_CRITICAL(&_mux);
-        for (int k = 0; k < _count && n < max; k++) {
-            const Msg& m = _msgs[(_head + MAX_MSGS - _count + k) % MAX_MSGS];
-            if (m.ch == ch) out[n++] = m;
+        if (_msgs) {
+            const _Ring& r = _ring[ch];
+            for (int k = 0; k < r.count && n < max; k++) out[n++] = *_at(ch, k);
         }
         portEXIT_CRITICAL(&_mux);
         return n;
@@ -180,13 +208,14 @@ public:
         File f = SD.open("/MitamaOS/kotodama/log.txt", FILE_APPEND);
         if (!f) return;
         Msg m;
-        for (int k = 0; k < MAX_MSGS; k++) {
+        for (int k = 0; k < MAX_MSGS * Mesh::CH_COUNT; k++) {
             bool found = false;
             portENTER_CRITICAL(&_mux);
-            for (int j = 0; j < _count; j++) {
-                Msg& x = _msgs[(_head + MAX_MSGS - _count + j) % MAX_MSGS];
-                if (!x.logged) { x.logged = true; m = x; found = true; break; }
-            }
+            for (uint8_t c = 0; _msgs && c < Mesh::CH_COUNT && !found; c++)
+                for (int j = 0; j < _ring[c].count; j++) {
+                    Msg* x = _at(c, j);
+                    if (!x->logged) { x->logged = true; m = *x; found = true; break; }
+                }
             portEXIT_CRITICAL(&_mux);
             if (!found) break;
             char who[28], when[24] = "?";
@@ -209,6 +238,7 @@ private:
     uint32_t     _node = 0;
     static inline volatile bool _rxFlag = false;
     volatile bool _stopping = false, _txFailed = false;
+    bool         _heavy = false, _resume = false;   // stood down for a heavy app
     SemaphoreHandle_t _radioLock = nullptr;
     struct _Lock {
         SemaphoreHandle_t m;
@@ -216,7 +246,7 @@ private:
             if (!k->_radioLock) k->_radioLock = xSemaphoreCreateMutex();
             m = k->_radioLock; xSemaphoreTake(m, portMAX_DELAY);
         }
-        ~_Lock() { xSemaphoreGive(m); }
+        ~_Lock() { if (m) xSemaphoreGive(m); }
     };
     uint32_t _replyAt = 0, _lastReply = 0;       // answering a Mitama's "who's there?"
 
@@ -230,8 +260,8 @@ private:
     uint32_t _announceAt = 0;
 
     portMUX_TYPE _mux = portMUX_INITIALIZER_UNLOCKED;
-    Msg*     _msgs = nullptr;
-    int      _head = 0, _count = 0;
+    Msg*     _msgs = nullptr;                    // MAX_MSGS per channel, back to back
+    struct _Ring { int head = 0, count = 0; } _ring[Mesh::CH_COUNT];
     volatile uint32_t _serial = 0;
     uint32_t _loggedSerial = 0;
     volatile int _unread[Mesh::CH_COUNT] = {0, 0};
@@ -248,6 +278,7 @@ private:
         _prefsLoaded = true;
         Preferences p; p.begin("kotodama", true);
         _region = p.getUChar("region", Mesh::REG_UNSET);
+        if (_region >= Mesh::REG_COUNT) _region = Mesh::REG_UNSET;   // hand-edited settings.conf
         _on = p.getUChar("on", 0);
         String n = p.getString("name", "");
         p.end();
@@ -281,13 +312,31 @@ private:
     void _run() {
         for (;;) {
             vTaskDelay(pdMS_TO_TICKS(20));
-            if (_state != ST_ON || _stopping) continue;
+            if (_stopping) continue;
             _Lock lk(this);
-            if (_state != ST_ON) continue;           // stopped while we waited
+            if (_state != ST_ON) {                   // radio stopped: end the task
+                _task = nullptr;
+                xSemaphoreGive(_radioLock);
+                lk.m = nullptr;
+                vTaskDelete(nullptr);
+            }
             if (_rxFlag) { _rxFlag = false; _receive(); }
-            if (_txPending) { _transmitText(); _txPending = false; }
+            if (_txPending) _sendQueued();
             else if ((int32_t)(millis() - _announceAt) >= 0) { _announce(); _announceAt = millis() + ANNOUNCE_MS; }
             else if (_replyAt && (int32_t)(millis() - _replyAt) >= 0) { _replyAt = 0; _lastReply = millis(); _announceOn(Mesh::CH_MITAMA, false); }
+        }
+    }
+
+    void _sendQueued() { _transmitText(); _txPending = false; }
+
+    // Handles packets for `ms` instead of a bare delay, which would leave
+    // them unread (the next one overwrites the chip's buffer). The radio
+    // must already be receiving.
+    void _listen(uint32_t ms) {
+        uint32_t t0 = millis();
+        while (millis() - t0 < ms) {
+            if (_rxFlag) { _rxFlag = false; _receive(); }
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
 
@@ -349,23 +398,35 @@ private:
         portEXIT_CRITICAL(&_mux);
     }
 
+    // k-th oldest message of a channel's ring. Call under _mux.
+    Msg* _at(uint8_t ch, int k) {
+        const _Ring& r = _ring[ch];
+        return &_msgs[ch * MAX_MSGS + (r.head + MAX_MSGS - r.count + k) % MAX_MSGS];
+    }
+
     void _store(Msg& m, bool incoming) {
         time_t t = time(nullptr);
         m.unix = t > 1600000000 ? (uint32_t)t : 0;
         portENTER_CRITICAL(&_mux);
-        _msgs[_head] = m;
-        _head = (_head + 1) % MAX_MSGS;
-        if (_count < MAX_MSGS) _count++;
+        if (!_msgs || m.ch >= Mesh::CH_COUNT) { portEXIT_CRITICAL(&_mux); return; }
+        _Ring& r = _ring[m.ch];
+        _msgs[m.ch * MAX_MSGS + r.head] = m;
+        r.head = (r.head + 1) % MAX_MSGS;
+        if (r.count < MAX_MSGS) r.count++;
         if (incoming) { _unread[m.ch]++; _lastIn = m; _incoming = true; }
         _serial++;
         portEXIT_CRITICAL(&_mux);
     }
 
-    // Listen-before-talk: wait while someone else is mid-packet.
+    // Listen-before-talk: wait while someone else is mid-packet, receiving
+    // it meanwhile (it may well be for us).
     void _waitClear() {
         for (int i = 0; i < 5; i++) {
-            if (_radio->scanChannel() != RADIOLIB_LORA_DETECTED) return;
-            delay(200 + esp_random() % 600);
+            int st = _radio->scanChannel();
+            _rxFlag = false;                       // that was the scan's own interrupt
+            if (st != RADIOLIB_LORA_DETECTED) return;
+            _radio->startReceive();                // the scan left it idle
+            _listen(200 + esp_random() % 600);
         }
     }
 
@@ -382,9 +443,10 @@ private:
         Mesh::packHeader(pkt, h);
         Mesh::crypt(Mesh::channel(ch).key, h.id, h.from, pkt + Mesh::HDR, n);
         _dup(h.from, h.id);
+        if (_rxFlag) { _rxFlag = false; _receive(); }   // a packet that landed just now
         _waitClear();
         int st = _radio->transmit(pkt, Mesh::HDR + n);
-        _rxFlag = false;
+        _rxFlag = false;                       // the "sent" interrupt, not a packet
         _radio->startReceive();
         return st == RADIOLIB_ERR_NONE;
     }
@@ -401,9 +463,10 @@ private:
     // back: asking the whole public mesh would flood it with replies.
     void _announce() {
         for (uint8_t c = 0; c < Mesh::CH_COUNT; c++) {
-            if (_txPending || _stopping) return;
+            if (_stopping) return;
+            if (_txPending) _sendQueued();          // don't make a typed message wait
             _announceOn(c, c == Mesh::CH_MITAMA);
-            delay(500);
+            _listen(500);
         }
     }
     void _announceOn(uint8_t ch, bool wantResponse) {

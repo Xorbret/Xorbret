@@ -26,7 +26,7 @@ public:
     void onStart() override {
         OsUI::waitRelease();
         _msgs = new (std::nothrow) Kotodama::Msg[Kotodama::MAX_MSGS];
-        _input = ""; _scroll = 0; _naming = false;
+        _input = ""; _scroll = 0; _naming = false; _note = "";
         auto& k = Kotodama::get();
         _picking = k.region() == Mesh::REG_UNSET;
         // Respect fn+R: only start the radio if it was left on (or never set).
@@ -55,14 +55,17 @@ private:
     int      _scroll = 0;                 // lines scrolled up from the newest
     bool     _picking = false, _naming = false;
     uint32_t _seenSerial = 0, _lastDraw = 0;
+    bool     _redraw = false;                 // scroll was clamped; draw again
     String   _note;                       // one-line status under the input
 
     bool _pickKeys(const Keyboard_Class::KeysState& st) {
         for (char c : st.word) {
             if (c == '1' || c == '2') {
-                Kotodama::get().setRegion(c == '1' ? Mesh::REG_US : Mesh::REG_EU868);
+                auto& k = Kotodama::get();
+                bool first = k.region() == Mesh::REG_UNSET;
+                k.setRegion(c == '1' ? Mesh::REG_US : Mesh::REG_EU868);
                 _picking = false;
-                Kotodama::get().setOn(true);
+                if (first) k.setOn(true);    // first setup turns it on; later changes keep fn+R's choice
             }
             if (c == '`') { OsUI::waitRelease(); AppManager::get().goHome(); return false; }
         }
@@ -77,7 +80,7 @@ private:
                 if (c == '`') { OsUI::waitRelease(); AppManager::get().goHome(); return false; }
                 if (c == ';') _scroll++;
                 if (c == '.') _scroll = max(0, _scroll - 1);
-                if (c == 'r' || c == 'R') { k.setOn(k.state() != Kotodama::ST_ON); _note = ""; }
+                if (c == 'r' || c == 'R') { k.setOn(!k.wantOn()); _note = ""; }
                 if (c == 'n' || c == 'N') { _naming = true; _input = k.longName(); }
                 if (c == 'g' || c == 'G') _picking = true;
             }
@@ -98,9 +101,11 @@ private:
         auto& k = Kotodama::get();
         _input.trim();
         if (_naming) {
-            if (_input.length()) k.setName(_input.c_str());
+            if (_input.length()) {
+                k.setName(_input.c_str());
+                _note = "Name saved. The mesh hears it next time we announce.";
+            } else _note = "";
             _naming = false; _input = "";
-            _note = "Name saved. The mesh hears it next time we announce.";
             return;
         }
         if (!_input.length()) return;
@@ -185,8 +190,8 @@ private:
         } else {
             static char full[Mesh::MAX_TEXT + 32];
             int starts[24], lens[24];
-            int lineY = bottom - lh, skip = _scroll;
-            for (int m = n - 1; m >= 0 && lineY >= top; m--) {
+            int lineY = bottom - lh, skip = _scroll, drawn = 0, m = n - 1;
+            for (; m >= 0 && lineY >= top; m--) {
                 char who[28];
                 k.nameOf(_msgs[m].from, who, sizeof(who));
                 snprintf(full, sizeof(full), "%s: %s", who, _msgs[m].text);
@@ -206,8 +211,14 @@ private:
                     }
                     memcpy(seg, full + s0, len); seg[len] = 0;
                     MUI::text(_canvas, MUI::small(), seg, xx, lineY, MUI::WHITE);
-                    lineY -= lh;
+                    lineY -= lh; drawn++;
                 }
+            }
+            // Scrolled past the oldest line: pull back so the screen stays full.
+            if (m < 0 && lineY >= top && _scroll > 0) {
+                int total = _scroll - skip + drawn, visible = (bottom - top) / lh + 1;
+                int best = max(0, total - visible);
+                if (best < _scroll) { _scroll = best; _redraw = true; }
             }
             if (_scroll > 0) MUI::text(_canvas, MUI::small(), "^", SCREEN_W - 9, top, MUI::DIM);
         }
@@ -234,6 +245,7 @@ private:
         _canvas.fillSprite(MUI::BG);
         MUI::header(_canvas, "KOTODAMA", MUI::YELLOW);
         if (_picking) _drawPicker(); else _drawChat();
+        if (_redraw) { _redraw = false; _draw(); return; }
         { DispLock _lk; _canvas.pushSprite(0, 0); }
     }
 };

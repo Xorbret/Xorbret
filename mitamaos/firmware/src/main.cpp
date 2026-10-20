@@ -250,8 +250,8 @@ void setup() {
 #endif
 #if PAPEROS_ENABLE_MYAI
     AppManager::get().registerApp(&myaiApp);
-    AppManager::get().registerApp(&omikujiApp);
 #endif
+    AppManager::get().registerApp(&omikujiApp);
     AppManager::get().registerApp(&sysinfoApp);
     AppManager::get().registerApp(&moltApp);
     AppManager::get().registerApp(&settingsApp);
@@ -291,7 +291,7 @@ static void _checkGoButton() {
     if (!edge) return;
     App* a = AppManager::get().getActive();
     const char* n = a ? a->getName() : "";
-    static const char* KEEP[] = { "Paint", "Notes", "3D Editor", "Lua", "Games", "Store", "MiTalk" };
+    static const char* KEEP[] = { "Paint", "Notes", "3D Editor", "Lua", "Games", "Store", "MiTalk", "Kotodama" };
     for (auto k : KEEP) if (strcmp(n, k) == 0) return;
     if (strcmp(n, "Proxima") == 0) AppManager::get().requestHome();
     else AppManager::get().requestLaunch("Proxima");
@@ -305,6 +305,7 @@ static void _watchActiveApp() {
     if (a == last) return;
     last = a;
     DetectionEngine::get().appChanged(a ? a->getName() : "");
+    Kotodama::get().appChanged(a ? a->getName() : "");
 }
 
 void loop() {

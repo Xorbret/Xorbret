@@ -8,6 +8,7 @@
 #include "../../config.h"
 #include "../../ui/mitama_ui.h"
 #include "../../ui/species_sigils.h"
+#include "../../ui/race_colors.h"
 #include "../../detect/compendium.h"
 
 // Compendium - the bestiary of every demon (device) the Mitama has met
@@ -67,15 +68,7 @@ private:
     uint32_t _lastDraw = 0;
     static inline uint8_t _openAt = Sig::T_COUNT;
 
-    static uint16_t _raceCol(uint8_t r) {
-        switch (r) {
-            case Sig::R_VILE:  return MUI::MAGENTA;
-            case Sig::R_NIGHT: return MUI::CYAN;
-            case Sig::R_FAIRY: return MUI::GREEN;
-            case Sig::R_FIEND: return MUI::RED;
-            default:           return MUI::YELLOW;    // the rare singletons
-        }
-    }
+    static uint16_t _raceCol(uint8_t r) { return MUI::raceColor(r); }
 
     static const char* _devName(uint8_t t) {
         static const char* const N[Sig::T_COUNT] = {

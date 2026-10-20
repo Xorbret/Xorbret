@@ -38,11 +38,15 @@ public:
     void load() {
         _sd = SD.cardType() != CARD_NONE;
         if (!_sd) return;
+        // Power died between "remove old" and "rename new": finish the swap.
+        if (!SD.exists(PATH) && SD.exists(TMP)) SD.rename(TMP, PATH);
         File f = SD.open(PATH, FILE_READ);
-        if (!f) f = SD.open(TMP, FILE_READ);     // crashed between remove and rename
         if (!f) return;
         Header h;
-        if (f.read((uint8_t*)&h, sizeof(h)) == sizeof(h) && memcmp(h.magic, "MTC1", 4) == 0) {
+        // Version 1 with our entry size only: anything else would be read
+        // as garbage, so we start a fresh book instead.
+        if (f.read((uint8_t*)&h, sizeof(h)) == sizeof(h) && memcmp(h.magic, "MTC1", 4) == 0
+            && h.ver == 1 && h.esz == sizeof(Entry)) {
             Entry tmp[Sig::T_COUNT] = {};
             int n = min<int>(h.n, Sig::T_COUNT);      // species are append-only
             size_t want = n * sizeof(Entry);
@@ -67,7 +71,10 @@ public:
         if (rssi > e.best) { e.best = rssi; _minor = true; }
         if (now) { e.last = now; _minor = true; }
         if (first && _newsN < NEWS_MAX) {
-            _newsQ[_newsN++] = { t, _raceMet(Sig::raceOf(t)) == raceSize(Sig::raceOf(t)) };
+            // "Race complete" only means something for races of 2 or more.
+            uint8_t r = Sig::raceOf(t);
+            int size = raceSize(r);
+            _newsQ[_newsN++] = { t, size > 1 && _raceMet(r) == size };
             _urgent = true;
         }
         portEXIT_CRITICAL(&_mux);

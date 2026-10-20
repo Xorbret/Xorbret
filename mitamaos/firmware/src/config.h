@@ -68,7 +68,7 @@ static const uint16_t TILE_COLORS[NUM_TILE_COLORS] = {
 #define TICK_MS        20
 #define KEY_REPEAT_MS  120
 
-#define MAX_APPS       20
+#define MAX_APPS       28
 #define MAX_WIFI_SLOTS 3
 
 // Feature toggles. All apps are compiled in by default; flip one of these

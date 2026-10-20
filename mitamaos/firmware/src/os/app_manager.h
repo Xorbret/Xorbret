@@ -20,6 +20,7 @@ public:
 
     void registerApp(App* app) {
         if (_count < MAX_APPS) _apps[_count++] = app;
+        else Serial.printf("[apps] MAX_APPS full, dropped %s\n", app->getName());
     }
 
     // Only call from core0.

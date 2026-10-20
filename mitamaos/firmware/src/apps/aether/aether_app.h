@@ -1,4 +1,5 @@
 #pragma once
+#include <climits>
 #include <M5Cardputer.h>
 #include <WiFi.h>
 #include "../../os/app.h"
@@ -68,12 +69,20 @@ private:
             MUI::textCentered(_canvas, MUI::small(), lbl, x + bw / 2, base + 2, clean ? MUI::YELLOW : MUI::DIM);
         }
 
-        // quietest of 1 / 6 / 11: fewest networks, then the weakest loudest one
+        // Quietest of 1 / 6 / 11. A network spills about 4 channels each
+        // side, so neighbours count too (less the further away they are);
+        // a tie goes to the one whose loudest neighbour is weakest.
         static const int CLEAN[3] = { 0, 5, 10 };
-        int best = 0;
-        for (int k = 1; k < 3; k++) {
-            const auto& a = ch[CLEAN[k]]; const auto& b = ch[CLEAN[best]];
-            if (a.aps < b.aps || (a.aps == b.aps && a.best < b.best)) best = k;
+        int best = 0, bestCost = INT_MAX, bestLoud = 127;
+        for (int k = 0; k < 3; k++) {
+            int cost = 0, loud = -127;
+            for (int d = -4; d <= 4; d++) {
+                int j = CLEAN[k] + d;
+                if (j < 0 || j >= AetherTally::CHANNELS || !ch[j].aps) continue;
+                cost += (5 - abs(d)) * ch[j].aps;
+                loud = max<int>(loud, ch[j].best);
+            }
+            if (cost < bestCost || (cost == bestCost && loud < bestLoud)) { best = k; bestCost = cost; bestLoud = loud; }
         }
         char line[64];
         DetectionEngine::Stats st = DetectionEngine::get().stats();

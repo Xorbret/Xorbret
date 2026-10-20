@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <time.h>
 #include <Preferences.h>
+#include "sd_settings.h"
 
 /*
  PaperClock - NTP sync + timezone selection
@@ -24,6 +25,7 @@ public:
         p.begin("timecfg", false);
         p.putInt("tz_offset", offsetHours);
         p.end();
+        SdSettings::changed();
         // Apply immediately
         configTime(offsetHours * 3600L, 0, "pool.ntp.org", "time.nist.gov");
     }

@@ -30,6 +30,10 @@ public:
         if (!_started) { _started = true; _sass = _loadSass(); _say(Lines::EV_BOOT, nullptr, false, M_CALM, now); }
 
         // ── events, most important first ──
+        // One event line per check: a later event only speaks if nothing
+        // more important did. Compendium news and Kotodama whispers stay
+        // queued until there's room, and wait while a threat line is fresh.
+        bool spoke = false;
         // New sightings: anything first seen since the last check.
         for (int i = st.recentN - 1; i >= 0; i--) {
             const auto& r = st.recent[i];
@@ -42,43 +46,53 @@ public:
                    : (race == Sig::R_VILE || race == Sig::R_NIGHT) ? M_PASSIVE : M_CURIOUS;
             // Threats always speak (even at sass 0 the facts are on screen;
             // the line is the dry one-liner on top). Others respect sass.
-            if (Sig::isThreat(r.type) || _sass > 0)
+            if (Sig::isThreat(r.type) || _sass > 0) {
                 _say((Lines::Event)(Lines::EV_VILE + race), &r, true, m, now, _countRace(st, race));
+                spoke = true;
+                if (Sig::isThreat(r.type)) _threatLineMs = now;
+            }
         }
-        // First-ever meetings speak over the sighting line: a new page in
-        // the Compendium (or a finished race) is the bigger news.
+        bool threatFresh = _threatLineMs && now - _threatLineMs < 8000;
+        // A first-ever meeting speaks over an ordinary sighting line: a new
+        // page in the Compendium (or a finished race) is the bigger news.
+        // Threats never get the "race complete" cheer.
         Compendium::News news;
-        if (Compendium::get().takeNews(news) && _sass > 0) {
+        if (!threatFresh && _sass > 0 && Compendium::get().takeNews(news)) {
             DetectionEngine::Sighting s; s.type = news.type;
-            _say(news.raceDone ? Lines::EV_RACE_DONE : Lines::EV_NEW_DEMON, &s, false,
-                 Sig::isThreat(news.type) ? M_ALARMED : M_SMUG, now);
+            bool threat = Sig::isThreat(news.type);
+            _say(news.raceDone && !threat ? Lines::EV_RACE_DONE : Lines::EV_NEW_DEMON, &s, false,
+                 threat ? M_ALARMED : M_SMUG, now);
+            spoke = true;
         }
         Kotodama::Msg km;
-        if (Kotodama::get().takeIncoming(km) && _sass > 0) {
+        if (!spoke && !threatFresh && _sass > 0 && Kotodama::get().takeIncoming(km)) {
             static char who[28];
             Kotodama::get().nameOf(km.from, who, sizeof(who));
             DetectionEngine::Sighting s; s.detail = who;
             _say(Lines::EV_WHISPER, &s, false, M_CURIOUS, now);
+            spoke = true;
         }
-        if (_hadThreat && st.threats == 0) {
+        if (_hadThreat && st.threats == 0 && !spoke) {
             _hadThreat = false;
             _say(Lines::EV_CLEAR, nullptr, false, M_SMUG, now);
+            spoke = true;
             _sincerePending = random(4) == 0;       // rare, earned
             _sincereAt = now + 20000;
         }
         if (st.threats > 0) _hadThreat = true;
-        if (_sincerePending && now > _sincereAt && _sass > 0) {
+        if (_sincerePending && now > _sincereAt && _sass > 0 && !spoke) {
             _sincerePending = false;
             _say(Lines::EV_SINCERE, nullptr, false, M_SINCERE, now);
+            spoke = true;
         }
         bool fix = Gps::get().hasFix();
-        if (fix && !_hadFix && _sass > 0) _say(Lines::EV_GPS_FIX, nullptr, false, M_SMUG, now);
+        if (fix && !_hadFix && _sass > 0 && !spoke) { _say(Lines::EV_GPS_FIX, nullptr, false, M_SMUG, now); spoke = true; }
         _hadFix = fix;
         bool scry = ScryLogger::get().recording();
-        if (scry && !_hadScry && _sass > 0) _say(Lines::EV_SCRY_ON, nullptr, false, M_CURIOUS, now);
+        if (scry && !_hadScry && _sass > 0 && !spoke) { _say(Lines::EV_SCRY_ON, nullptr, false, M_CURIOUS, now); spoke = true; }
         _hadScry = scry;
         bool online = WiFi.status() == WL_CONNECTED;
-        if (online && !_wasOnline && now > 15000 && _sass > 0) _say(Lines::EV_WIFI_JOIN, nullptr, false, M_CALM, now);
+        if (online && !_wasOnline && now > 15000 && _sass > 0 && !spoke) _say(Lines::EV_WIFI_JOIN, nullptr, false, M_CALM, now);
         _wasOnline = online;
 
         // ── idle cadence ──
@@ -130,7 +144,7 @@ private:
     char     _line[96] = "";
     Mood     _mood = M_CALM;
     uint8_t  _sass = 2;
-    uint32_t _lastLineMs = 0, _idleGapMs = 150000, _lastSightMs = 0;
+    uint32_t _lastLineMs = 0, _idleGapMs = 150000, _lastSightMs = 0, _threatLineMs = 0;
     bool     _hadThreat = false, _hadFix = false, _hadScry = false, _wasOnline = false;
     bool     _sincerePending = false;
     uint32_t _sincereAt = 0;

@@ -55,11 +55,10 @@ public:
         // 1-3 open that recent sighting's Compendium card.
         for (char c : st.word) {
             if (c < '1' || c > '3') continue;
-            auto ds = DetectionEngine::get().stats();
-            int i = c - '1';
-            if (i < ds.recentN && Compendium::listed(ds.recent[i].type)) {
+            int i = c - '1';          // the row as drawn, not a fresher list
+            if (i < _shownN && Compendium::listed(_shown[i])) {
                 OsUI::waitRelease();
-                CompendiumApp::openAt(ds.recent[i].type);
+                CompendiumApp::openAt(_shown[i]);
                 AppManager::get().requestLaunch("Compendium");
                 return;
             }
@@ -84,19 +83,10 @@ private:
     uint32_t _lastSerial = 0xFFFFFFFF;
     int      _sassToastTicks = 0;
     float    _spin = 0;
+    uint8_t  _shown[3] = {};       // sighting types on screen, for keys 1-3
+    int      _shownN = 0;
 
-    static uint16_t _raceColor(uint8_t type) {
-        switch (Sig::raceOf(type)) {
-            case Sig::R_VILE:   return MUI::YELLOW;
-            case Sig::R_NIGHT:  return MUI::PURPLE;
-            case Sig::R_FAIRY:  return MUI::MAGENTA;
-            case Sig::R_AVIAN:
-            case Sig::R_HERALD: return MUI::CYAN;
-            case Sig::R_FOUL:   return MUI::BONES;
-            case Sig::R_JAKI:   return MUI::GREEN;
-            default:            return MUI::RED;
-        }
-    }
+    static uint16_t _raceColor(uint8_t type) { return MUI::raceColor(Sig::raceOf(type)); }
 
     static void _age(char* out, size_t n, uint32_t ms) {
         uint32_t s = ms / 1000;
@@ -166,8 +156,10 @@ private:
             y += 12;
             MUI::text(_canvas, MUI::small(), "Listening...", x, y, MUI::DIM);
         }
+        _shownN = 0;
         for (int i = 0; i < st.recentN; i++) {
             const auto& r = st.recent[i];
+            if (_shownN < 3) _shown[_shownN++] = r.type;
             char age[8];
             _age(age, sizeof(age), st.nowMs - r.lastMs);
             int aw = MUI::width(_canvas, MUI::small(), age);

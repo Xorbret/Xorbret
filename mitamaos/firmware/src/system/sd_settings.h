@@ -1,7 +1,7 @@
 #pragma once
 // Settings that survive updates: a copy of the OS's saved settings (Wi-Fi
-// networks, brightness, sass, WiGLE account, bookmarks, Grimoire notes,
-// Kotodama region and name) in
+// networks, brightness, timezone, sass, WiGLE account, bookmarks, Grimoire
+// notes, Kotodama region and name) in
 // /MitamaOS/settings.conf on the SD card.
 //
 // The settings still live in NVS, where the apps read them. This file is
@@ -14,7 +14,8 @@
 //    on the brightness slider doesn't hammer the card.
 // Plain text, one key=value per line under [namespace] headers, so it can
 // be read or edited on a PC. Only the keys listed in _SCHEMA are ever read
-// back. Saves are atomic: write .tmp, then swap it in.
+// back; deleting a line under a [section] that's in the file deletes that
+// setting. Saves are atomic: write .tmp, then swap it in.
 #include <Arduino.h>
 #include <SD.h>
 #include <Preferences.h>
@@ -32,6 +33,7 @@ static const Key _SCHEMA[] = {
     { "wifi-config", "s",      K_STR, MAX_WIFI_SLOTS },
     { "wifi-config", "p",      K_STR, MAX_WIFI_SLOTS },
     { "display",     "bright", K_INT, 0 },
+    { "timecfg",     "tz_offset", K_INT, 0 },
     { "mitama",      "sass",   K_U8,  0 },
     { "wigle",       "name",   K_STR, 0 },
     { "wigle",       "token",  K_STR, 0 },
@@ -168,26 +170,44 @@ inline void _write(uint32_t gen) {
     _setKnownHash(_fileHash(PATH));
 }
 
+static constexpr int _NS_MAX = 16, _SLOT_MAX = 64;
+
+// Index of one key slot (schema row k, index i) in a flat "seen" table.
+inline int _slot(const Key* k, int i) {
+    int n = 0;
+    for (auto& s : _SCHEMA) { if (&s == k) return n + i; n += s.count ? s.count : 1; }
+    return -1;
+}
+
 inline void _restore(const char* path, uint32_t gen) {
     File f = SD.open(path, FILE_READ);
     if (!f) return;
     String ns;
+    String sections[_NS_MAX]; int nsN = 0;      // [sections] the file has
+    bool seen[_SLOT_MAX] = {};
     Preferences p;
     bool open = false;
     while (f.available()) {
         String line = f.readStringUntil('\n');
         if (line.endsWith("\r")) line.remove(line.length() - 1);
-        if (!line.length() || line[0] == '#') continue;
-        if (line[0] == '[') {
+        String t = line; t.trim();
+        if (!t.length() || t[0] == '#') continue;
+        if (t[0] == '[') {
             if (open) { p.end(); open = false; }
-            ns = line.substring(1, line.indexOf(']'));
+            int close = t.indexOf(']');
+            ns = t.substring(1, close > 0 ? close : t.length());
+            ns.trim();
+            if (nsN < _NS_MAX) sections[nsN++] = ns;
             continue;
         }
         int eq = line.indexOf('=');
         if (eq <= 0 || !ns.length()) continue;
         String key = line.substring(0, eq), val = _unescape(line.substring(eq + 1));
+        key.trim();                             // values keep their spaces (passwords)
         const Key* k = _find(ns, key);
         if (!k) continue;
+        int sl = _slot(k, k->count ? key.substring(strlen(k->key)).toInt() : 0);
+        if (sl >= 0 && sl < _SLOT_MAX) seen[sl] = true;
         if (!open) { p.begin(ns.c_str(), false); open = true; }
         if (k->kind == K_STR)      p.putString(key.c_str(), val);
         else if (k->kind == K_INT) p.putInt(key.c_str(), val.toInt());
@@ -195,15 +215,36 @@ inline void _restore(const char* path, uint32_t gen) {
     }
     if (open) p.end();
     f.close();
+    // Lines removed from a section that is in the file: delete those
+    // settings too. (A section missing altogether - e.g. a file from an
+    // older build - leaves its settings alone.)
+    for (auto& k : _SCHEMA) {
+        bool has = false;
+        for (int i = 0; i < nsN; i++) if (sections[i] == k.ns) has = true;
+        if (!has) continue;
+        int n = k.count ? k.count : 1;
+        Preferences q; q.begin(k.ns, false);
+        for (int i = 0; i < n; i++) {
+            int sl = _slot(&k, i);
+            if (sl < 0 || sl >= _SLOT_MAX || seen[sl]) continue;
+            String key = k.count ? String(k.key) + i : String(k.key);
+            if (q.isKey(key.c_str())) q.remove(key.c_str());
+        }
+        q.end();
+    }
     _setNvsGen(gen);
 }
 
 // Call once after SD.begin(), before anything reads its settings.
 inline void boot() {
     if (SD.cardType() == CARD_NONE) return;
-    const char* path = SD.exists(PATH) ? PATH : (SD.exists(TMP) ? TMP : nullptr);
+    // Power died between "remove old" and "rename new": finish the swap.
+    if (!SD.exists(PATH) && SD.exists(TMP)) SD.rename(TMP, PATH);
+    const char* path = SD.exists(PATH) ? PATH : nullptr;
     uint32_t fg = path ? _fileGen(path) : 0, ng = _nvsGen();
-    bool edited = path && _knownHash() && _fileHash(path) != _knownHash();
+    // Changed since we last wrote it, or never written by us at all (a
+    // file made on a PC, with or without a gen= line): take it.
+    bool edited = path && _fileHash(path) != _knownHash();
     if (path && (fg > ng || edited)) {
         _restore(path, max(fg, ng));
         _setKnownHash(_fileHash(path));
