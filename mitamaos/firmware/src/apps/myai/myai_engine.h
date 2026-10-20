@@ -18,6 +18,11 @@
 #define FF_DIM      (4*N_EMBD)
 #define N_TENSORS   125   // 2 + 12*10 + 3
 
+// The defines above are the largest model the buffers hold. The model
+// file's header sets the actual size (any width that's a multiple of 32
+// up to 192, 1-12 layers), so a smaller, faster model needs no rebuild.
+static int g_embd = N_EMBD, g_layers = N_LAYER, g_heads = N_HEAD, g_ff = FF_DIM, g_ntensors = N_TENSORS;
+
 static uint32_t g_off[N_TENSORS];
 static float    g_sc[N_TENSORS];
 static bool     g_model_ok = false;
@@ -61,24 +66,24 @@ static void kv_ram_free() {
 }
 
 static bool kv_ram_init() {
-    size_t scale_n = (size_t)N_LAYER * KV_MAX_POS * 2;
+    size_t scale_n = (size_t)g_layers * KV_MAX_POS * 2;
     kv_scale = (float*)malloc(scale_n * sizeof(float));
     bool ok = kv_scale != nullptr;
-    for (int l = 0; ok && l < N_LAYER; l++) ok = (kv_layer[l] = (int8_t*)calloc(KV_LAYER_BYTES, 1)) != nullptr;
+    for (int l = 0; ok && l < g_layers; l++) ok = (kv_layer[l] = (int8_t*)calloc(KV_LAYER_BYTES, 1)) != nullptr;
     if (!ok) { Serial.println("KV malloc failed"); kv_ram_free(); return false; }
     // Optional: without it the SD path just reads row by row (slower).
     g_sdbuf_n = SDBUF;
     g_sdbuf = (int8_t*)malloc(g_sdbuf_n);
     if (!g_sdbuf) { g_sdbuf_n = SDBUF / 4; g_sdbuf = (int8_t*)malloc(g_sdbuf_n); }
     for (size_t i = 0; i < scale_n; i++) kv_scale[i] = 1.0f;
-    Serial.printf("KV RAM OK: %.1f KB\n", (N_LAYER * KV_LAYER_BYTES + scale_n*4) / 1024.0f);
+    Serial.printf("KV RAM OK: %.1f KB\n", (g_layers * KV_LAYER_BYTES + scale_n*4) / 1024.0f);
     return true;
 }
 
 static void kv_reset() {
     if (!kv_scale) return;
-    for (auto p : kv_layer) memset(p, 0, KV_LAYER_BYTES);
-    size_t n = (size_t)N_LAYER * KV_MAX_POS * 2;
+    for (int l = 0; l < g_layers; l++) memset(kv_layer[l], 0, KV_LAYER_BYTES);
+    size_t n = (size_t)g_layers * KV_MAX_POS * 2;
     for (size_t i = 0; i < n; i++) kv_scale[i] = 1.0f;
 }
 
@@ -157,12 +162,12 @@ static void stream_mv(File &f, float *out, const float *in, int rows, int cols, 
 
 static void layernorm(float *out, const float *in, const float *w, const float *b) {
     float mean = 0.0f;
-    for (int i = 0; i < N_EMBD; i++) mean += in[i];
-    mean /= N_EMBD;
+    for (int i = 0; i < g_embd; i++) mean += in[i];
+    mean /= g_embd;
     float var = 0.0f;
-    for (int i = 0; i < N_EMBD; i++) { float d = in[i]-mean; var += d*d; }
-    float inv = 1.0f / sqrtf(var / N_EMBD + 1e-5f);
-    for (int i = 0; i < N_EMBD; i++) out[i] = (in[i]-mean)*inv*w[i]+b[i];
+    for (int i = 0; i < g_embd; i++) { float d = in[i]-mean; var += d*d; }
+    float inv = 1.0f / sqrtf(var / g_embd + 1e-5f);
+    for (int i = 0; i < g_embd; i++) out[i] = (in[i]-mean)*inv*w[i]+b[i];
 }
 
 static inline float gelu_f(float x) {
@@ -178,21 +183,25 @@ static bool model_init() {
     Serial.printf("model_init: reading from %s\n", g_map ? "flash" : "SD");
     mseek(f, 0);
     uint32_t hdr[6]; safe_read(f, hdr, 24);
-    if (hdr[0]!=VOCAB||hdr[1]!=N_EMBD||hdr[2]!=N_HEAD||hdr[3]!=N_LAYER||hdr[5]!=N_TENSORS) {
+    bool ok = hdr[0]==VOCAB && hdr[1] % HEAD_DIM == 0 && hdr[1] >= HEAD_DIM && hdr[1] <= N_EMBD &&
+              hdr[2] == hdr[1] / HEAD_DIM && hdr[3] >= 1 && hdr[3] <= N_LAYER &&
+              hdr[4] == CTX_LEN && hdr[5] == 2 + 10 * hdr[3] + 3;
+    if (ok) { g_embd = hdr[1]; g_heads = hdr[2]; g_layers = hdr[3]; g_ff = 4 * g_embd; g_ntensors = hdr[5]; }
+    if (!ok) {
         Serial.printf("Model hdr mismatch: vocab=%u embd=%u head=%u layer=%u tensors=%u\n",
                       hdr[0],hdr[1],hdr[2],hdr[3],hdr[5]);
         if (f) f.close();
         return false;
     }
     uint32_t pos = 24;
-    for (int i = 0; i < N_TENSORS; i++) {
+    for (int i = 0; i < g_ntensors; i++) {
         uint32_t sz; safe_read(f, &sz, 4);
         pos += 4;
         g_off[i] = pos;
         pos += sz;
         mseek(f, pos);
     }
-    for (int i = 0; i < N_TENSORS; i++) safe_read(f, &g_sc[i], 4);
+    for (int i = 0; i < g_ntensors; i++) safe_read(f, &g_sc[i], 4);
     if (f) f.close();
     Serial.println("model_init OK");
     return true;
@@ -206,29 +215,29 @@ static void model_forward(File &mf, int tok, int pos) {
     int ctx = (pos + 1 < KV_MAX_POS) ? pos + 1 : KV_MAX_POS;
     int slot = pos % KV_MAX_POS;
 
-    mseek(mf, g_off[ti] + (uint32_t)tok * N_EMBD);
-    stream_vec(mf, x_buf, N_EMBD, g_sc[ti]); ti++;
+    mseek(mf, g_off[ti] + (uint32_t)tok * g_embd);
+    stream_vec(mf, x_buf, g_embd, g_sc[ti]); ti++;
 
-    mseek(mf, g_off[ti] + (uint32_t)(pos % CTX_LEN) * N_EMBD);
-    stream_vec(mf, res_buf, N_EMBD, g_sc[ti]); ti++;
-    for (int i = 0; i < N_EMBD; i++) x_buf[i] += res_buf[i];
+    mseek(mf, g_off[ti] + (uint32_t)(pos % CTX_LEN) * g_embd);
+    stream_vec(mf, res_buf, g_embd, g_sc[ti]); ti++;
+    for (int i = 0; i < g_embd; i++) x_buf[i] += res_buf[i];
 
-    for (int l = 0; l < N_LAYER; l++) {
-        mseek(mf, g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
-        mseek(mf, g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
+    for (int l = 0; l < g_layers; l++) {
+        mseek(mf, g_off[ti]); stream_vec(mf, ln_w, g_embd, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_vec(mf, ln_b, g_embd, g_sc[ti]); ti++;
         layernorm(ln_out, x_buf, ln_w, ln_b);
 
-        mseek(mf, g_off[ti]); stream_mv(mf, q_buf, ln_out, N_EMBD,     N_EMBD, g_sc[ti]); ti++;
-        mseek(mf, g_off[ti]); stream_mv(mf, k_buf, ln_out, HEAD_DIM,   N_EMBD, g_sc[ti]); ti++;
-        mseek(mf, g_off[ti]); stream_mv(mf, v_buf, ln_out, HEAD_DIM,   N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, q_buf, ln_out, g_embd,     g_embd, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, k_buf, ln_out, HEAD_DIM,   g_embd, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, v_buf, ln_out, HEAD_DIM,   g_embd, g_sc[ti]); ti++;
 
         kv_write(l, slot, 0, k_buf);
         kv_write(l, slot, 1, v_buf);
 
         const float inv_scale = 1.0f / sqrtf((float)HEAD_DIM);
-        memset(attn_out, 0, N_EMBD * sizeof(float));
+        memset(attn_out, 0, g_embd * sizeof(float));
 
-        for (int h = 0; h < N_HEAD; h++) {
+        for (int h = 0; h < g_heads; h++) {
             int hoff = h * HEAD_DIM;
             float mx = -1e9f;
             for (int t = 0; t < ctx; t++) {
@@ -249,26 +258,26 @@ static void model_forward(File &mf, int tok, int pos) {
             }
         }
 
-        mseek(mf, g_off[ti]); stream_mv(mf, res_buf, attn_out, N_EMBD, N_EMBD, g_sc[ti]); ti++;
-        for (int i = 0; i < N_EMBD; i++) x_buf[i] += res_buf[i];
+        mseek(mf, g_off[ti]); stream_mv(mf, res_buf, attn_out, g_embd, g_embd, g_sc[ti]); ti++;
+        for (int i = 0; i < g_embd; i++) x_buf[i] += res_buf[i];
 
-        mseek(mf, g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
-        mseek(mf, g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_vec(mf, ln_w, g_embd, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_vec(mf, ln_b, g_embd, g_sc[ti]); ti++;
         layernorm(ln_out, x_buf, ln_w, ln_b);
 
-        mseek(mf, g_off[ti]); stream_mv(mf, ff_buf, ln_out, FF_DIM, N_EMBD, g_sc[ti]); ti++;
-        for (int i = 0; i < FF_DIM; i++) {
+        mseek(mf, g_off[ti]); stream_mv(mf, ff_buf, ln_out, g_ff, g_embd, g_sc[ti]); ti++;
+        for (int i = 0; i < g_ff; i++) {
             ff_buf[i] = gelu_f(ff_buf[i]);
             if ((i & 0x3F) == 0) esp_task_wdt_reset();
         }
-        mseek(mf, g_off[ti]); stream_mv(mf, res_buf, ff_buf, N_EMBD, FF_DIM, g_sc[ti]); ti++;
-        for (int i = 0; i < N_EMBD; i++) x_buf[i] += res_buf[i];
+        mseek(mf, g_off[ti]); stream_mv(mf, res_buf, ff_buf, g_embd, g_ff, g_sc[ti]); ti++;
+        for (int i = 0; i < g_embd; i++) x_buf[i] += res_buf[i];
     }
 
-    mseek(mf, g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
-    mseek(mf, g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
+    mseek(mf, g_off[ti]); stream_vec(mf, ln_w, g_embd, g_sc[ti]); ti++;
+    mseek(mf, g_off[ti]); stream_vec(mf, ln_b, g_embd, g_sc[ti]); ti++;
     layernorm(ln_out, x_buf, ln_w, ln_b);
-    mseek(mf, g_off[ti]); stream_mv(mf, logits_buf, ln_out, VOCAB, N_EMBD, g_sc[ti]);
+    mseek(mf, g_off[ti]); stream_mv(mf, logits_buf, ln_out, VOCAB, g_embd, g_sc[ti]);
 }
 
 static bool would_repeat_ngram(const std::vector<int> &r, int cand, int n=3) {
@@ -508,16 +517,13 @@ inline bool init() {
     esp_task_wdt_init(300, false);
     Serial.printf("Free heap: %u\n", ESP.getFreeHeap());
 
-    if (!kv_ram_init()) { _last_error = "KV alloc fail"; return false; }
-    Serial.printf("Free heap after KV: %u\n", ESP.getFreeHeap());
-
+    // Model header first: its size decides how much cache to allocate.
     g_map = ModelFlash::map();     // nullptr: read from the SD card instead
     g_model_ok = model_init();
-    if (!g_model_ok) {
-        _last_error = "bad model.bin";
-        kv_ram_free();
-        return false;
-    }
+    if (!g_model_ok) { _last_error = "bad model.bin"; return false; }
+
+    if (!kv_ram_init()) { _last_error = "KV alloc fail"; g_model_ok = false; return false; }
+    Serial.printf("Free heap after KV: %u\n", ESP.getFreeHeap());
 
     Serial.printf("Free heap before AI task: %u\n", ESP.getFreeHeap());
     // 8KB stack is enough: the engine's big buffers are all global statics

@@ -32,8 +32,12 @@ jobs:
         run: pip install numpy torch --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple
       - name: Build training text
         run: python build_corpus.py
-      - name: Tiny training run
-        run: python train.py --pretrain-steps 40 --finetune-steps 20 --batch 8 --log-every 10 --preview-every 0
+      - name: Tiny training run (big)
+        run: |
+          python train.py --size big --pretrain-steps 20 --finetune-steps 10 --batch 8 --log-every 10 --preview-every 0 --out out-big
+          python check_export.py out-big/mitama.pt out-big/model.bin
+      - name: Tiny training run (small)
+        run: python train.py --size small --pretrain-steps 40 --finetune-steps 20 --batch 8 --log-every 10 --preview-every 0
       - name: Check export against the device maths
         run: python check_export.py out/mitama.pt out/model.bin
       - name: Sample like the device

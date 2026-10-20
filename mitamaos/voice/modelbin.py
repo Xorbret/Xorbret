@@ -23,11 +23,17 @@ VOCAB, N_EMBD, N_HEAD, N_LAYER, CTX_LEN = 256, 192, 6, 12, 256
 HEAD_DIM, FF_DIM, KV_MAX_POS = 32, 768, 96
 N_TENSORS = 2 + N_LAYER * 10 + 3
 
-SHAPES = [(VOCAB, N_EMBD), (CTX_LEN, N_EMBD)]
-for _ in range(N_LAYER):
-    SHAPES += [(N_EMBD,), (N_EMBD,), (N_EMBD, N_EMBD), (HEAD_DIM, N_EMBD), (HEAD_DIM, N_EMBD),
-               (N_EMBD, N_EMBD), (N_EMBD,), (N_EMBD,), (FF_DIM, N_EMBD), (N_EMBD, FF_DIM)]
-SHAPES += [(N_EMBD,), (N_EMBD,), (VOCAB, N_EMBD)]
+def shapes(embd=N_EMBD, layers=N_LAYER):
+    """Tensor shapes in file order for a model of this width and depth."""
+    ff = 4 * embd
+    s = [(VOCAB, embd), (CTX_LEN, embd)]
+    for _ in range(layers):
+        s += [(embd,), (embd,), (embd, embd), (HEAD_DIM, embd), (HEAD_DIM, embd),
+              (embd, embd), (embd,), (embd,), (ff, embd), (embd, ff)]
+    return s + [(embd,), (embd,), (VOCAB, embd)]
+
+
+SHAPES = shapes()
 assert len(SHAPES) == N_TENSORS
 
 
@@ -43,11 +49,14 @@ def quantize(w):
 
 def write(path, tensors):
     """tensors: list of float arrays in engine order and shape."""
-    assert len(tensors) == N_TENSORS
+    embd = np.asarray(tensors[0]).shape[1]
+    layers = (len(tensors) - 5) // 10
+    want = shapes(embd, layers)
+    assert len(tensors) == len(want)
     scales = []
     with open(path, "wb") as f:
-        f.write(struct.pack("<6I", VOCAB, N_EMBD, N_HEAD, N_LAYER, CTX_LEN, N_TENSORS))
-        for w, shape in zip(tensors, SHAPES):
+        f.write(struct.pack("<6I", VOCAB, embd, embd // HEAD_DIM, layers, CTX_LEN, len(want)))
+        for w, shape in zip(tensors, want):
             w = np.asarray(w, dtype=np.float32)
             assert w.shape == shape, (w.shape, shape)
             q, sc = quantize(w)
@@ -61,16 +70,19 @@ def read(path):
     """Returns the tensors dequantized to float32, in engine order."""
     with open(path, "rb") as f:
         hdr = struct.unpack("<6I", f.read(24))
-        want = (VOCAB, N_EMBD, N_HEAD, N_LAYER, CTX_LEN, N_TENSORS)
-        if hdr[:4] != want[:4] or hdr[5] != want[5]:
-            raise ValueError(f"model.bin header {hdr} doesn't match the engine {want}")
+        vocab, embd, heads, layers, ctx, n = hdr
+        ok = (vocab == VOCAB and embd % HEAD_DIM == 0 and embd <= N_EMBD and heads == embd // HEAD_DIM
+              and 1 <= layers <= N_LAYER and ctx == CTX_LEN and n == 2 + 10 * layers + 3)
+        if not ok:
+            raise ValueError(f"model.bin header {hdr} isn't a model the engine can run")
+        want = shapes(embd, layers)
         raw = []
-        for shape in SHAPES:
+        for shape in want:
             (n,) = struct.unpack("<I", f.read(4))
             if n != int(np.prod(shape)):
                 raise ValueError(f"tensor size {n} != {shape}")
             raw.append(np.frombuffer(f.read(n), dtype=np.int8).reshape(shape))
-        scales = np.frombuffer(f.read(4 * N_TENSORS), dtype="<f4")
+        scales = np.frombuffer(f.read(4 * len(want)), dtype="<f4")
     return [r.astype(np.float32) * s for r, s in zip(raw, scales)]
 
 
@@ -78,15 +90,18 @@ class Engine:
     """Token-at-a-time forward pass, the same arithmetic as model_forward()."""
 
     def __init__(self, tensors):
+        self.embd = tensors[0].shape[1]
+        self.heads = self.embd // HEAD_DIM
+        self.n_layer = (len(tensors) - 5) // 10
         t = iter(tensors)
         self.tok, self.pos = next(t), next(t)
-        self.layers = [[next(t) for _ in range(10)] for _ in range(N_LAYER)]
+        self.layers = [[next(t) for _ in range(10)] for _ in range(self.n_layer)]
         self.lnf_w, self.lnf_b, self.head = next(t), next(t), next(t)
         self.reset()
 
     def reset(self):
-        self.kq = np.zeros((N_LAYER, KV_MAX_POS, 2, HEAD_DIM), np.int8)
-        self.ks = np.ones((N_LAYER, KV_MAX_POS, 2), np.float32)
+        self.kq = np.zeros((self.n_layer, KV_MAX_POS, 2, HEAD_DIM), np.int8)
+        self.ks = np.ones((self.n_layer, KV_MAX_POS, 2), np.float32)
 
     @staticmethod
     def _ln(x, w, b):
@@ -114,8 +129,8 @@ class Engine:
             self._kv_write(l, slot, 1, v)
             keys = self.kq[l, :ctx, 0].astype(np.float32) * self.ks[l, :ctx, 0, None]
             vals = self.kq[l, :ctx, 1].astype(np.float32) * self.ks[l, :ctx, 1, None]
-            att = np.empty(N_EMBD, np.float32)
-            for hd in range(N_HEAD):
+            att = np.empty(self.embd, np.float32)
+            for hd in range(self.heads):
                 s = keys @ q[hd * HEAD_DIM:(hd + 1) * HEAD_DIM] / np.sqrt(HEAD_DIM)
                 s = np.exp(s - s.max())
                 s /= s.sum()

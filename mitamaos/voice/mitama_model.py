@@ -2,8 +2,9 @@
 on-device engine (firmware/src/apps/myai/myai_engine.h) so a trained model
 can be exported straight to /MitamaOS/model.bin.
 
-Byte-level GPT: 256 tokens (one per byte), 192 wide, 12 layers, 6 query
-heads sharing one key/value head (multi-query attention), no biases in the
+Byte-level GPT: 256 tokens (one per byte), 192 wide and 12 layers by
+default (the "big" size; "small" is 160 wide, 6 layers and fits in the
+Cardputer's flash), query heads of 32 sharing one key/value head (multi-query attention), no biases in the
 linear layers, LayerNorm eps 1e-5, tanh GELU, learned positions (256 rows,
 of which the device only ever uses the first 96).
 """
@@ -22,44 +23,51 @@ DEVICE_CTX = 96    # KV_MAX_POS: the device never sees more than this
 FF_DIM = 4 * N_EMBD
 
 
+SIZES = {"big": (192, 12), "small": (160, 6)}   # (width, layers)
+
+
 class Block(nn.Module):
-    def __init__(self):
+    def __init__(self, embd):
         super().__init__()
-        self.ln1 = nn.LayerNorm(N_EMBD, eps=1e-5)
-        self.q = nn.Linear(N_EMBD, N_EMBD, bias=False)
-        self.k = nn.Linear(N_EMBD, HEAD_DIM, bias=False)
-        self.v = nn.Linear(N_EMBD, HEAD_DIM, bias=False)
-        self.proj = nn.Linear(N_EMBD, N_EMBD, bias=False)
-        self.ln2 = nn.LayerNorm(N_EMBD, eps=1e-5)
-        self.ff1 = nn.Linear(N_EMBD, FF_DIM, bias=False)
-        self.ff2 = nn.Linear(FF_DIM, N_EMBD, bias=False)
+        self.embd, self.heads = embd, embd // HEAD_DIM
+        self.ln1 = nn.LayerNorm(embd, eps=1e-5)
+        self.q = nn.Linear(embd, embd, bias=False)
+        self.k = nn.Linear(embd, HEAD_DIM, bias=False)
+        self.v = nn.Linear(embd, HEAD_DIM, bias=False)
+        self.proj = nn.Linear(embd, embd, bias=False)
+        self.ln2 = nn.LayerNorm(embd, eps=1e-5)
+        self.ff1 = nn.Linear(embd, 4 * embd, bias=False)
+        self.ff2 = nn.Linear(4 * embd, embd, bias=False)
 
     def forward(self, x):
         B, T, _ = x.shape
+        H = self.heads
         h = self.ln1(x)
-        q = self.q(h).view(B, T, N_HEAD, HEAD_DIM).transpose(1, 2)    # B,H,T,D
-        k = self.k(h).unsqueeze(1).expand(B, N_HEAD, T, HEAD_DIM)     # shared
-        v = self.v(h).unsqueeze(1).expand(B, N_HEAD, T, HEAD_DIM)
+        q = self.q(h).view(B, T, H, HEAD_DIM).transpose(1, 2)         # B,H,T,D
+        k = self.k(h).unsqueeze(1).expand(B, H, T, HEAD_DIM)          # shared
+        v = self.v(h).unsqueeze(1).expand(B, H, T, HEAD_DIM)
         a = F.scaled_dot_product_attention(q, k, v, is_causal=True)   # scale 1/sqrt(32)
-        a = a.transpose(1, 2).reshape(B, T, N_EMBD)
+        a = a.transpose(1, 2).reshape(B, T, self.embd)
         x = x + self.proj(a)
         x = x + self.ff2(F.gelu(self.ff1(self.ln2(x)), approximate="tanh"))
         return x
 
 
 class MitamaGPT(nn.Module):
-    def __init__(self):
+    def __init__(self, embd=N_EMBD, layers=N_LAYER):
         super().__init__()
-        self.tok_emb = nn.Embedding(VOCAB, N_EMBD)
-        self.pos_emb = nn.Embedding(CTX_LEN, N_EMBD)
-        self.blocks = nn.ModuleList(Block() for _ in range(N_LAYER))
-        self.ln_f = nn.LayerNorm(N_EMBD, eps=1e-5)
-        self.head = nn.Linear(N_EMBD, VOCAB, bias=False)
+        assert embd % HEAD_DIM == 0 and embd <= N_EMBD and 1 <= layers <= N_LAYER
+        self.embd, self.layers = embd, layers
+        self.tok_emb = nn.Embedding(VOCAB, embd)
+        self.pos_emb = nn.Embedding(CTX_LEN, embd)
+        self.blocks = nn.ModuleList(Block(embd) for _ in range(layers))
+        self.ln_f = nn.LayerNorm(embd, eps=1e-5)
+        self.head = nn.Linear(embd, VOCAB, bias=False)
         self.apply(self._init)
         # GPT-2 style: shrink the residual projections with depth
         for b in self.blocks:
-            nn.init.normal_(b.proj.weight, std=0.02 / math.sqrt(2 * N_LAYER))
-            nn.init.normal_(b.ff2.weight, std=0.02 / math.sqrt(2 * N_LAYER))
+            nn.init.normal_(b.proj.weight, std=0.02 / math.sqrt(2 * layers))
+            nn.init.normal_(b.ff2.weight, std=0.02 / math.sqrt(2 * layers))
 
     @staticmethod
     def _init(m):

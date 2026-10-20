@@ -10,15 +10,16 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mitama_model import MitamaGPT  # noqa: E402
+from mitama_model import MitamaGPT, SIZES  # noqa: E402
 import modelbin  # noqa: E402
 
 PROMPTS = ["Q: who are you?\nA: ", "Q: *idle*\nA: ", "Odin gave an eye for wisdom. "]
 
 
 def main(pt, binpath):
-    model = MitamaGPT()
-    model.load_state_dict(torch.load(pt, map_location="cpu"))
+    ck = torch.load(pt, map_location="cpu")
+    model = MitamaGPT(*SIZES[ck["size"]])
+    model.load_state_dict(ck["model"])
     model.eval()
     eng = modelbin.Engine(modelbin.read(binpath))
     worst, agree, total = 0.0, 0, 0

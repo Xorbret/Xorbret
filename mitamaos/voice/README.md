@@ -5,9 +5,14 @@ This folder retrains the on-device language model (the one MiTalk, formerly myAI
 that climbed out of a game, sassy but competent, with small references to
 myth, tabletop and JRPG conventions, and code.
 
-The model keeps exactly the shape the firmware's engine expects (byte-level,
-12 layers, 192 wide, about 4.7 million weights stored as int8), so the new
-`model.bin` drops onto the SD card with no firmware change.
+Two sizes, both run by the same firmware (the file says which it is):
+
+- **small** (default): 160 wide, 6 layers, 1.7 MB. MiTalk copies it into
+  the Cardputer's flash, past the MitamaOS program, and reads it from there:
+  much faster. Needs the "mitama" slot in Launcher's PMan grown to about
+  3.9 MB.
+- **big**: 192 wide, 12 layers, 4.7 MB. Too big for the flash next to
+  Launcher and Porkchop, so it's read from the SD card: smarter, slower.
 
 ## Easiest way: Google Colab
 
@@ -24,7 +29,7 @@ The model keeps exactly the shape the firmware's engine expects (byte-level,
 Needs Python 3.10+, `numpy` and `torch` (a GPU helps a lot).
 
     python build_corpus.py          # downloads sources, writes data/
-    python train.py                 # writes out/model.bin
+    python train.py --size small    # writes out/model.bin
     python check_export.py out/mitama.pt out/model.bin
     python modelbin.py out/model.bin --prompt "Q: who are you?\nA:"
 
@@ -36,7 +41,7 @@ Needs Python 3.10+, `numpy` and `torch` (a GPU helps a lot).
 - The firmware's line bank (`firmware/src/mitama/lines.h`) is folded in
   automatically as event prompts such as `*idle*` and `*seen AIRTAG*`.
 - To retune only the voice, keep the pretrained weights:
-  `python train.py --resume out/pretrain.pt --pretrain-steps 0`
+  `python train.py --size small --resume out/pretrain.pt --pretrain-steps 0`
 
 ## Files
 

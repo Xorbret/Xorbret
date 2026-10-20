@@ -26,7 +26,7 @@ import torch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from mitama_model import MitamaGPT, DEVICE_CTX  # noqa: E402
+from mitama_model import MitamaGPT, DEVICE_CTX, SIZES  # noqa: E402
 import modelbin  # noqa: E402
 
 BLOCK = DEVICE_CTX  # 96: the device never attends further back than this
@@ -137,8 +137,11 @@ def run_phase(name, model, opt, dev, steps, peak_lr, batch_fn, args, rng, prompt
 
 def import_bin(model, path):
     """Starts from an existing model.bin (int8, so a little lossy)."""
+    ws = modelbin.read(path)
+    if len(ws) != len(model.tensors()) or ws[0].shape[1] != model.embd:
+        raise SystemExit(f"{path} is a different size from --size; pick the matching size")
     with torch.no_grad():
-        for (_, p), w in zip(model.tensors(), modelbin.read(path)):
+        for (_, p), w in zip(model.tensors(), ws):
             p.copy_(torch.from_numpy(w))
 
 
@@ -152,6 +155,9 @@ def main():
     ap.add_argument("--out", default=str(HERE / "out"))
     ap.add_argument("--init", help="start from this model.bin instead of random weights")
     ap.add_argument("--resume", help="start from a checkpoint (.pt) written by this script")
+    ap.add_argument("--size", choices=list(SIZES), default="small",
+                    help="big: 192 wide x 12 layers, 4.7 MB, read from SD (slow); "
+                         "small: 160 x 6, 1.7 MB, fits in flash (fast)")
     ap.add_argument("--pretrain-steps", type=int, default=20000)
     ap.add_argument("--finetune-steps", type=int, default=3000)
     ap.add_argument("--batch", type=int, default=64)
@@ -173,12 +179,13 @@ def main():
     pairs = load_pairs(Path(a.data) / "voice.txt")
     print(f"device {dev}; pretrain {len(data) / 1e6:.2f} MB; {len(pairs)} voice pairs")
 
-    model = MitamaGPT().to(dev)
+    embd, layers = SIZES[a.size]
+    model = MitamaGPT(embd, layers).to(dev)
     if a.init:
         import_bin(model, a.init)
         print(f"started from {a.init}")
     if a.resume:
-        model.load_state_dict(torch.load(a.resume, map_location=dev))
+        model.load_state_dict(torch.load(a.resume, map_location=dev)["model"])
         print(f"resumed from {a.resume}")
     print(f"{sum(p.numel() for p in model.parameters()) / 1e6:.2f}M parameters")
 
@@ -193,7 +200,7 @@ def main():
     run_phase("pretrain", model, opt, dev, a.pretrain_steps, a.lr,
               lambda: pretrain_batch(data, starts, a.batch, rng), a, rng, prompts)
     if a.pretrain_steps > 0:
-        torch.save(model.state_dict(), out / "pretrain.pt")
+        torch.save({"model": model.state_dict(), "size": a.size}, out / "pretrain.pt")
 
     def mixed():
         if rng.random() < a.mix:
@@ -203,7 +210,7 @@ def main():
     opt = torch.optim.AdamW(groups, lr=a.finetune_lr, betas=(0.9, 0.95), fused=fused)
     run_phase("finetune", model, opt, dev, a.finetune_steps, a.finetune_lr, mixed, a, rng, prompts)
 
-    torch.save(model.state_dict(), out / "mitama.pt")
+    torch.save({"model": model.state_dict(), "size": a.size}, out / "mitama.pt")
     export_bin(model, out / "model.bin")
     print(f"wrote {out / 'model.bin'} - copy it to the SD card as /MitamaOS/model.bin")
     return 0
