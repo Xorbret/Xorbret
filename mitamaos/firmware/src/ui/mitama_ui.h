@@ -233,7 +233,7 @@ namespace MUI {
     enum Sigil : uint8_t {
         SIG_COMPENDIUM, SIG_PROXIMA, SIG_FILES, SIG_PAINT, SIG_MUSIC, SIG_GAMES,
         SIG_LUA, SIG_GRIMOIRE, SIG_BROWSER, SIG_SETTINGS, SIG_STORE, SIG_PIANO,
-        SIG_CUBE, SIG_CALC, SIG_CLOCK, SIG_ORACLE, SIG_SYSTEM, SIG_SCRY, SIG_UNKNOWN
+        SIG_CUBE, SIG_CALC, SIG_CLOCK, SIG_ORACLE, SIG_SYSTEM, SIG_SCRY, SIG_MOLT, SIG_UNKNOWN
     };
 
     struct _Pen {
@@ -363,6 +363,12 @@ namespace MUI {
             p.dot(12, 12, 1.2f);
             p.line(12, 1.5f, 12, 4.5f); p.line(12, 19.5f, 12, 22.5f);
             p.line(1.5f, 12, 3.2f, 12); p.line(20.8f, 12, 22.5f, 12);
+            break;
+        case SIG_MOLT: // ouroboros: the serpent swallowing its tail, renewed
+            p.arc(12, 12, 8, 40, 340);
+            p.ring(18.1f, 17.1f, 2.2f);           // head
+            p.line(19.5f, 9.3f, 19.0f, 14.9f);    // tail into the jaws
+            p.dot(12, 12, 1.4f);
             break;
         case SIG_SYSTEM: // sealed chip
             p.rect(7.5f, 7.5f, 9, 9);

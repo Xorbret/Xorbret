@@ -79,6 +79,10 @@ public:
             }
             if (st.enter) {
                 OsUI::waitRelease();
+                if (strcmp(_menuItems[_menuSel], "System") == 0) {   // its own app, off the grid
+                    AppManager::get().requestLaunch("SysInfo");
+                    return;
+                }
                 _section = _menuSel + 1;
                 _draw();
             }
@@ -521,5 +525,6 @@ const char* SettingsApp::_menuItems[] = {
     "Games / Emulator",
     "About",
     "Network",
+    "System",
 };
-const int SettingsApp::_menuCount = 5;
+const int SettingsApp::_menuCount = 6;

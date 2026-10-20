@@ -122,14 +122,15 @@ private:
             { "Clock",     "Clock",    MUI::SIG_CLOCK,    MUI::YELLOW  },
             { "MiTalk",    "MiTalk",   MUI::SIG_ORACLE,   MUI::GREEN   },
             { "SysInfo",   "System",   MUI::SIG_SYSTEM,   MUI::DIM     },
-            { "Molt",      "Molt",     MUI::SIG_SYSTEM,   MUI::GREEN   },
+            { "Molt",      "Molt",     MUI::SIG_MOLT,     MUI::GREEN   },
         };
         for (auto& l : LOOKS) if (strcmp(l.name, name) == 0) return &l;
         return nullptr;
     }
 
     static bool _isHiddenFromGrid(App* a) {
-        return a && strcmp(a->getName(), "Proxima") == 0;
+        // Proxima is the home screen; System lives in Settings.
+        return a && (strcmp(a->getName(), "Proxima") == 0 || strcmp(a->getName(), "SysInfo") == 0);
     }
 
     // Number of apps shown as tiles (everything after the launcher except

@@ -104,7 +104,7 @@ private:
     void _draw() {
         _canvas.fillSprite(MUI::BG);
         MUI::header(_canvas, "MOLT", MUI::GREEN);
-        MUI::sigil(_canvas, MUI::SIG_SYSTEM, 30, 52, 40, MUI::GREEN);
+        MUI::sigil(_canvas, MUI::SIG_MOLT, 30, 52, 40, MUI::GREEN);
         const int x = 64;
         int y = HEADER_H + 3;
         char buf[64];

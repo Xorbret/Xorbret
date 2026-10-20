@@ -9,6 +9,9 @@
 #include "../../config.h"
 #include "../../system/paper_clock.h"
 #include <esp_partition.h>
+#ifndef MITAMA_BUILD
+#define MITAMA_BUILD "dev"
+#endif
 #include <esp_ota_ops.h>
 
 class SysInfo : public App {
@@ -56,7 +59,7 @@ private:
     void _drawParts() {
         _canvas.startWrite();
         _canvas.fillSprite(COL_BG);
-        OsUI::drawHeader(_canvas, "SysInfo  partitions", COL_HEADER);
+        OsUI::drawHeader(_canvas, "System  partitions", COL_HEADER);
         _canvas.setTextSize(1);
         int y = CONTENT_Y + 3;
         const esp_partition_t* run = esp_ota_get_running_partition();
@@ -82,7 +85,7 @@ private:
         if (_parts) { _drawParts(); return; }
         _canvas.startWrite();
         _canvas.fillSprite(COL_BG);
-        OsUI::drawHeader(_canvas, "SysInfo  v" OS_VERSION, COL_HEADER);
+        OsUI::drawHeader(_canvas, "System  v" OS_VERSION "  " MITAMA_BUILD, COL_HEADER);
 
         _canvas.setTextSize(1);
         int y = CONTENT_Y + 4;
