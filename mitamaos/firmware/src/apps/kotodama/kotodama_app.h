@@ -179,7 +179,11 @@ private:
         MUI::text(_canvas, MUI::small(), right, SCREEN_W - 4 - rw, y, k.state() == Kotodama::ST_ON ? MUI::GREEN : MUI::DIM);
 
         // messages, newest at the bottom
-        const int top = HEADER_H + 15, bottom = SCREEN_H - FOOTER_H - 15, lh = 10, w = SCREEN_W - 8;
+        // Rows are a full font height apart, and the newest sits fully above
+        // the input line (lh 10 overlapped rows and clipped the last one).
+        const int lh = 12, w = SCREEN_W - 8;
+        const int top = HEADER_H + 15;
+        const int newest = SCREEN_H - FOOTER_H - 15 - 14;     // input separator, minus one row of glyphs
         const char* stateMsg = _stateText(k.state());
         int n = _msgs ? k.messages(_msgs, Kotodama::MAX_MSGS, _ch) : 0;
         if (stateMsg && !n) {
@@ -190,7 +194,7 @@ private:
         } else {
             static char full[Mesh::MAX_TEXT + 32];
             int starts[24], lens[24];
-            int lineY = bottom - lh, skip = _scroll, drawn = 0, m = n - 1;
+            int lineY = newest, skip = _scroll, drawn = 0, m = n - 1;
             for (; m >= 0 && lineY >= top; m--) {
                 char who[28];
                 k.nameOf(_msgs[m].from, who, sizeof(who));
@@ -216,7 +220,7 @@ private:
             }
             // Scrolled past the oldest line: pull back so the screen stays full.
             if (m < 0 && lineY >= top && _scroll > 0) {
-                int total = _scroll - skip + drawn, visible = (bottom - top) / lh + 1;
+                int total = _scroll - skip + drawn, visible = (newest - top) / lh + 1;
                 int best = max(0, total - visible);
                 if (best < _scroll) { _scroll = best; _redraw = true; }
             }
