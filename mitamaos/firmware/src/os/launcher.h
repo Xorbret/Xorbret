@@ -125,14 +125,19 @@ private:
             { "SysInfo",   "System",   MUI::SIG_SYSTEM,   MUI::DIM     },
             { "Molt",      "Molt",     MUI::SIG_MOLT,     MUI::GREEN   },
             { "Kotodama",  "Kotodama", MUI::SIG_KOTODAMA, MUI::MAGENTA },
+            { "Omikuji",   "Omikuji",  MUI::SIG_OMIKUJI,  MUI::YELLOW  },
+            { "Aether",    "Aether",   MUI::SIG_AETHER,   MUI::CYAN    },
         };
         for (auto& l : LOOKS) if (strcmp(l.name, name) == 0) return &l;
         return nullptr;
     }
 
     static bool _isHiddenFromGrid(App* a) {
-        // Proxima is the home screen; System lives in Settings.
-        return a && (strcmp(a->getName(), "Proxima") == 0 || strcmp(a->getName(), "SysInfo") == 0);
+        // Proxima is the home screen; System and Clock live in Settings.
+        static const char* HIDDEN[] = { "Proxima", "SysInfo", "Clock" };
+        if (!a) return false;
+        for (auto h : HIDDEN) if (strcmp(a->getName(), h) == 0) return true;
+        return false;
     }
 
     // Number of apps shown as tiles (everything after the launcher except

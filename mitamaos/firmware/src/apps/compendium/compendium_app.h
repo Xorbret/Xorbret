@@ -25,8 +25,12 @@ public:
     const char* getIcon() const override { return "C"; }
     const char* getDesc() const override { return "Every demon you've met"; }
 
+    // Next time the Compendium opens, start on this species (from Proxima).
+    static void openAt(uint8_t t) { _openAt = t; }
+
     void onStart() override {
         OsUI::waitRelease();
+        if (Compendium::listed(_openAt)) { _sel = _openAt; _openAt = Sig::T_COUNT; }
         _buildRows();
         _scrollTo();
         _draw();
@@ -61,6 +65,7 @@ private:
     int      _nRows = 0, _scroll = 0;
     uint8_t  _sel = 0;                   // selected species
     uint32_t _lastDraw = 0;
+    static inline uint8_t _openAt = Sig::T_COUNT;
 
     static uint16_t _raceCol(uint8_t r) {
         switch (r) {

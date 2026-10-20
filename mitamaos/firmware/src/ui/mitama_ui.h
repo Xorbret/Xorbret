@@ -233,7 +233,7 @@ namespace MUI {
     enum Sigil : uint8_t {
         SIG_COMPENDIUM, SIG_PROXIMA, SIG_FILES, SIG_PAINT, SIG_MUSIC, SIG_GAMES,
         SIG_LUA, SIG_GRIMOIRE, SIG_BROWSER, SIG_SETTINGS, SIG_STORE, SIG_PIANO,
-        SIG_CUBE, SIG_CALC, SIG_CLOCK, SIG_ORACLE, SIG_SYSTEM, SIG_SCRY, SIG_MOLT, SIG_KOTODAMA, SIG_UNKNOWN
+        SIG_CUBE, SIG_CALC, SIG_CLOCK, SIG_ORACLE, SIG_SYSTEM, SIG_SCRY, SIG_MOLT, SIG_KOTODAMA, SIG_OMIKUJI, SIG_AETHER, SIG_UNKNOWN
     };
 
     struct _Pen {
@@ -376,6 +376,18 @@ namespace MUI {
             p.arc(6, 18, 10.5f, 270, 360);
             p.arc(6, 18, 15, 280, 350);
             p.dot(8.6f, 3.2f, 0.9f); p.dot(20.8f, 15.4f, 0.9f);
+            break;
+        case SIG_OMIKUJI: { // the shrine's six-sided fortune box, one stick drawn
+            float h[] = { 12, 8.5f, 17.2f, 11.5f, 17.2f, 18.5f, 12, 21.5f, 6.8f, 18.5f, 6.8f, 11.5f };
+            p.poly(h, 6);
+            p.line(12, 8.5f, 14.6f, 2.5f);
+            p.dot(14.8f, 2.2f, 1.1f);
+            p.line(9.5f, 15, 14.5f, 15);
+            break; }
+        case SIG_AETHER: // the fifth element, measured: a ring of air over three channel bars
+            p.ring(12, 12, 9.5f);
+            p.line(6.5f, 16, 17.5f, 16);
+            p.line(8.5f, 16, 8.5f, 12); p.line(12, 16, 12, 7.5f); p.line(15.5f, 16, 15.5f, 10.5f);
             break;
         case SIG_SYSTEM: // sealed chip
             p.rect(7.5f, 7.5f, 9, 9);

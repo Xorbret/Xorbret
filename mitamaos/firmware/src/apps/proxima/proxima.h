@@ -2,6 +2,7 @@
 #include <M5Cardputer.h>
 #include <WiFi.h>
 #include "../../os/app.h"
+#include "../compendium/compendium_app.h"
 #include "../../os/app_manager.h"
 #include "../../os/os_ui.h"
 #include "../../os/disp_lock.h"
@@ -49,6 +50,19 @@ public:
             OsUI::waitRelease();
             AppManager::get().goHome();   // the app grid
             return;
+        }
+
+        // 1-3 open that recent sighting's Compendium card.
+        for (char c : st.word) {
+            if (c < '1' || c > '3') continue;
+            auto ds = DetectionEngine::get().stats();
+            int i = c - '1';
+            if (i < ds.recentN && Compendium::listed(ds.recent[i].type)) {
+                OsUI::waitRelease();
+                CompendiumApp::openAt(ds.recent[i].type);
+                AppManager::get().requestLaunch("Compendium");
+                return;
+            }
         }
 
         // The bones ring turns slowly (a full turn every ~12s): redraw at
@@ -159,8 +173,10 @@ private:
             int aw = MUI::width(_canvas, MUI::small(), age);
             int right = SCREEN_W - 4 - aw;
             uint16_t col = _raceColor(r.type);
-            _canvas.setClipRect(x, y, right - 4 - x, 13);
-            int ex = MUI::text(_canvas, MUI::small(), Sig::raceName(Sig::raceOf(r.type)), x, y, col);
+            char num[3] = { (char)('1' + i), ' ', 0 };
+            int nx = MUI::text(_canvas, MUI::small(), num, x, y, MUI::DIM);
+            _canvas.setClipRect(nx, y, right - 4 - nx, 13);
+            int ex = MUI::text(_canvas, MUI::small(), Sig::raceName(Sig::raceOf(r.type)), nx, y, col);
             ex = MUI::text(_canvas, MUI::small(), " ", ex, y, col);
             ex = MUI::text(_canvas, MUI::small(), Sig::typeName(r.type), ex, y, MUI::WHITE);
             if (r.detail) {

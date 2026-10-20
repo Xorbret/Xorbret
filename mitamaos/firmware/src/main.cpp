@@ -25,6 +25,8 @@
 #include "apps/scry/scry_app.h"
 #include "apps/compendium/compendium_app.h"
 #include "apps/kotodama/kotodama_app.h"
+#include "apps/omikuji/omikuji_app.h"
+#include "apps/aether/aether_app.h"
 #include "apps/molt/molt_app.h"
 #include "system/sd_bus.h"
 #if PAPEROS_ENABLE_BROWSER
@@ -79,6 +81,8 @@ ProximaApp    proximaApp(canvas);
 ScryApp       scryApp(canvas);
 CompendiumApp compendiumApp(canvas);
 KotodamaApp   kotodamaApp(canvas);
+OmikujiApp    omikujiApp(canvas);
+AetherApp     aetherApp(canvas);
 MoltApp       moltApp(canvas);
 #if PAPEROS_ENABLE_BROWSER
 Browser       browserApp(canvas);
@@ -221,6 +225,7 @@ void setup() {
     AppManager::get().registerApp(&compendiumApp);
     AppManager::get().registerApp(&scryApp);
     AppManager::get().registerApp(&kotodamaApp);
+    AppManager::get().registerApp(&aetherApp);
     AppManager::get().registerApp(&filesApp);
     AppManager::get().registerApp(&notesApp);
 #if PAPEROS_ENABLE_PAINT
@@ -245,6 +250,7 @@ void setup() {
 #endif
 #if PAPEROS_ENABLE_MYAI
     AppManager::get().registerApp(&myaiApp);
+    AppManager::get().registerApp(&omikujiApp);
 #endif
     AppManager::get().registerApp(&sysinfoApp);
     AppManager::get().registerApp(&moltApp);

@@ -84,6 +84,10 @@ public:
                     AppManager::get().requestLaunch("SysInfo");
                     return;
                 }
+                if (strcmp(_menuItems[_menuSel], "Clock") == 0) {    // same
+                    AppManager::get().requestLaunch("Clock");
+                    return;
+                }
                 _section = _menuSel + 1;
                 _draw();
             }
@@ -528,5 +532,6 @@ const char* SettingsApp::_menuItems[] = {
     "About",
     "Network",
     "System",
+    "Clock",
 };
-const int SettingsApp::_menuCount = 6;
+const int SettingsApp::_menuCount = 7;

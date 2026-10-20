@@ -21,6 +21,7 @@
 #include "signatures.h"
 #include "scry.h"
 #include "compendium.h"
+#include "aether.h"
 #include "../system/gps.h"
 #include "../os/wifi_manager.h"
 
@@ -160,8 +161,10 @@ private:
         auto* p = (const wifi_promiscuous_pkt_t*)buf;
         int len = p->rx_ctrl.sig_len - 4;          // drop the FCS
         if (len < 24) return;
-        if (type == WIFI_PKT_MGMT)
+        if (type == WIFI_PKT_MGMT) {
             ScryLogger::get().onWifi(p->payload, len, p->rx_ctrl.channel, p->rx_ctrl.rssi);
+            AetherTally::get().onBeacon(p->payload, len, p->rx_ctrl.channel, p->rx_ctrl.rssi);
+        }
         Sig::WifiResult r = Sig::matchWifi(p->payload, len);
         if (r.kind == Sig::W_DEAUTH) {
             self._deauthFrames++;
