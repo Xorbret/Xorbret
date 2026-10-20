@@ -8,6 +8,7 @@
 #include "../../config.h"
 #include "../../ui/mitama_ui.h"
 #include "../../detect/detection.h"
+#include "../../mitama/brain.h"
 
 // Proxima - the Mitama's home screen (outline §2 "Mitama / Proxima layer",
 // §15). Where MitamaOS boots, where Esc from the app grid goes, and where
@@ -27,7 +28,6 @@ public:
 
     void onStart() override {
         OsUI::waitRelease();
-        _pickLine();
         _tick = 0;
         _needRedraw = true;
     }
@@ -37,6 +37,14 @@ public:
         M5Cardputer.update();
         auto st = M5Cardputer.Keyboard.keysState();
 
+        // S cycles the sass dial (0 Mute Muse .. 3 Insufferable).
+        if (M5Cardputer.Keyboard.isKeyPressed('s')) {
+            OsUI::waitRelease();
+            MitamaBrain::get().cycleSass();
+            _sassToastTicks = 30;
+            _needRedraw = true;
+        }
+
         if (st.enter) {
             OsUI::waitRelease();
             AppManager::get().goHome();   // the app grid
@@ -44,19 +52,13 @@ public:
         }
 
         // The bones ring turns slowly (a full turn every ~12s): redraw at
-        // ~10fps for it, which also keeps the clock / Wi-Fi fresh. Change
-        // the Mitama's line every ~45s, or when the network state flips.
+        // ~10fps for it, which also keeps the clock / Wi-Fi fresh and
+        // animates the Mitama's line.
         ++_tick;
         if (_tick % 5 == 0) {
             _spin = fmodf(_spin + 3.0f, 360.0f);
             _needRedraw = true;
         }
-        if (_tick % 50 == 0) {
-            bool online = WiFi.status() == WL_CONNECTED;
-            int threats = DetectionEngine::get().stats().threats;
-            if (online != _wasOnline || (threats > 0) != _wasAlarm || _tick >= 50 * 45) { _tick = 0; _pickLine(); }
-        }
-
         if (_needRedraw) { _needRedraw = false; _draw(); }
     }
 
@@ -64,47 +66,10 @@ private:
     LGFX_Sprite& _canvas;
     bool     _needRedraw = true;
     uint32_t _tick = 0;
-    bool     _wasOnline = false;
-    bool     _wasAlarm = false;
-    const char* _line = "";
+    uint32_t _lineShownMs = 0;     // when the current line started showing
+    uint32_t _lastSerial = 0xFFFFFFFF;
+    int      _sassToastTicks = 0;
     float    _spin = 0;
-
-    // Placeholder line-bank until the M2 Mitama brain (event x mood, sass
-    // dial) arrives. Kept short enough to fit the status bar.
-    void _pickLine() {
-        static const char* ONLINE[] = {
-            "All quiet. Suspiciously quiet.",
-            "Nothing to report. Savor it.",
-            "I'm watching. You're welcome.",
-            "Your network. My problem.",
-        };
-        static const char* OFFLINE[] = {
-            "No network. I'll just sit here.",
-            "Offline. Honestly, peaceful.",
-            "Nothing to watch. Rude.",
-        };
-        static const char* ALARM[] = {
-            "Something's hostile out there.",
-            "Not friendly. Stay sharp.",
-            "Hostile signal. I see it.",
-        };
-        static const char* LATE[] = {
-            "It's late. Even demons sleep.",
-            "Bed. Now. I'll keep watch.",
-        };
-        _wasOnline = WiFi.status() == WL_CONNECTED;
-        _wasAlarm = DetectionEngine::get().stats().threats > 0;
-        struct tm t;
-        if (_wasAlarm) {
-            _line = ALARM[random(3)];
-        } else if (MUI::localNow(t) && (t.tm_hour >= 21 || t.tm_hour < 5)) {
-            _line = LATE[random(2)];
-        } else if (_wasOnline) {
-            _line = ONLINE[random(4)];
-        } else {
-            _line = OFFLINE[random(3)];
-        }
-    }
 
     static uint16_t _raceColor(uint8_t type) {
         switch (Sig::raceOf(type)) {
@@ -132,7 +97,10 @@ private:
         DetectionEngine::Stats st = DetectionEngine::get().stats();
         // Mood: red = a threat nearby; cyan = something on the watchlist;
         // green = all clear while on a network; calm yellow while offline.
-        uint16_t aura = st.threats ? MUI::RED : st.watch ? MUI::CYAN : online ? MUI::GREEN : MUI::YELLOW;
+        auto& brain = MitamaBrain::get();
+        uint16_t aura = st.threats ? MUI::RED
+                      : brain.mood() != MitamaBrain::M_CALM ? brain.moodColor()
+                      : st.watch ? MUI::CYAN : online ? MUI::GREEN : MUI::YELLOW;
 
         MUI::header(_canvas, "PROXIMA", aura);
         MUI::soul(_canvas, 40, 68, 92, MUI::YELLOW, aura, _spin);
@@ -204,9 +172,34 @@ private:
             y += 12;
         }
 
-        char say[48];
-        snprintf(say, sizeof(say), "\"%s\"", _line);
-        MUI::footer(_canvas, say, MUI::CREAM, "ENT apps", aura);
+        // The Mitama's line: typed out, then scrolled if it's longer than
+        // the status bar.
+        char say[110];
+        if (_sassToastTicks > 0) {
+            _sassToastTicks--;
+            snprintf(say, sizeof(say), "Sass %u: %s", brain.sass(), MitamaBrain::sassName(brain.sass()));
+            MUI::footer(_canvas, say, MUI::YELLOW, "ENT apps", aura);
+        } else {
+            const char* ln = brain.line();
+            if (brain.lineSerial() != _lastSerial) { _lastSerial = brain.lineSerial(); _lineShownMs = millis(); }
+            uint32_t age = millis() - _lineShownMs;
+            snprintf(say, sizeof(say), "\"%s\"", ln);
+            size_t len = strlen(say);
+            size_t shown = min(len, (size_t)(age / 35));      // ~28 chars/s typing
+            char typed[110];
+            memcpy(typed, say, shown); typed[shown] = 0;
+            int avail = SCREEN_W - 3 - MUI::width(_canvas, MUI::small(), "ENT apps") - 6 - 17;
+            int w = MUI::width(_canvas, MUI::small(), say);
+            int scroll = 0;
+            if (shown == len && w > avail) {
+                // pause 2s, scroll at ~30px/s, pause 2s at the end, repeat
+                uint32_t t = age - len * 35;
+                uint32_t run = (uint32_t)(w - avail) * 33;
+                uint32_t cyc = t % (2000 + run + 2000);
+                scroll = cyc < 2000 ? 0 : cyc < 2000 + run ? (int)((cyc - 2000) / 33) : w - avail;
+            }
+            MUI::footer(_canvas, typed, MUI::CREAM, "ENT apps", aura, scroll);
+        }
 
         { DispLock _lk; _canvas.pushSprite(0, 0); }
     }

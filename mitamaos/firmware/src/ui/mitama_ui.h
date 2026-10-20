@@ -206,7 +206,7 @@ namespace MUI {
     // a line of text - key hints in apps, its own voice on Proxima. An
     // optional right-aligned hint sits at the far edge.
     inline void footer(LGFX_Sprite& c, const char* say, uint16_t sayCol = DIM,
-                       const char* rightHint = nullptr, uint16_t mood = YELLOW) {
+                       const char* rightHint = nullptr, uint16_t mood = YELLOW, int scroll = 0) {
         int y = SCREEN_H - FOOTER_H;
         c.fillRect(0, y, SCREEN_W, FOOTER_H, BG);
         c.fillRect(0, y, SCREEN_W, 1, BONES_DIM);
@@ -220,7 +220,7 @@ namespace MUI {
         }
         if (say && *say) {
             c.setClipRect(17, y + 1, right - 17, FOOTER_H - 1);
-            text(c, small(), say, 17, y + 1, sayCol);
+            text(c, small(), say, 17 - scroll, y + 1, sayCol);
             c.clearClipRect();
         }
     }

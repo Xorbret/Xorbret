@@ -20,6 +20,7 @@
 #include "os/wifi_manager.h"
 #include "apps/proxima/proxima.h"
 #include "detect/detection.h"
+#include "mitama/brain.h"
 #include "apps/scry/scry_app.h"
 #if PAPEROS_ENABLE_BROWSER
 #include "apps/browser/browser.h"
@@ -288,6 +289,13 @@ static void _watchActiveApp() {
 void loop() {
     _checkGoButton();
     _watchActiveApp();
+    // The Mitama keeps thinking whichever app is open, so its reactions
+    // are current when you come back to Proxima.
+    static uint32_t lastThink = 0;
+    if (millis() - lastThink >= 1000) {
+        lastThink = millis();
+        MitamaBrain::get().update(DetectionEngine::get().stats());
+    }
     AppManager::get().tick();
     delay(TICK_MS);
 }
