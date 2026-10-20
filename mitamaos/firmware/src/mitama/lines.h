@@ -90,7 +90,7 @@ static const Line BANK[] = {
     { EV_NIGHT, T_ANY,   "A camera. Beholder energy: one big eye, zero chill." },
     { EV_NIGHT, T_ANY,   "{d} spotted. Someone's playing Big Brother on easy mode." },
     { EV_NIGHT, T_ANY,   "{sp} in range. Don't look into it. Very Medusa." },
-    { EV_FAIRY, T_ANY,   "A {sp} drifting with us. Fairies lead travelers astray. This one follows." },
+    { EV_FAIRY, T_ANY,   "{sp} drifting with us. Fairies lead travelers astray. This one follows." },
     { EV_FAIRY, T_ANY,   "{d} nearby. If it's still with us later, we talk." },
     { EV_FAIRY, T_ANY,   "Tracker spotted. Probably someone's keys. Probably." },
     { EV_AVIAN, T_ANY,   "Drone overhead. Huginn and Muninn, reporting to some Odin." },

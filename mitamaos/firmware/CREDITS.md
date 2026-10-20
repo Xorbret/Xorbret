@@ -94,6 +94,28 @@ These inform later milestones and are credited now so provenance is clear:
   offensive "raider" into a defensive "guardian." No offensive behavior is
   carried over.
 
+## Voice training data (`mitamaos/voice/`)
+
+The retraining kit downloads its training text when it runs; none of it is
+stored in this repository. Everything it uses is public domain or openly
+licensed, and no game scripts or other copyrighted dialogue are used:
+
+- **Project Gutenberg** texts, public domain in the US: Bulfinch's
+  Mythology (#4928), Hearn's Kwaidan (#1210), Ozaki's Japanese Fairy Tales
+  (#4018), Davis's Myths & Legends of Japan (#45723), the Elder and Younger
+  Eddas (#14726), Grimms' Fairy Tales (#2591), and Butler's Odyssey (#1727)
+  and Iliad (#2199). Project Gutenberg's header and licence text are
+  stripped, as its licence allows for derived works.
+- **System Reference Document 5.1** © Wizards of the Coast LLC, licensed
+  under **CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/). This
+  work includes material taken from the SRD 5.1, read via the
+  **5e-bits/5e-database** JSON (MIT License).
+- **Python standard library** modules, © Python Software Foundation,
+  **PSF License**, as code samples.
+- The Mitama's own lines (`mitama_voice.txt`, `lines.h`) are original
+  writing by the MitamaOS project. Game references in them are short nods to
+  common conventions (save points, natural 20s), not quotations.
+
 ## What MitamaOS adds on top
 
 The companion spirit ("the Mitama"), the Proxima home + Compendium, the
