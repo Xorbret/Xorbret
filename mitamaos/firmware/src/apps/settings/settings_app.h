@@ -183,10 +183,14 @@ public:
                     String p = _lastPickedOpen ? "" : OsUI::inputText(_canvas, "Password:");
                     wm.saveSlot(_netSel, s, p);
                     wm.connectSlot(_netSel);
-                    OsUI::showToast(_canvas, "Connecting...", COL_OK);
-                    _canvas.pushSprite(0, 0);
-                    // Phone hotspots can take several seconds to accept.
-                    const char* why = wm.waitResult(12000);
+                    // Phone hotspots can take several seconds to accept;
+                    // count down so it doesn't look frozen.
+                    static LGFX_Sprite* cv; cv = &_canvas;
+                    const char* why = wm.waitResult(15000, [](int left) {
+                        char t[32]; snprintf(t, sizeof(t), "Connecting... %ds", left);
+                        OsUI::showToast(*cv, t, COL_OK);
+                        cv->pushSprite(0, 0);
+                    });
                     OsUI::showToast(_canvas, why ? why : "Connected", why ? COL_ERR : COL_OK);
                     _canvas.pushSprite(0, 0);
                     delay(why ? 2500 : 1000);

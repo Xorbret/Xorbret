@@ -93,6 +93,10 @@ public:
     // ESP32 Arduino has no WL_CONNECTING (ESP8266 does); WL_IDLE_STATUS = assoc in progress.
     void ensureConnected() {
         if (noteResult()) return;
+        // ESP32 reports a join in progress as plain "disconnected", so
+        // without this a retry would cut off a slow handshake (phone
+        // hotspots, WPA3) every time and it would never finish.
+        if (joining()) return;
         wl_status_t st = WiFi.status();
         if (st == WL_IDLE_STATUS) return;  // already connecting
         if (st == WL_DISCONNECTED || st == WL_CONNECTION_LOST
@@ -129,10 +133,13 @@ public:
 
     // Waits up to timeoutMs for a join started by connectSlot(); returns a
     // short reason if it didn't work (nullptr = connected).
-    const char* waitResult(uint32_t timeoutMs) {
+    const char* waitResult(uint32_t timeoutMs, void (*progress)(int secsLeft) = nullptr) {
         uint32_t t0 = millis();
+        int shown = -1;
         while (millis() - t0 < timeoutMs) {
             if (WiFi.status() == WL_CONNECTED) { noteResult(); return nullptr; }
+            int left = (timeoutMs - (millis() - t0) + 999) / 1000;
+            if (progress && left != shown) { shown = left; progress(left); }
             delay(100);
         }
         static char msg[40];
