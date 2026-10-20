@@ -235,7 +235,7 @@ private:
         // not just discoverable via SysInfo).
         char status[40];
         const char* state = MyAI::isBusy() ? "gen..." : MyAI::isReady() ? "ready" : "no model";
-        snprintf(status, sizeof(status), "%uK free - myAI %s",
+        snprintf(status, sizeof(status), "%uK free - MiTalk %s",
                  (unsigned)(ESP.getFreeHeap()/1024), state);
         OsUI::drawHeader(_canvas, status, COL_HEADER);
         _canvas.drawFastHLine(0, HEADER_H, SCREEN_W, COL_ACCENT);

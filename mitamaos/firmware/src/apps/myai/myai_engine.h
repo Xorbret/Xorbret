@@ -282,7 +282,7 @@ static String ai_generate(File &mf, const String &prompt, int max_new) {
     const int   TOP_K   = 40;
     const float TOP_P   = 0.92f;
     const float REP_PEN = 1.2f;
-    const unsigned long TIMEOUT = 240000UL;  // 4 min
+    const unsigned long TIMEOUT = 420000UL;  // 7 min: ~3.5 s per character from SD
 
     unsigned long t0 = millis();
     int pos = 0;
@@ -382,7 +382,7 @@ static void ai_task(void*) {
             const int   TOP_K   = 40;
             const float TOP_P   = 0.92f;
             const float REP_PEN = 1.2f;
-            const unsigned long TIMEOUT = 240000UL;
+            const unsigned long TIMEOUT = 420000UL;
             unsigned long t0 = millis();
             int pos = 0;
 
