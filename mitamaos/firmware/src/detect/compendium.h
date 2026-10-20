@@ -25,6 +25,12 @@ public:
         uint8_t  pad[2] = {0, 0};
     };
 
+    // iBeacons are shop/venue beacons: everywhere and harmless, so the
+    // watcher ignores them and they have no Compendium page. The species
+    // keeps its slot so saved files stay valid.
+    static bool listed(uint8_t t) { return t < Sig::T_COUNT && t != Sig::T_IBEACON; }
+    static int total() { int n = 0; for (uint8_t t = 0; t < Sig::T_COUNT; t++) n += listed(t); return n; }
+
     // Event for the Mitama: a species met for the first time, and whether
     // that finished its race. Read once with takeNews().
     struct News { uint8_t type = Sig::T_COUNT; bool raceDone = false; };
@@ -51,7 +57,7 @@ public:
 
     // A sighting. `fresh` = a device the watcher wasn't already tracking.
     void note(uint8_t t, int8_t rssi, bool fresh) {
-        if (t >= Sig::T_COUNT) return;
+        if (!listed(t)) return;
         uint32_t now = _now();
         portENTER_CRITICAL(&_mux);
         Entry& e = _e[t];
@@ -90,7 +96,7 @@ public:
     int metCount() {
         int n = 0;
         portENTER_CRITICAL(&_mux);
-        for (auto& e : _e) n += e.met;
+        for (uint8_t t = 0; t < Sig::T_COUNT; t++) n += listed(t) && _e[t].met;
         portEXIT_CRITICAL(&_mux);
         return n;
     }
@@ -102,7 +108,7 @@ public:
     }
     static int raceSize(uint8_t r) {
         int n = 0;
-        for (uint8_t t = 0; t < Sig::T_COUNT; t++) n += Sig::raceOf(t) == r;
+        for (uint8_t t = 0; t < Sig::T_COUNT; t++) n += listed(t) && Sig::raceOf(t) == r;
         return n;
     }
     bool persistent() const { return _sd; }
@@ -136,7 +142,7 @@ private:
 
     int _raceMet(uint8_t r) const {
         int n = 0;
-        for (uint8_t t = 0; t < Sig::T_COUNT; t++) if (Sig::raceOf(t) == r) n += _e[t].met;
+        for (uint8_t t = 0; t < Sig::T_COUNT; t++) if (listed(t) && Sig::raceOf(t) == r) n += _e[t].met;
         return n;
     }
 

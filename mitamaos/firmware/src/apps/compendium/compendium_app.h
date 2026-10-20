@@ -108,9 +108,10 @@ private:
     void _buildRows() {
         _nRows = 0;
         for (uint8_t r = 0; r < Sig::R_COUNT; r++) {
+            if (!Compendium::raceSize(r)) continue;     // Herald: iBeacons aren't listed
             _rows[_nRows++] = 0x80 | r;
             for (uint8_t t = 0; t < Sig::T_COUNT; t++)
-                if (Sig::raceOf(t) == r) _rows[_nRows++] = t;
+                if (Compendium::listed(t) && Sig::raceOf(t) == r) _rows[_nRows++] = t;
         }
     }
 
@@ -127,9 +128,10 @@ private:
     }
 
     void _race(int d) {
-        uint8_t r = (Sig::raceOf(_sel) + d + Sig::R_COUNT) % Sig::R_COUNT;
+        uint8_t r = Sig::raceOf(_sel);
+        do { r = (r + d + Sig::R_COUNT) % Sig::R_COUNT; } while (!Compendium::raceSize(r));
         for (uint8_t t = 0; t < Sig::T_COUNT; t++)
-            if (Sig::raceOf(t) == r) { _sel = t; break; }
+            if (Compendium::listed(t) && Sig::raceOf(t) == r) { _sel = t; break; }
         _scrollTo();
     }
 
@@ -207,10 +209,7 @@ private:
             MUI::textCentered(_canvas, MUI::title(), "?", sx, sy - 6, MUI::DIM);
             MUI::text(_canvas, MUI::title(), "???", x0 + 34, HEADER_H + 3, MUI::DIM, 1);
             MUI::text(_canvas, MUI::small(), Sig::raceName(race), x0 + 34, HEADER_H + 17, col);
-            const char* hint = _sel == Sig::T_IBEACON
-                ? "Beacon watching is off, so this one stays hidden for now."
-                : "Not met yet. It's out there somewhere.";
-            _wrap(hint, x0, HEADER_H + 40, w, 3, MUI::DIM);
+            _wrap("Not met yet. It's out there somewhere.", x0, HEADER_H + 40, w, 3, MUI::DIM);
             return;
         }
 
@@ -270,7 +269,7 @@ private:
         _drawCard();
         auto& comp = Compendium::get();
         char count[12];
-        snprintf(count, sizeof(count), "%d/%d", comp.metCount(), (int)Sig::T_COUNT);
+        snprintf(count, sizeof(count), "%d/%d", comp.metCount(), Compendium::total());
         if (comp.persistent()) MUI::footer(_canvas, "; . move   , / race", MUI::DIM, count);
         else MUI::footer(_canvas, "No SD card: forgets on reboot", MUI::YELLOW, count);
         { DispLock _lk; _canvas.pushSprite(0, 0); }
