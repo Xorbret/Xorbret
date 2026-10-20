@@ -71,9 +71,9 @@ private:
         if (!_online()) return;
         _say("Looking...", MUI::CYAN); _draw();
         String msg;
-        { Hold h; _latest = Update::latest(msg); }
+        { Hold h; _latest = OsUpdate::latest(msg); }
         if (!_latest.length()) { _say(msg, MUI::BONES); return; }
-        if (_latest == Update::current()) {
+        if (_latest == OsUpdate::current()) {
             _state = S_CURRENT;
             _say("You have the newest build.", MUI::GREEN);
         } else {
@@ -94,7 +94,7 @@ private:
         _self = this; _pct = 0;
         _say("Downloading...", MUI::CYAN); _draw();
         String msg;
-        { Hold h; _path = Update::download(_latest, &MoltApp::_progress, msg); }
+        { Hold h; _path = OsUpdate::download(_latest, &MoltApp::_progress, msg); }
         _pct = -1;
         if (!_path.length()) { _say(msg, MUI::BONES); return; }
         _state = S_READY;
@@ -109,7 +109,7 @@ private:
         int y = HEADER_H + 3;
         char buf[64];
         int e = MUI::text(_canvas, MUI::small(), "THIS ", x, y, MUI::WHITE);
-        MUI::text(_canvas, MUI::small(), Update::current(), e, y, MUI::LABEL);
+        MUI::text(_canvas, MUI::small(), OsUpdate::current(), e, y, MUI::LABEL);
         y += 13;
         e = MUI::text(_canvas, MUI::small(), "NEWEST ", x, y, MUI::WHITE);
         MUI::text(_canvas, MUI::small(), _latest.length() ? _latest.c_str() : "?", e, y,

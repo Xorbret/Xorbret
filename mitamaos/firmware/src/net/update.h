@@ -17,7 +17,7 @@
 #define MITAMA_BUILD "dev"
 #endif
 
-namespace Update {
+namespace OsUpdate {
 
 static constexpr const char* HOST = "xorbret.github.io";
 static constexpr const char* BASE = "/Xorbret/firmware/";
@@ -106,4 +106,4 @@ inline String download(const String& build, void (*progress)(size_t, size_t), St
     return path;
 }
 
-} // namespace Update
+} // namespace OsUpdate
