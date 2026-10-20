@@ -24,6 +24,7 @@
 #include "system/sd_settings.h"
 #include "apps/scry/scry_app.h"
 #include "apps/compendium/compendium_app.h"
+#include "apps/kotodama/kotodama_app.h"
 #include "apps/molt/molt_app.h"
 #include "system/sd_bus.h"
 #if PAPEROS_ENABLE_BROWSER
@@ -77,6 +78,7 @@ Launcher      launcherApp(canvas);
 ProximaApp    proximaApp(canvas);
 ScryApp       scryApp(canvas);
 CompendiumApp compendiumApp(canvas);
+KotodamaApp   kotodamaApp(canvas);
 MoltApp       moltApp(canvas);
 #if PAPEROS_ENABLE_BROWSER
 Browser       browserApp(canvas);
@@ -218,6 +220,7 @@ void setup() {
     AppManager::get().registerApp(&proximaApp);
     AppManager::get().registerApp(&compendiumApp);
     AppManager::get().registerApp(&scryApp);
+    AppManager::get().registerApp(&kotodamaApp);
     AppManager::get().registerApp(&filesApp);
     AppManager::get().registerApp(&notesApp);
 #if PAPEROS_ENABLE_PAINT
@@ -259,6 +262,7 @@ void setup() {
     }
 
     DetectionEngine::get().begin();
+    Kotodama::get().boot();     // LoRa chat keeps listening in the background if left on
 
     if (bootTo == BOOT_GAMES) {
         AppManager::get().launch("Games");
@@ -309,5 +313,6 @@ void loop() {
     }
     AppManager::get().tick();
     SdSettings::tick();
+    Kotodama::get().tick();
     delay(TICK_MS);
 }

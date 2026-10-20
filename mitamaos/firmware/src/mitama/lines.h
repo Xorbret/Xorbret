@@ -24,6 +24,7 @@ enum Event : uint8_t {
     EV_SINCERE,    // rare, after a threat passes
     EV_NEW_DEMON,  // a species registered in the Compendium for the first time
     EV_RACE_DONE,  // ...and that finished its race
+    EV_WHISPER,    // a Kotodama (LoRa chat) message arrived; {d} = sender
     EV_COUNT
 };
 
@@ -172,6 +173,10 @@ static const Line BANK[] = {
     { EV_RACE_DONE, T_ANY, "{r} complete. Somewhere a completionist sheds a single tear." },
     { EV_RACE_DONE, T_ANY, "The whole {r} race is in the book. Achievement unlocked, sort of." },
     { EV_RACE_DONE, T_ANY, "All {r} registered. That page of the Compendium is full." },
+    { EV_WHISPER, T_ANY, "A whisper on the wind from {d}. Kotodama's waiting." },
+    { EV_WHISPER, T_ANY, "{d} sent word over LoRa. Spirits gossip too." },
+    { EV_WHISPER, T_ANY, "Message from {d}, carried over the hills by spirit-speech." },
+    { EV_WHISPER, T_ANY, "{d} speaks through the Kotodama. Going to answer?" },
 };
 
 static constexpr int BANK_N = sizeof(BANK) / sizeof(BANK[0]);

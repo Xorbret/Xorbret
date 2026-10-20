@@ -116,6 +116,16 @@ licensed, and no game scripts or other copyrighted dialogue are used:
   writing by the MitamaOS project. Game references in them are short nods to
   common conventions (save points, natural 20s), not quotations.
 
+## Kotodama (LoRa chat)
+
+- **RadioLib** by Jan Gromeš, **MIT License**, drives the SX1262 radio.
+- Kotodama speaks the **Meshtastic** over-the-air format (LongFast preset,
+  packet header, AES-CTR channel encryption, `Data`/`User` messages) so it
+  can talk to Meshtastic radios. It was written from Meshtastic's public
+  protocol documentation; no Meshtastic source code (GPLv3) is included.
+  Meshtastic® is a registered trademark of Meshtastic LLC; MitamaOS is not
+  affiliated with or endorsed by the Meshtastic project.
+
 ## What MitamaOS adds on top
 
 The companion spirit ("the Mitama"), the Proxima home + Compendium, the

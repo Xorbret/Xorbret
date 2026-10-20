@@ -13,6 +13,7 @@
 #include "lines.h"
 #include "../detect/detection.h"
 #include "../detect/compendium.h"
+#include "../net/kotodama.h"
 #include "../detect/scry.h"
 #include "../system/gps.h"
 #include "../ui/mitama_ui.h"
@@ -51,6 +52,13 @@ public:
             DetectionEngine::Sighting s; s.type = news.type;
             _say(news.raceDone ? Lines::EV_RACE_DONE : Lines::EV_NEW_DEMON, &s,
                  Sig::isThreat(news.type) ? M_ALARMED : M_SMUG, now);
+        }
+        Kotodama::Msg km;
+        if (Kotodama::get().takeIncoming(km) && _sass > 0) {
+            static char who[28];
+            Kotodama::get().nameOf(km.from, who, sizeof(who));
+            DetectionEngine::Sighting s; s.detail = who;
+            _say(Lines::EV_WHISPER, &s, M_CURIOUS, now);
         }
         if (_hadThreat && st.threats == 0) {
             _hadThreat = false;

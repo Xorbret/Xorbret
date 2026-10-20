@@ -1,6 +1,7 @@
 #pragma once
 // Settings that survive updates: a copy of the OS's saved settings (Wi-Fi
-// networks, brightness, sass, WiGLE account, bookmarks, Grimoire notes) in
+// networks, brightness, sass, WiGLE account, bookmarks, Grimoire notes,
+// Kotodama region and name) in
 // /MitamaOS/settings.conf on the SD card.
 //
 // The settings still live in NVS, where the apps read them. This file is
@@ -36,6 +37,9 @@ static const Key _SCHEMA[] = {
     { "bmarks",      "cnt",    K_INT, 0 },
     { "bmarks",      "u",      K_STR, 8 },
     { "notes",       "n",      K_STR, 5 },
+    { "kotodama",    "region", K_U8,  0 },
+    { "kotodama",    "on",     K_U8,  0 },
+    { "kotodama",    "name",   K_STR, 0 },
 };
 
 inline bool     _dirty = false;

@@ -25,6 +25,7 @@ EVENTS = {
     "EV_OFFLINE": ["*offline*"], "EV_CLEAR": ["*clear*"], "EV_GPS_FIX": ["*gps fix*"],
     "EV_SCRY_ON": ["*scry on*"], "EV_WIFI_JOIN": ["*wifi joined*"], "EV_SINCERE": ["*sincere*"],
     "EV_NEW_DEMON": ["*new demon*"], "EV_RACE_DONE": ["*race complete*"],
+    "EV_WHISPER": ["*message*"],
     # sightings: one prompt per species, so the model learns each one
     "EV_VILE": ["*seen FLOCK*", "*seen AXON*", "*seen ALPR*"],
     "EV_NIGHT": ["*seen CAMERA*", "*seen RING*", "*seen META*"],
