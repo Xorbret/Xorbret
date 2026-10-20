@@ -179,7 +179,8 @@ private:
 
     void _wifiKeepAlive() {
         wifi_mode_t m;
-        if (_wantPause || esp_wifi_get_mode(&m) != ESP_OK || m == WIFI_MODE_NULL) {
+        if (_wantPause || WiFiManager::get().joining()
+            || esp_wifi_get_mode(&m) != ESP_OK || m == WIFI_MODE_NULL) {
             if (_wifiOn) { esp_wifi_set_promiscuous(false); _wifiOn = false; }
             return;
         }
@@ -309,7 +310,8 @@ private:
             if (now - lastKeep >= 1000) {
                 lastKeep = now;
                 _wifiKeepAlive();
-                if (_wantPause) _bleStop();
+                // BLE shares the antenna: give a Wi-Fi join all of it.
+                if (_wantPause || WiFiManager::get().joining()) _bleStop();
                 else if (_ble != BLE_ON && now - lastBle >= 5000) { lastBle = now; _bleStart(); }
             }
             if (now - lastDeauth >= 2000) { lastDeauth = now; _checkDeauth(); }

@@ -1,5 +1,6 @@
 #pragma once
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <Preferences.h>
 #include "../system/sd_settings.h"
 #include "../config.h"
@@ -37,6 +38,23 @@ public:
         // instead (see launcher.h), so this stays off.
         WiFi.setAutoReconnect(false);
         WiFi.persistent(true);
+        // Remember why the last join failed, for the Settings message.
+        static bool hooked = false;
+        if (!hooked) {
+            hooked = true;
+            WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
+                WiFiManager::get().lastReason = info.wifi_sta_disconnected.reason;
+            }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+        }
+    }
+
+    volatile uint8_t lastReason = 0;      // wifi_err_reason_t of the last drop (0 = none)
+
+    // True while a join we started may still be running: the detection
+    // watcher turns its promiscuous listening off then, as it can upset
+    // the handshake (WPA3 especially).
+    bool joining() const {
+        return lastBeginMs && millis() - lastBeginMs < 15000 && WiFi.status() != WL_CONNECTED;
     }
 
     void saveSlot(int idx, const String& ssid, const String& pass) {
@@ -104,6 +122,7 @@ public:
         if (idx < 0 || idx >= MAX_WIFI_SLOTS) return;
         WiFi.disconnect(true);
         WiFi.mode(WIFI_STA);
+        lastReason = 0;
         _tryIdx = idx;
         _beginNext();
     }
@@ -112,16 +131,20 @@ public:
     // short reason if it didn't work (nullptr = connected).
     const char* waitResult(uint32_t timeoutMs) {
         uint32_t t0 = millis();
-        wl_status_t st = WiFi.status();
         while (millis() - t0 < timeoutMs) {
-            st = WiFi.status();
-            if (st == WL_CONNECTED) { noteResult(); return nullptr; }
-            if (st == WL_CONNECT_FAILED && millis() - t0 > 1500) break;
+            if (WiFi.status() == WL_CONNECTED) { noteResult(); return nullptr; }
             delay(100);
         }
-        if (st == WL_NO_SSID_AVAIL) return "Not found (2.4 GHz only)";
-        if (st == WL_CONNECT_FAILED) return "Rejected: password?";
-        return "No answer yet";
+        static char msg[40];
+        uint8_t r = lastReason;
+        const char* what =
+            r == 201 ? "Not found (2.4 GHz only)" :                          // NO_AP_FOUND
+            (r == 15 || r == 204 || r == 202 || r == 2) ? "Rejected: password?" :   // handshake / auth
+            r == 205 ? "Connection failed" :
+            r ? "Failed" : "No answer";
+        if (r) snprintf(msg, sizeof(msg), "%s (code %u)", what, r);
+        else snprintf(msg, sizeof(msg), "%s", what);
+        return msg;
     }
 
     bool isConnected() const { return WiFi.status() == WL_CONNECTED; }
@@ -147,6 +170,7 @@ private:
         for (int k = 0; k < MAX_WIFI_SLOTS; k++) {
             int i = (_tryIdx + k) % MAX_WIFI_SLOTS;
             if (slots[i].ssid == "") continue;
+            esp_wifi_set_promiscuous(false);   // detection listening off for the join (see joining())
             lastBeginMs = millis();
             WiFi.begin(slots[i].ssid.c_str(), slots[i].pass.c_str());
             _tryIdx = (i + 1) % MAX_WIFI_SLOTS;
