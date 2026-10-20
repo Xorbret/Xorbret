@@ -23,6 +23,7 @@
 #include "mitama/brain.h"
 #include "apps/scry/scry_app.h"
 #include "apps/molt/molt_app.h"
+#include "system/sd_bus.h"
 #if PAPEROS_ENABLE_BROWSER
 #include "apps/browser/browser.h"
 #endif
@@ -190,6 +191,7 @@ void setup() {
     // paperos_8mb.csv). If a card/wiring combo turns out unstable at this
     // speed, drop it back down; 4000000 is always the safe fallback.
     SD.begin(SD_CS, *sd_spi, 20000000);
+    SdBus::spi = sd_spi; SdBus::cs = SD_CS;
     // The OS's own folders, so they're there to drop files into (e.g.
     // /MitamaOS/wigle.txt) before any app has written to the card.
     ScryLogger::ensureDirs();

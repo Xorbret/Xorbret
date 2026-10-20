@@ -7,6 +7,8 @@
 #include "../../os/os_ui.h"
 #include "../../os/wifi_manager.h"
 #include "../../config.h"
+#include "../../system/sd_bus.h"
+#include "../../detect/scry.h"
 #include "../../detect/detection.h"   // before the engine: its #defines are short names
 #include "myai_engine.h"
 
@@ -63,6 +65,10 @@ public:
         for (int i = 0; i < 60 && !det.paused(); i++) delay(50);
         delay(100);   // let the freed memory settle back into the heap
 
+        // The model is re-read for every character: run the card faster
+        // while MiTalk is open (not while Scry has a log file open).
+        _fastSd = !ScryLogger::get().recording() && SdBus::tryFast("/MitamaOS/model.bin");
+
         // First open after a new model.bin: copy it into flash (fast reads).
         _self = this;
         _push("Checking model...", MSG_SYS);
@@ -71,6 +77,7 @@ public:
         bool flash = ModelFlash::sync(&MyAiApp::_copyProgress, &why);
         _line_cnt--;   // drop the "checking" line
         if (!flash) _push(String("Using SD: ") + why, MSG_SYS);
+        if (!flash) _push(_fastSd ? "SD card at 40 MHz" : "SD card at 20 MHz", MSG_SYS);
 
         if (!MyAI::init()) {
             String msg = String("MiTalk  [") + MyAI::lastError() + "]";
@@ -84,6 +91,7 @@ public:
 
     void onStop() override {
         MyAI::deinit();
+        if (_fastSd) { SdBus::remount(SdBus::NORMAL); _fastSd = false; }
         DetectionEngine::get().hold(false);
         if (_wifiWasOn) { WiFi.mode(WIFI_STA); WiFiManager::get().connectFirst(0); }
     }
@@ -170,6 +178,7 @@ private:
     bool     _wifiWasOn = false;
 
     static inline MyAiApp* _self = nullptr;
+    bool _fastSd = false;
 
     static void _copyProgress(int pct) {
         if (!_self || _self->_line_cnt == 0) return;
