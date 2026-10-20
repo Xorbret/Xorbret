@@ -37,7 +37,8 @@ jobs:
       - name: Check export against the device maths
         run: python check_export.py out/mitama.pt out/model.bin
       - name: Sample like the device
-        run: python modelbin.py out/model.bin -n 1 --prompt "Q: who are you?\nA:" --prompt "Q: *idle*\nA:"
+        run: |
+          python modelbin.py out/model.bin -n 1 --prompt "Q: who are you?\nA:" --prompt "Q: *idle*\nA:"
       - name: Corpus summary
         run: |
           ls -la data out
