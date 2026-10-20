@@ -52,6 +52,7 @@ private:
     bool    _drawn = false, _tied = false, _cast_ = false, _seeded = false;
     uint8_t _rank = 0, _reading = 0, _asp[3] = {0, 0, 0};
     uint8_t _lines[6] = {0};              // coin totals 6..9, bottom first
+    uint32_t _slipDay = 0;                // date the current slip was drawn for
 
     struct RankInfo { const char* name; const char* eng; uint8_t weight; uint16_t col; };
     static const RankInfo& _info(uint8_t r) {
@@ -120,10 +121,11 @@ private:
         uint32_t seed;
         struct tm t;
         _seeded = MUI::localNow(t);
+        uint32_t day = 0;
         if (_seeded) {
             uint64_t mac = ESP.getEfuseMac();
-            seed = (uint32_t)((t.tm_year + 1900) * 10000 + (t.tm_mon + 1) * 100 + t.tm_mday) * 2654435761u
-                   ^ (uint32_t)mac ^ (uint32_t)(mac >> 32);
+            day = (uint32_t)((t.tm_year + 1900) * 10000 + (t.tm_mon + 1) * 100 + t.tm_mday);
+            seed = day * 2654435761u ^ (uint32_t)mac ^ (uint32_t)(mac >> 32);
             if (!seed) seed = 1;
         } else seed = esp_random() | 1;
         for (int i = 0; i < 4; i++) _rng(seed);
@@ -134,7 +136,8 @@ private:
         while (pick >= _info(_rank).weight) { pick -= _info(_rank).weight; _rank++; }
         _reading = _rng(seed) & 1;
         for (auto& a : _asp) a = _rng(seed) % 3;
-        if (!_drawn || !_seeded) _tied = false;
+        if (!_drawn || !_seeded || day != _slipDay) _tied = false;   // a new slip starts untied
+        _slipDay = day;
         _drawn = true;
     }
 

@@ -63,23 +63,20 @@ public:
         Entry& e = _e[t];
         bool first = !e.met;
         if (first) { e.met = 1; e.first = now; }
-        if (fresh || first) e.count++;
-        if (rssi > e.best) e.best = rssi;
-        if (now) e.last = now;
-        if (first) {
-            _news.type = t;
-            _news.raceDone = _raceMet(Sig::raceOf(t)) == raceSize(Sig::raceOf(t));
-            _newsPending = true;
+        if (fresh || first) { e.count++; _dirty = true; }
+        if (rssi > e.best) { e.best = rssi; _minor = true; }
+        if (now) { e.last = now; _minor = true; }
+        if (first && _newsN < NEWS_MAX) {
+            _newsQ[_newsN++] = { t, _raceMet(Sig::raceOf(t)) == raceSize(Sig::raceOf(t)) };
             _urgent = true;
         }
-        _dirty = true;
         portEXIT_CRITICAL(&_mux);
     }
 
     bool takeNews(News& out) {
         portENTER_CRITICAL(&_mux);
-        bool had = _newsPending;
-        if (had) { out = _news; _newsPending = false; }
+        bool had = _newsN > 0;
+        if (had) { out = _newsQ[0]; memmove(_newsQ, _newsQ + 1, sizeof(News) * --_newsN); }
         portEXIT_CRITICAL(&_mux);
         return had;
     }
@@ -113,12 +110,14 @@ public:
     }
     bool persistent() const { return _sd; }
 
-    // Watcher task: save when dirty - right away for a first meeting, else
-    // at most every 30 s. `quiet` skips it while an app owns the SD bus.
+    // Watcher task: save right away for a first meeting, within 30 s for a
+    // new encounter, and only every 10 min when just "last seen" / "best
+    // signal" moved (a device parked nearby would otherwise rewrite the
+    // file forever). `quiet` skips it while an app owns the SD bus.
     void tick(bool quiet) {
-        if (!_sd || !_dirty || quiet) return;
+        if (!_sd || quiet || !(_dirty || _minor)) return;
         uint32_t ms = millis();
-        if (!_urgent && ms - _lastSave < 30000) return;
+        if (!_urgent && ms - _lastSave < (_dirty ? 30000UL : 600000UL)) return;
         _lastSave = ms;
         _save();
     }
@@ -131,8 +130,10 @@ private:
 
     Entry       _e[Sig::T_COUNT];
     portMUX_TYPE _mux = portMUX_INITIALIZER_UNLOCKED;
-    News        _news;
-    volatile bool _newsPending = false, _dirty = false, _urgent = false;
+    static constexpr int NEWS_MAX = 6;
+    News        _newsQ[NEWS_MAX];
+    int         _newsN = 0;
+    volatile bool _dirty = false, _minor = false, _urgent = false;
     bool        _sd = false;
     uint32_t    _lastSave = 0;
 
@@ -150,7 +151,7 @@ private:
         Entry snap[Sig::T_COUNT];
         portENTER_CRITICAL(&_mux);
         memcpy(snap, _e, sizeof(snap));
-        _dirty = false; _urgent = false;
+        _dirty = false; _minor = false; _urgent = false;
         portEXIT_CRITICAL(&_mux);
 
         if (!SD.exists(DIR)) SD.mkdir(DIR);

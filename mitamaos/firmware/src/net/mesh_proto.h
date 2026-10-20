@@ -139,11 +139,13 @@ struct Reader {
         f = Field(); f.num = tag >> 3; f.wire = tag & 7;
         switch (f.wire) {
             case 0: return varint(f.v);
-            case 1: if (i + 8 > len) { bad = true; return false; } i += 8; return true;
-            case 5: if (i + 4 > len) { bad = true; return false; } i += 4; return true;
+            // lengths are compared against what's left, so a huge length
+            // from a hostile packet can't wrap the sum past the check
+            case 1: if (len - i < 8) { bad = true; return false; } i += 8; return true;
+            case 5: if (len - i < 4) { bad = true; return false; } i += 4; return true;
             case 2: {
                 uint32_t l;
-                if (!varint(l) || i + l > len) { bad = true; return false; }
+                if (!varint(l) || l > len - i) { bad = true; return false; }
                 f.d = b + i; f.len = l; i += l; return true;
             }
             default: bad = true; return false;
@@ -160,13 +162,16 @@ inline size_t encodeData(uint8_t* out, size_t cap, uint8_t port, const uint8_t* 
     if (wantResponse) w.tagVarint(3, 1);
     return w.ok ? w.n : 0;
 }
-inline bool decodeData(const uint8_t* in, size_t len, uint32_t& port, const uint8_t*& payload, size_t& plen) {
+inline bool decodeData(const uint8_t* in, size_t len, uint32_t& port, const uint8_t*& payload, size_t& plen,
+                       bool* wantResponse = nullptr) {
     Reader r{ in, len };
     Field f;
     port = 0; payload = nullptr; plen = 0;
+    if (wantResponse) *wantResponse = false;
     while (r.next(f)) {
         if (f.num == 1 && f.wire == 0) port = f.v;
         else if (f.num == 2 && f.wire == 2) { payload = f.d; plen = f.len; }
+        else if (f.num == 3 && f.wire == 0 && wantResponse) *wantResponse = f.v != 0;
     }
     return !r.bad && port != 0;
 }

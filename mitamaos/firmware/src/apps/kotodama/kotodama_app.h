@@ -29,7 +29,8 @@ public:
         _input = ""; _scroll = 0; _naming = false;
         auto& k = Kotodama::get();
         _picking = k.region() == Mesh::REG_UNSET;
-        if (!_picking && k.state() != Kotodama::ST_ON) k.setOn(true);
+        // Respect fn+R: only start the radio if it was left on (or never set).
+        if (!_picking && k.wantOn() && k.state() != Kotodama::ST_ON) k.start();
         _draw();
     }
     void onStop() override { delete[] _msgs; _msgs = nullptr; }
@@ -221,7 +222,8 @@ private:
         MUI::text(_canvas, MUI::small(), shown.c_str(), sx, iy, _naming ? MUI::YELLOW : MUI::WHITE);
         _canvas.clearClipRect();
 
-        if (_note == "Sending..." && !k.sending()) _note = "";
+        if (k.takeSendFailed()) _note = "That one didn't send. Try again.";
+        else if (_note == "Sending..." && !k.sending()) _note = "";
         const char* foot = _note.length() ? _note.c_str() : "ENT send  TAB channel  fn+R radio  fn+N name";
         MUI::footer(_canvas, foot, _note.length() ? MUI::YELLOW : MUI::DIM);
     }

@@ -27,7 +27,7 @@ public:
     // Call about once a second with fresh detection stats.
     void update(const DetectionEngine::Stats& st) {
         uint32_t now = millis();
-        if (!_started) { _started = true; _sass = _loadSass(); _say(Lines::EV_BOOT, nullptr, M_CALM, now); }
+        if (!_started) { _started = true; _sass = _loadSass(); _say(Lines::EV_BOOT, nullptr, false, M_CALM, now); }
 
         // ── events, most important first ──
         // New sightings: anything first seen since the last check.
@@ -43,14 +43,14 @@ public:
             // Threats always speak (even at sass 0 the facts are on screen;
             // the line is the dry one-liner on top). Others respect sass.
             if (Sig::isThreat(r.type) || _sass > 0)
-                _say((Lines::Event)(Lines::EV_VILE + race), &r, m, now, _countRace(st, race));
+                _say((Lines::Event)(Lines::EV_VILE + race), &r, true, m, now, _countRace(st, race));
         }
         // First-ever meetings speak over the sighting line: a new page in
         // the Compendium (or a finished race) is the bigger news.
         Compendium::News news;
         if (Compendium::get().takeNews(news) && _sass > 0) {
             DetectionEngine::Sighting s; s.type = news.type;
-            _say(news.raceDone ? Lines::EV_RACE_DONE : Lines::EV_NEW_DEMON, &s,
+            _say(news.raceDone ? Lines::EV_RACE_DONE : Lines::EV_NEW_DEMON, &s, false,
                  Sig::isThreat(news.type) ? M_ALARMED : M_SMUG, now);
         }
         Kotodama::Msg km;
@@ -58,34 +58,34 @@ public:
             static char who[28];
             Kotodama::get().nameOf(km.from, who, sizeof(who));
             DetectionEngine::Sighting s; s.detail = who;
-            _say(Lines::EV_WHISPER, &s, M_CURIOUS, now);
+            _say(Lines::EV_WHISPER, &s, false, M_CURIOUS, now);
         }
         if (_hadThreat && st.threats == 0) {
             _hadThreat = false;
-            _say(Lines::EV_CLEAR, nullptr, M_SMUG, now);
+            _say(Lines::EV_CLEAR, nullptr, false, M_SMUG, now);
             _sincerePending = random(4) == 0;       // rare, earned
             _sincereAt = now + 20000;
         }
         if (st.threats > 0) _hadThreat = true;
         if (_sincerePending && now > _sincereAt && _sass > 0) {
             _sincerePending = false;
-            _say(Lines::EV_SINCERE, nullptr, M_SINCERE, now);
+            _say(Lines::EV_SINCERE, nullptr, false, M_SINCERE, now);
         }
         bool fix = Gps::get().hasFix();
-        if (fix && !_hadFix && _sass > 0) _say(Lines::EV_GPS_FIX, nullptr, M_SMUG, now);
+        if (fix && !_hadFix && _sass > 0) _say(Lines::EV_GPS_FIX, nullptr, false, M_SMUG, now);
         _hadFix = fix;
         bool scry = ScryLogger::get().recording();
-        if (scry && !_hadScry && _sass > 0) _say(Lines::EV_SCRY_ON, nullptr, M_CURIOUS, now);
+        if (scry && !_hadScry && _sass > 0) _say(Lines::EV_SCRY_ON, nullptr, false, M_CURIOUS, now);
         _hadScry = scry;
         bool online = WiFi.status() == WL_CONNECTED;
-        if (online && !_wasOnline && now > 15000 && _sass > 0) _say(Lines::EV_WIFI_JOIN, nullptr, M_CALM, now);
+        if (online && !_wasOnline && now > 15000 && _sass > 0) _say(Lines::EV_WIFI_JOIN, nullptr, false, M_CALM, now);
         _wasOnline = online;
 
         // ── idle cadence ──
         if (_sass > 0 && now - _lastLineMs > _idleGapMs) {
             bool lore = random(3) == 0;
             Lines::Event ev = lore ? Lines::EV_LORE : (!online && random(2) ? Lines::EV_OFFLINE : Lines::EV_IDLE);
-            _say(ev, nullptr, _temper() == Lines::T_WEARY ? M_PASSIVE : M_CALM, now);
+            _say(ev, nullptr, false, _temper() == Lines::T_WEARY ? M_PASSIVE : M_CALM, now);
         }
 
         // Mood relaxes back to calm a minute after the last event, unless a
@@ -190,7 +190,9 @@ private:
     // avoiding the last few used), fills its slots and makes it current.
     // For a sighting, lines written for that exact device join the
     // family's lines; their index is offset by BANK_N.
-    void _say(Lines::Event ev, const DetectionEngine::Sighting* r, Mood m, uint32_t now, int n = 0) {
+    // speciesLines: also consider lines written for r's device. Off for
+    // Compendium news, so "new page" doesn't come out as a plain sighting.
+    void _say(Lines::Event ev, const DetectionEngine::Sighting* r, bool speciesLines, Mood m, uint32_t now, int n = 0) {
         Lines::Temper tmp = _temper();
         int cand[48]; int nc = 0;
         for (int pass = 0; pass < 2 && nc == 0; pass++) {
@@ -201,7 +203,7 @@ private:
                 if (pass == 0 && L.temper != Lines::T_ANY && L.temper != tmp) continue;
                 if (!_recent(i) || pass == 1) cand[nc++] = i;
             }
-            for (int i = 0; r && i < Lines::SP_N && nc < 48; i++)
+            for (int i = 0; r && speciesLines && i < Lines::SP_N && nc < 48; i++)
                 if (Lines::SP_BANK[i].sp == r->type && (!_recent(Lines::BANK_N + i) || pass == 1))
                     cand[nc++] = Lines::BANK_N + i;
         }

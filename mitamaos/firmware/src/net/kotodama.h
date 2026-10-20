@@ -74,6 +74,7 @@ public:
     void start() {
         if (_state == ST_ON) return;
         _loadPrefs();
+        _Lock lk(this);
         if (_region == Mesh::REG_UNSET) { _state = ST_NO_REGION; return; }
         if (!_capFitted()) { _state = ST_NO_CAP; return; }
         if (!_msgs) _msgs = new (std::nothrow) Msg[MAX_MSGS];
@@ -94,15 +95,18 @@ public:
         if (!_task) xTaskCreatePinnedToCore(_taskFn, "kotodama", 6144, this, 1, &_task, 0);
     }
 
+    // Waits for the radio task to finish whatever it's sending (a few
+    // seconds at most), so the two never drive the chip at once.
     void stop() {
+        _stopping = true;
+        _Lock lk(this);
         if (_state == ST_ON) {
-            _stopping = true;
-            for (int i = 0; i < 100 && _busy; i++) delay(20);
             _radio->sleep();
             _rfSwitch(false);
-            _stopping = false;
         }
+        _txPending = false;              // don't send a stale message next time
         _state = ST_OFF;
+        _stopping = false;
     }
 
     State state() const { return _state; }
@@ -125,6 +129,8 @@ public:
         return true;
     }
     bool sending() const { return _txPending; }
+    // Set when the last queued message failed to go out; read once.
+    bool takeSendFailed() { bool f = _txFailed; _txFailed = false; return f; }
 
     // Messages, oldest first. Copies under the lock.
     int messages(Msg* out, int max, uint8_t ch) {
@@ -202,7 +208,17 @@ private:
     int          _err = 0;
     uint32_t     _node = 0;
     static inline volatile bool _rxFlag = false;
-    volatile bool _busy = false, _stopping = false;
+    volatile bool _stopping = false, _txFailed = false;
+    SemaphoreHandle_t _radioLock = nullptr;
+    struct _Lock {
+        SemaphoreHandle_t m;
+        _Lock(Kotodama* k) {
+            if (!k->_radioLock) k->_radioLock = xSemaphoreCreateMutex();
+            m = k->_radioLock; xSemaphoreTake(m, portMAX_DELAY);
+        }
+        ~_Lock() { xSemaphoreGive(m); }
+    };
+    uint32_t _replyAt = 0, _lastReply = 0;       // answering a Mitama's "who's there?"
 
     bool    _prefsLoaded = false, _on = false;
     uint8_t _region = Mesh::REG_UNSET;
@@ -266,11 +282,12 @@ private:
         for (;;) {
             vTaskDelay(pdMS_TO_TICKS(20));
             if (_state != ST_ON || _stopping) continue;
-            _busy = true;
+            _Lock lk(this);
+            if (_state != ST_ON) continue;           // stopped while we waited
             if (_rxFlag) { _rxFlag = false; _receive(); }
             if (_txPending) { _transmitText(); _txPending = false; }
             else if ((int32_t)(millis() - _announceAt) >= 0) { _announce(); _announceAt = millis() + ANNOUNCE_MS; }
-            _busy = false;
+            else if (_replyAt && (int32_t)(millis() - _replyAt) >= 0) { _replyAt = 0; _lastReply = millis(); _announceOn(Mesh::CH_MITAMA, false); }
         }
     }
 
@@ -293,13 +310,18 @@ private:
         uint8_t* body = buf + Mesh::HDR;
         size_t blen = len - Mesh::HDR;
         Mesh::crypt(Mesh::channel(ch).key, h.id, h.from, body, blen);
-        uint32_t port; const uint8_t* pl; size_t plen;
-        if (!Mesh::decodeData(body, blen, port, pl, plen)) return;
+        uint32_t port; const uint8_t* pl; size_t plen; bool wantResp;
+        if (!Mesh::decodeData(body, blen, port, pl, plen, &wantResp)) return;
 
         if (port == Mesh::PORT_NODEINFO && pl) {
             Node n; n.num = h.from;
             Mesh::decodeUser(pl, plen, n.longName, sizeof(n.longName), n.shortName, sizeof(n.shortName));
             _rememberNode(n);
+            // Another Mitama just arrived and asked who's around: answer with
+            // our name on the Mitama channel, after a random pause so several
+            // replies don't collide, and at most once a minute.
+            if (wantResp && ch == Mesh::CH_MITAMA && !_replyAt && millis() - _lastReply > 60000)
+                _replyAt = millis() + 1000 + esp_random() % 4000;
         } else if (port == Mesh::PORT_TEXT && pl) {
             Msg m;
             m.from = h.from; m.ch = ch; m.rssi = rssi; m.snr = snr;
@@ -372,17 +394,21 @@ private:
         m.from = nodeNum(); m.ch = _txCh; m.mine = true;
         strncpy(m.text, _txText, Mesh::MAX_TEXT);
         if (_sendData(_txCh, Mesh::PORT_TEXT, (const uint8_t*)_txText, strlen(_txText), false)) _store(m, false);
+        else _txFailed = true;
     }
 
     // Our name, on both channels. Only the Mitama channel asks for names
     // back: asking the whole public mesh would flood it with replies.
     void _announce() {
-        uint8_t user[80];
-        size_t n = Mesh::encodeUser(user, sizeof(user), nodeNum(), longName(), shortName());
-        for (uint8_t c = 0; c < Mesh::CH_COUNT && n; c++) {
+        for (uint8_t c = 0; c < Mesh::CH_COUNT; c++) {
             if (_txPending || _stopping) return;
-            _sendData(c, Mesh::PORT_NODEINFO, user, n, c == Mesh::CH_MITAMA);
+            _announceOn(c, c == Mesh::CH_MITAMA);
             delay(500);
         }
+    }
+    void _announceOn(uint8_t ch, bool wantResponse) {
+        uint8_t user[80];
+        size_t n = Mesh::encodeUser(user, sizeof(user), nodeNum(), longName(), shortName());
+        if (n) _sendData(ch, Mesh::PORT_NODEINFO, user, n, wantResponse);
     }
 };

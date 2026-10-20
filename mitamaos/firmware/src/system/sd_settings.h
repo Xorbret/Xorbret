@@ -6,8 +6,9 @@
 //
 // The settings still live in NVS, where the apps read them. This file is
 // the backup, kept in step by a generation number stored in both places:
-//  - boot(): if the SD copy is newer (or NVS was wiped by an install), it
-//    is written back into NVS; if NVS is newer, the SD copy is refreshed.
+//  - boot(): if the SD copy is newer (or NVS was wiped by an install), or
+//    was edited on a PC since we last wrote it (its fingerprint changed),
+//    it is written back into NVS; if NVS is newer, the copy is refreshed.
 //  - changed(): call after saving a setting. Bumps the generation and
 //    writes the file a couple of seconds later (tick()), so holding a key
 //    on the brightness slider doesn't hammer the card.
@@ -52,6 +53,28 @@ inline uint32_t _nvsGen() {
 }
 inline void _setNvsGen(uint32_t g) {
     Preferences p; p.begin("mitamaos", false); p.putUInt("gen", g); p.end();
+}
+
+// Fingerprint (FNV-1a) of the file as we last wrote or read it, so a PC
+// edit - which doesn't bump the generation - is still noticed.
+inline uint32_t _fileHash(const char* path) {
+    File f = SD.open(path, FILE_READ);
+    if (!f) return 0;
+    uint32_t h = 2166136261u;
+    uint8_t buf[128];
+    int n;
+    while ((n = f.read(buf, sizeof(buf))) > 0)
+        for (int i = 0; i < n; i++) { h ^= buf[i]; h *= 16777619u; }
+    f.close();
+    return h;
+}
+inline uint32_t _knownHash() {
+    Preferences p; p.begin("mitamaos", true);
+    uint32_t h = p.getUInt("fhash", 0); p.end();
+    return h;
+}
+inline void _setKnownHash(uint32_t h) {
+    Preferences p; p.begin("mitamaos", false); p.putUInt("fhash", h); p.end();
 }
 
 inline String _escape(const String& s) {
@@ -142,6 +165,7 @@ inline void _write(uint32_t gen) {
     if (!ok) { SD.remove(TMP); return; }
     SD.remove(PATH);            // FAT can't rename over a file
     SD.rename(TMP, PATH);
+    _setKnownHash(_fileHash(PATH));
 }
 
 inline void _restore(const char* path, uint32_t gen) {
@@ -179,7 +203,11 @@ inline void boot() {
     if (SD.cardType() == CARD_NONE) return;
     const char* path = SD.exists(PATH) ? PATH : (SD.exists(TMP) ? TMP : nullptr);
     uint32_t fg = path ? _fileGen(path) : 0, ng = _nvsGen();
-    if (path && fg > ng) _restore(path, fg);
+    bool edited = path && _knownHash() && _fileHash(path) != _knownHash();
+    if (path && (fg > ng || edited)) {
+        _restore(path, max(fg, ng));
+        _setKnownHash(_fileHash(path));
+    }
     else if (ng > fg || !path) { if (!ng) _setNvsGen(ng = 1); _write(ng); }
 }
 
