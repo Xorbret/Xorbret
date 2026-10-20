@@ -22,6 +22,7 @@
 #include "detect/detection.h"
 #include "mitama/brain.h"
 #include "apps/scry/scry_app.h"
+#include "apps/molt/molt_app.h"
 #if PAPEROS_ENABLE_BROWSER
 #include "apps/browser/browser.h"
 #endif
@@ -72,6 +73,7 @@ LGFX_Sprite canvas(&M5Cardputer.Display);
 Launcher      launcherApp(canvas);
 ProximaApp    proximaApp(canvas);
 ScryApp       scryApp(canvas);
+MoltApp       moltApp(canvas);
 #if PAPEROS_ENABLE_BROWSER
 Browser       browserApp(canvas);
 #endif
@@ -234,6 +236,7 @@ void setup() {
     AppManager::get().registerApp(&myaiApp);
 #endif
     AppManager::get().registerApp(&sysinfoApp);
+    AppManager::get().registerApp(&moltApp);
     AppManager::get().registerApp(&settingsApp);
 
     // WiFi connect + NTP sync used to live only in the "normal boot" branch

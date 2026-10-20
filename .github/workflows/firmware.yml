@@ -49,8 +49,12 @@ jobs:
       - name: Install PlatformIO + esptool
         run: pip install --upgrade platformio "esptool~=4.8"
 
+      # The build id (short commit hash) is baked in so Molt, the on-device
+      # updater, can tell whether the site has something newer.
       - name: Build firmware
-        run: pio run -d mitamaos/firmware
+        run: |
+          export PLATFORMIO_BUILD_FLAGS="-DMITAMA_BUILD=\\\"${GITHUB_SHA::7}\\\""
+          pio run -d mitamaos/firmware
 
       # RAM report: the biggest statically allocated objects, so heap
       # pressure (e.g. Bluetooth not fitting) can be traced without a device.
@@ -80,6 +84,7 @@ jobs:
             0x8000  "$OUT/partitions.bin" \
             0xe000  "$OUT/boot_app0.bin" \
             0x10000 "$OUT/firmware.bin"
+          echo "${GITHUB_SHA::7}" > "$OUT/version.txt"
           ls -la "$OUT"
 
       - name: Assemble Pages site (docs + firmware)

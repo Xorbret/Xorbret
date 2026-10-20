@@ -122,6 +122,7 @@ private:
             { "Clock",     "Clock",    MUI::SIG_CLOCK,    MUI::YELLOW  },
             { "MiTalk",    "MiTalk",   MUI::SIG_ORACLE,   MUI::GREEN   },
             { "SysInfo",   "System",   MUI::SIG_SYSTEM,   MUI::DIM     },
+            { "Molt",      "Molt",     MUI::SIG_SYSTEM,   MUI::GREEN   },
         };
         for (auto& l : LOOKS) if (strcmp(l.name, name) == 0) return &l;
         return nullptr;

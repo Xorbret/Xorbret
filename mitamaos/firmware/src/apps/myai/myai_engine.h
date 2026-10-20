@@ -39,6 +39,11 @@ static float  k_t[HEAD_DIM], v_t[HEAD_DIM];
 // The key/value cache is ~74 KB. Allocated one layer at a time (6 KB
 // each), so it fits a fragmented heap that has no single 74 KB block.
 static int8_t *kv_layer[N_LAYER] = {};
+// SD path: read many rows per call. Each File.read() has a fixed cost, so
+// 16 KB at a time is much faster than one 192-byte row at a time.
+static int8_t* g_sdbuf = nullptr;
+static size_t  g_sdbuf_n = 0;
+static constexpr size_t SDBUF = 16384;
 static float  *kv_scale = nullptr;
 static constexpr size_t KV_LAYER_BYTES = (size_t)KV_MAX_POS * 2 * HEAD_DIM;
 
@@ -51,6 +56,7 @@ static inline int8_t* kv_ptr(int layer, int pos, int kv) {
 
 static void kv_ram_free() {
     for (auto &p : kv_layer) { free(p); p = nullptr; }
+    free(g_sdbuf); g_sdbuf = nullptr;
     free(kv_scale); kv_scale = nullptr;
 }
 
@@ -60,6 +66,10 @@ static bool kv_ram_init() {
     bool ok = kv_scale != nullptr;
     for (int l = 0; ok && l < N_LAYER; l++) ok = (kv_layer[l] = (int8_t*)calloc(KV_LAYER_BYTES, 1)) != nullptr;
     if (!ok) { Serial.println("KV malloc failed"); kv_ram_free(); return false; }
+    // Optional: without it the SD path just reads row by row (slower).
+    g_sdbuf_n = SDBUF;
+    g_sdbuf = (int8_t*)malloc(g_sdbuf_n);
+    if (!g_sdbuf) { g_sdbuf_n = SDBUF / 4; g_sdbuf = (int8_t*)malloc(g_sdbuf_n); }
     for (size_t i = 0; i < scale_n; i++) kv_scale[i] = 1.0f;
     Serial.printf("KV RAM OK: %.1f KB\n", (N_LAYER * KV_LAYER_BYTES + scale_n*4) / 1024.0f);
     return true;
@@ -110,6 +120,21 @@ static void stream_vec(File &f, float *out, int dim, float sc) {
 }
 
 static void stream_mv(File &f, float *out, const float *in, int rows, int cols, float sc) {
+    if (!g_map && g_sdbuf) {
+        int per = (int)(g_sdbuf_n / cols);
+        for (int r0 = 0; r0 < rows; r0 += per) {
+            int n = rows - r0 < per ? rows - r0 : per;
+            safe_read(f, g_sdbuf, (size_t)n * cols);
+            const int8_t* w = g_sdbuf;
+            for (int i = 0; i < n; i++, w += cols) {
+                float s = 0.0f;
+                for (int j = 0; j < cols; j++) s += w[j] * in[j];
+                out[r0 + i] = s * sc;
+            }
+            esp_task_wdt_reset();
+        }
+        return;
+    }
     if (g_map) {
         const int8_t* w = (const int8_t*)(g_map + g_cur);
         for (int i = 0; i < rows; i++, w += cols) {
