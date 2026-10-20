@@ -70,8 +70,8 @@ S["RING"] = ("Chochin-obake", "Night", "the paper lantern by the door that grins
 
 ops = [("ring", 7, 14, 3.8), ("ring", 17, 14, 3.8), ("arc", 12, 14.2, 2, 200, 340),
        ("line", 3.3, 13, 1.8, 10.5), ("line", 20.7, 13, 22.2, 10.5),
-       ("line", 12, 3, 12, 9), ("line", 9, 6, 15, 6), ("dot", 12, 6, 0.7)]
-S["META"] = ("Megane-gami", "Night", "spectacles grown a spirit, with a recording spark above", ops)
+       ("dot", 12, 8.6, 1.2), ("arc", 12, 8.6, 3.2, 225, 315), ("arc", 12, 8.6, 5.8, 232, 308)]
+S["META"] = ("Megane-gami", "Night", "spectacles grown a spirit, quietly streaming what they see", ops)
 
 # ---- Fairy (small lights that follow you) ----
 tail_l = [7.17, 13.7, 7.9, 9.8, 10.2, 6.2, 14.2, 2.4]
