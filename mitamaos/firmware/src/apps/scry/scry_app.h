@@ -178,10 +178,10 @@ private:
             MUI::text(_canvas, MUI::small(), "not found - is the cap on?", e, y, MUI::BONES);
         } else if (!g.hasFix()) {
             uint32_t m = g.searchingMs() / 60000;
-            snprintf(buf, sizeof(buf), "searching  %u in view  %lum", fx.inView, (unsigned long)m);
+            snprintf(buf, sizeof(buf), "searching  %u/%u sats  %lum", fx.sats, fx.inView, (unsigned long)m);
             MUI::text(_canvas, MUI::small(), buf, e, y, MUI::YELLOW);
         } else {
-            snprintf(buf, sizeof(buf), "fix  %u sats  +/-%.0fm", fx.sats, g.accuracyM());
+            snprintf(buf, sizeof(buf), "fix  %u/%u sats  +/-%.0fm", fx.sats, fx.inView, g.accuracyM());
             MUI::text(_canvas, MUI::small(), buf, e, y, MUI::GREEN);
         }
         y += 13;
