@@ -6,6 +6,7 @@
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/semphr.h"
+#include "model_flash.h"
 
 #define VOCAB       256
 #define N_EMBD      192
@@ -90,7 +91,15 @@ static void kv_read(int layer, int pos, int kv_idx, float *out) {
     for (int i = 0; i < HEAD_DIM; i++) out[i] = src[i] * sc;
 }
 
+// Weights come from the flash copy when it's mapped (fast), else the SD
+// card. g_cur is the read position in the mapped copy.
+static const uint8_t* g_map = nullptr;
+static uint32_t       g_cur = 0;
+
+static inline void mseek(File &f, uint32_t off) { if (g_map) g_cur = off; else f.seek(off); }
+
 static void safe_read(File &f, void *buf, size_t len) {
+    if (g_map) { memcpy(buf, g_map + g_cur, len); g_cur += len; return; }
     size_t got = f.read((uint8_t*)buf, len);
     if (got < len) memset((uint8_t*)buf + got, 0, len - got);
 }
@@ -101,6 +110,17 @@ static void stream_vec(File &f, float *out, int dim, float sc) {
 }
 
 static void stream_mv(File &f, float *out, const float *in, int rows, int cols, float sc) {
+    if (g_map) {
+        const int8_t* w = (const int8_t*)(g_map + g_cur);
+        for (int i = 0; i < rows; i++, w += cols) {
+            float s = 0.0f;
+            for (int j = 0; j < cols; j++) s += w[j] * in[j];
+            out[i] = s * sc;
+            if ((i & 0x7F) == 0) esp_task_wdt_reset();
+        }
+        g_cur += (uint32_t)rows * cols;
+        return;
+    }
     for (int i = 0; i < rows; i++) {
         safe_read(f, row_buf, cols);
         float s = 0.0f;
@@ -125,28 +145,30 @@ static inline float gelu_f(float x) {
 }
 
 static bool model_init() {
-    Serial.println("model_init: opening /MitamaOS/model.bin ...");
-    File f = SD.open("/MitamaOS/model.bin", "r");
-    if (!f) { Serial.println("model.bin not found"); return false; }
-    Serial.printf("model_init: file opened, size=%u\n", (unsigned)f.size());
-    uint32_t hdr[6]; safe_read(f, hdr, 24);
-    Serial.printf("Model hdr: vocab=%u embd=%u head=%u layer=%u ctx=%u tensors=%u\n",
-                  hdr[0],hdr[1],hdr[2],hdr[3],hdr[4],hdr[5]);
-    if (hdr[0]!=VOCAB||hdr[1]!=N_EMBD||hdr[2]!=N_HEAD||hdr[3]!=N_LAYER||hdr[5]!=N_TENSORS) {
-        Serial.printf("Mismatch! Need vocab=%d embd=%d head=%d layer=%d tensors=%d\n",
-                      VOCAB,N_EMBD,N_HEAD,N_LAYER,N_TENSORS);
-        f.close(); return false;
+    File f;
+    if (!g_map) {
+        f = SD.open("/MitamaOS/model.bin", "r");
+        if (!f) { Serial.println("model.bin not found"); return false; }
     }
+    Serial.printf("model_init: reading from %s\n", g_map ? "flash" : "SD");
+    mseek(f, 0);
+    uint32_t hdr[6]; safe_read(f, hdr, 24);
+    if (hdr[0]!=VOCAB||hdr[1]!=N_EMBD||hdr[2]!=N_HEAD||hdr[3]!=N_LAYER||hdr[5]!=N_TENSORS) {
+        Serial.printf("Model hdr mismatch: vocab=%u embd=%u head=%u layer=%u tensors=%u\n",
+                      hdr[0],hdr[1],hdr[2],hdr[3],hdr[5]);
+        if (f) f.close();
+        return false;
+    }
+    uint32_t pos = 24;
     for (int i = 0; i < N_TENSORS; i++) {
         uint32_t sz; safe_read(f, &sz, 4);
-        g_off[i] = f.position();
-        f.seek(f.position() + sz);
-        if (i % 20 == 0) Serial.printf("  tensor %d: size=%u off=%u\n", i, sz, g_off[i]);
+        pos += 4;
+        g_off[i] = pos;
+        pos += sz;
+        mseek(f, pos);
     }
-    Serial.println("model_init: offsets done, reading scales...");
     for (int i = 0; i < N_TENSORS; i++) safe_read(f, &g_sc[i], 4);
-    Serial.println("model_init: scales done");
-    f.close();
+    if (f) f.close();
     Serial.println("model_init OK");
     return true;
 }
@@ -159,21 +181,21 @@ static void model_forward(File &mf, int tok, int pos) {
     int ctx = (pos + 1 < KV_MAX_POS) ? pos + 1 : KV_MAX_POS;
     int slot = pos % KV_MAX_POS;
 
-    mf.seek(g_off[ti] + (uint32_t)tok * N_EMBD);
+    mseek(mf, g_off[ti] + (uint32_t)tok * N_EMBD);
     stream_vec(mf, x_buf, N_EMBD, g_sc[ti]); ti++;
 
-    mf.seek(g_off[ti] + (uint32_t)(pos % CTX_LEN) * N_EMBD);
+    mseek(mf, g_off[ti] + (uint32_t)(pos % CTX_LEN) * N_EMBD);
     stream_vec(mf, res_buf, N_EMBD, g_sc[ti]); ti++;
     for (int i = 0; i < N_EMBD; i++) x_buf[i] += res_buf[i];
 
     for (int l = 0; l < N_LAYER; l++) {
-        mf.seek(g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
-        mf.seek(g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
         layernorm(ln_out, x_buf, ln_w, ln_b);
 
-        mf.seek(g_off[ti]); stream_mv(mf, q_buf, ln_out, N_EMBD,     N_EMBD, g_sc[ti]); ti++;
-        mf.seek(g_off[ti]); stream_mv(mf, k_buf, ln_out, HEAD_DIM,   N_EMBD, g_sc[ti]); ti++;
-        mf.seek(g_off[ti]); stream_mv(mf, v_buf, ln_out, HEAD_DIM,   N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, q_buf, ln_out, N_EMBD,     N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, k_buf, ln_out, HEAD_DIM,   N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, v_buf, ln_out, HEAD_DIM,   N_EMBD, g_sc[ti]); ti++;
 
         kv_write(l, slot, 0, k_buf);
         kv_write(l, slot, 1, v_buf);
@@ -202,26 +224,26 @@ static void model_forward(File &mf, int tok, int pos) {
             }
         }
 
-        mf.seek(g_off[ti]); stream_mv(mf, res_buf, attn_out, N_EMBD, N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, res_buf, attn_out, N_EMBD, N_EMBD, g_sc[ti]); ti++;
         for (int i = 0; i < N_EMBD; i++) x_buf[i] += res_buf[i];
 
-        mf.seek(g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
-        mf.seek(g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
         layernorm(ln_out, x_buf, ln_w, ln_b);
 
-        mf.seek(g_off[ti]); stream_mv(mf, ff_buf, ln_out, FF_DIM, N_EMBD, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, ff_buf, ln_out, FF_DIM, N_EMBD, g_sc[ti]); ti++;
         for (int i = 0; i < FF_DIM; i++) {
             ff_buf[i] = gelu_f(ff_buf[i]);
             if ((i & 0x3F) == 0) esp_task_wdt_reset();
         }
-        mf.seek(g_off[ti]); stream_mv(mf, res_buf, ff_buf, N_EMBD, FF_DIM, g_sc[ti]); ti++;
+        mseek(mf, g_off[ti]); stream_mv(mf, res_buf, ff_buf, N_EMBD, FF_DIM, g_sc[ti]); ti++;
         for (int i = 0; i < N_EMBD; i++) x_buf[i] += res_buf[i];
     }
 
-    mf.seek(g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
-    mf.seek(g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
+    mseek(mf, g_off[ti]); stream_vec(mf, ln_w, N_EMBD, g_sc[ti]); ti++;
+    mseek(mf, g_off[ti]); stream_vec(mf, ln_b, N_EMBD, g_sc[ti]); ti++;
     layernorm(ln_out, x_buf, ln_w, ln_b);
-    mf.seek(g_off[ti]); stream_mv(mf, logits_buf, ln_out, VOCAB, N_EMBD, g_sc[ti]);
+    mseek(mf, g_off[ti]); stream_mv(mf, logits_buf, ln_out, VOCAB, N_EMBD, g_sc[ti]);
 }
 
 static bool would_repeat_ngram(const std::vector<int> &r, int cand, int n=3) {
@@ -365,8 +387,9 @@ static void ai_task(void*) {
                 _response[0] = '\0';
                 xSemaphoreGive(_mutex);
             }
-            File mf = SD.open("/MitamaOS/model.bin", "r");
-            if (!mf) {
+            File mf;
+            if (!g_map) mf = SD.open("/MitamaOS/model.bin", "r");
+            if (!g_map && !mf) {
                 if (xSemaphoreTake(_mutex, portMAX_DELAY)) {
                     strcpy(_response, "model.bin not found");
                     _done = true; _busy = false; _busy_since = 0; _cur_phase = 0;
@@ -432,7 +455,7 @@ static void ai_task(void*) {
                 esp_task_wdt_reset();
                 vTaskDelay(1);
             }
-            mf.close();
+            if (mf) mf.close();
 
             // trim
             while (result.length() > 0 &&
@@ -463,6 +486,7 @@ inline bool init() {
     if (!kv_ram_init()) { _last_error = "KV alloc fail"; return false; }
     Serial.printf("Free heap after KV: %u\n", ESP.getFreeHeap());
 
+    g_map = ModelFlash::map();     // nullptr: read from the SD card instead
     g_model_ok = model_init();
     if (!g_model_ok) {
         _last_error = "bad model.bin";
@@ -510,6 +534,7 @@ inline void deinit() {
         _task_handle = nullptr;
     }
     kv_ram_free();
+    ModelFlash::unmap(); g_map = nullptr;
     g_model_ok = false; _started = false;
     _busy = false; _busy_since = 0; _cur_phase = 0; _cur_pos = 0;
 }

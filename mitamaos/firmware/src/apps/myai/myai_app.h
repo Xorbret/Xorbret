@@ -63,6 +63,15 @@ public:
         for (int i = 0; i < 60 && !det.paused(); i++) delay(50);
         delay(100);   // let the freed memory settle back into the heap
 
+        // First open after a new model.bin: copy it into flash (fast reads).
+        _self = this;
+        _push("Checking model...", MSG_SYS);
+        _draw();
+        const char* why = "";
+        bool flash = ModelFlash::sync(&MyAiApp::_copyProgress, &why);
+        _line_cnt--;   // drop the "checking" line
+        if (!flash) _push(String("Using SD: ") + why, MSG_SYS);
+
         if (!MyAI::init()) {
             String msg = String("MiTalk  [") + MyAI::lastError() + "]";
             _push(msg, MSG_SYS);
@@ -159,6 +168,15 @@ private:
     String   _stream_buf;
     bool     _streaming = false;
     bool     _wifiWasOn = false;
+
+    static inline MyAiApp* _self = nullptr;
+
+    static void _copyProgress(int pct) {
+        if (!_self || _self->_line_cnt == 0) return;
+        snprintf(_self->_lines[_self->_line_cnt - 1].text, AI_CHARS + 1,
+                 "Copying model to flash %d%%", pct > 100 ? 100 : pct);
+        _self->_draw();
+    }
 
     void _push(const char* text, uint8_t role) {
         if (_line_cnt >= MAX_LINES) {

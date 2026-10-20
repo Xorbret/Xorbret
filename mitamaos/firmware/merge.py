@@ -4,7 +4,7 @@ merge.py - builds a single combined PaperOS_full.bin
 
 model.bin now lives on the SD card, not in this image - copy it to the
 SD card's root yourself after flashing. This script only merges the
-bootloader/partition-table/app binaries; spiffs and romxip are left
+bootloader/partition-table/app binaries; spiffs and the model area are left
 erased (0xFF) and get formatted on first boot / first ROM launch.
 
 Usage:
