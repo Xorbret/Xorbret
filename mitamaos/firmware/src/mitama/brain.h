@@ -173,16 +173,16 @@ private:
     // family's lines; their index is offset by BANK_N.
     void _say(Lines::Event ev, const DetectionEngine::Sighting* r, Mood m, uint32_t now, int n = 0) {
         Lines::Temper tmp = _temper();
-        int cand[32]; int nc = 0;
+        int cand[48]; int nc = 0;
         for (int pass = 0; pass < 2 && nc == 0; pass++) {
-            for (int i = 0; i < Lines::BANK_N && nc < 32; i++) {
+            for (int i = 0; i < Lines::BANK_N && nc < 48; i++) {
                 const auto& L = Lines::BANK[i];
                 if (L.ev != ev) continue;
                 // temperament-specific lines only when that temperament applies
                 if (pass == 0 && L.temper != Lines::T_ANY && L.temper != tmp) continue;
                 if (!_recent(i) || pass == 1) cand[nc++] = i;
             }
-            for (int i = 0; r && i < Lines::SP_N && nc < 32; i++)
+            for (int i = 0; r && i < Lines::SP_N && nc < 48; i++)
                 if (Lines::SP_BANK[i].sp == r->type && (!_recent(Lines::BANK_N + i) || pass == 1))
                     cand[nc++] = Lines::BANK_N + i;
         }
