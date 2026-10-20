@@ -1,6 +1,6 @@
 # Retraining the Mitama's voice
 
-This folder retrains the on-device language model (the one myAI runs from
+This folder retrains the on-device language model (the one MiTalk, formerly myAI, runs from
 `/MitamaOS/model.bin`) from scratch, so it talks like the Mitama: a demon
 that climbed out of a game, sassy but competent, with small references to
 myth, tabletop and JRPG conventions, and code.

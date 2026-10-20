@@ -59,7 +59,7 @@ public:
     // Called from the main loop with the active app's name. Apps that need
     // every byte of RAM or the radio to themselves pause the watcher.
     void appChanged(const char* name) {
-        static const char* HEAVY[] = { "myAI", "PaperWeb", "Store", "Games", "Lua" };
+        static const char* HEAVY[] = { "MiTalk", "PaperWeb", "Store", "Games", "Lua" };
         bool heavy = false;
         for (auto h : HEAVY) if (strcmp(name, h) == 0) heavy = true;
         _heavyApp = heavy;

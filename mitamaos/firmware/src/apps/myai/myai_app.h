@@ -36,9 +36,9 @@ struct AiLine {
 class MyAiApp : public App {
 public:
     MyAiApp(LGFX_Sprite& c) : _canvas(c) {}
-    const char* getName()  const override { return "myAI"; }
+    const char* getName()  const override { return "MiTalk"; }
     const char* getIcon()  const override { return "A"; }
-    const char* getDesc()  const override { return "On-device AI"; }
+    const char* getDesc()  const override { return "Talk to the Mitama"; }
 
     void onStart() override {
         _line_cnt   = 0;
@@ -56,10 +56,10 @@ public:
         if (_wifiWasOn) { WiFi.disconnect(true); WiFi.mode(WIFI_OFF); delay(50); }
 
         if (!MyAI::init()) {
-            String msg = String("myAI v1.0  [") + MyAI::lastError() + "]";
+            String msg = String("MiTalk  [") + MyAI::lastError() + "]";
             _push(msg, MSG_SYS);
         } else {
-            _push("myAI v1.0  ready", MSG_SYS);
+            _push("MiTalk  ready", MSG_SYS);
         }
         _scrollBottom();
         _draw();

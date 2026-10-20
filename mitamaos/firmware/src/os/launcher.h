@@ -120,7 +120,7 @@ private:
             { "3D Editor", "3D",       MUI::SIG_CUBE,     MUI::CYAN    },
             { "Calc",      "Calc",     MUI::SIG_CALC,     MUI::MAGENTA },
             { "Clock",     "Clock",    MUI::SIG_CLOCK,    MUI::YELLOW  },
-            { "myAI",      "myAI",     MUI::SIG_ORACLE,   MUI::GREEN   },
+            { "MiTalk",    "MiTalk",   MUI::SIG_ORACLE,   MUI::GREEN   },
             { "SysInfo",   "System",   MUI::SIG_SYSTEM,   MUI::DIM     },
         };
         for (auto& l : LOOKS) if (strcmp(l.name, name) == 0) return &l;
