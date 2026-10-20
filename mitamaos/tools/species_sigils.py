@@ -68,10 +68,11 @@ ops = [("poly", body, True), ("line", 9.5, 4.5, 14.5, 4.5), ("line", 9.5, 19.5, 
        ("arc", 12, 11.2, 3.6, 25, 155), ("poly", [11, 14.5, 12.4, 17.4, 13.4, 14.4], False)]
 S["RING"] = ("Chochin-obake", "Night", "the paper lantern by the door that grins and sticks its tongue out", ops)
 
-ops = [("ring", 7, 14, 3.8), ("ring", 17, 14, 3.8), ("arc", 12, 14.2, 2, 200, 340),
-       ("line", 3.3, 13, 1.8, 10.5), ("line", 20.7, 13, 22.2, 10.5),
-       ("dot", 12, 8.6, 1.2), ("arc", 12, 8.6, 3.2, 225, 315), ("arc", 12, 8.6, 5.8, 232, 308)]
-S["META"] = ("Megane-gami", "Night", "spectacles grown a spirit, quietly streaming what they see", ops)
+ops = [("arc", 12, 13, 7, 180, 360), ("line", 5, 13, 7.6, 19.5), ("line", 19, 13, 16.4, 19.5),
+       ("line", 7.6, 19.5, 12, 22), ("line", 16.4, 19.5, 12, 22),
+       ("line", 10, 17.5, 14, 17.5), ("dot", 12, 10.5, 1.1),
+       ("arc", 12, 10.5, 3.6, 220, 320), ("arc", 12, 10.5, 6.8, 235, 305), ("arc", 12, 10.5, 9.8, 245, 295)]
+S["META"] = ("Satori", "Night", "the mask that reads your thoughts before you speak them", ops)
 
 # ---- Fairy (small lights that follow you) ----
 tail_l = [7.17, 13.7, 7.9, 9.8, 10.2, 6.2, 14.2, 2.4]
