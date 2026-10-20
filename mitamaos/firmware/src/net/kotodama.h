@@ -256,7 +256,9 @@ private:
         i2c.writeRegister8(IOE_ADDR, 0x05, on ? (out | 0x01) : (out & ~0x01), 400000);
     }
 
-    static void IRAM_ATTR _isr() { _rxFlag = true; }
+    // Not IRAM_ATTR: an inline function placed in IRAM fails to link here,
+    // and Arduino's GPIO ISR service doesn't require IRAM handlers.
+    static void _isr() { _rxFlag = true; }
 
     static void _taskFn(void* arg) { ((Kotodama*)arg)->_run(); }
 
