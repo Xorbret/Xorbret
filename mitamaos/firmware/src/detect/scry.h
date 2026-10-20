@@ -19,6 +19,12 @@ public:
 
     static constexpr const char* DIR = "/MitamaOS/logs/scry";
 
+    // SD.mkdir() doesn't create parents, so make each level in turn.
+    static void ensureDirs() {
+        for (const char* d : { "/MitamaOS", "/MitamaOS/logs", DIR })
+            if (!SD.exists(d)) SD.mkdir(d);
+    }
+
     bool recording() const { return _rec; }
     uint32_t wifiCount() const { return _wifiN; }
     uint32_t bleCount() const { return _bleN; }
@@ -32,8 +38,8 @@ public:
         if (!_q) _q = xQueueCreate(32, sizeof(Rec));
         if (!_seen.bits) _seen.bits = (uint8_t*)calloc(Scry::Seen::M / 8, 1);
         if (!_q || !_seen.bits) { *why = "Not enough memory"; _release(); return false; }
-        if (!SD.exists("/MitamaOS/logs")) SD.mkdir("/MitamaOS/logs");
-        if (!SD.exists(DIR)) SD.mkdir(DIR);
+        if (SD.cardType() == CARD_NONE) { *why = "No SD card found"; _release(); return false; }
+        ensureDirs();
         struct tm t;
         time_t now = time(nullptr);
         if (now > 1700000000) {
