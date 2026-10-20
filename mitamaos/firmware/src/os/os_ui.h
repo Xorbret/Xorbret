@@ -134,6 +134,8 @@ public:
         waitRelease();
         String text = "";
         uint32_t keyTimer = 0;
+        String prevDown;
+        bool prevDel = false, prevEnt = true;   // the Enter that opened us counts as held
 
         while (true) {
             M5Cardputer.update();
@@ -159,22 +161,35 @@ public:
 
             canvas.setTextColor(COL_DIM, COL_BG2);
             canvas.setCursor(bx + 6, by + 48);
-            canvas.print("ENT=ok  `=cancel");
+            canvas.print(text.length() ? "ENT=ok  DEL=erase" : "ENT=ok  `=cancel");
 
             { DispLock _lk; canvas.pushSprite(0, 0); }
 
+            // One character per key press (only keys that just went down,
+            // so rolling from one key to the next doesn't retype the first),
+            // repeating once a key has been held for half a second. A plain
+            // timer used to type a held key twice and drop quick double
+            // letters, which garbled Wi-Fi passwords.
             auto s = M5Cardputer.Keyboard.keysState();
-            if (s.word.size() > 0 && millis() - keyTimer > 150) {
-                for (auto c : s.word) text += c;
-                keyTimer = millis();
+            uint32_t now = millis();
+            String down;
+            for (auto c : s.word) down += c;
+            String added;
+            for (size_t i = 0; i < down.length(); i++) if (prevDown.indexOf(down[i]) < 0) added += down[i];
+            bool delEdge = s.del && !prevDel, entEdge = s.enter && !prevEnt;
+            bool fresh = added.length() || delEdge;
+            if (fresh) keyTimer = now + 500;                  // first repeat after 500 ms
+            else if ((down.length() || s.del) && (int32_t)(now - keyTimer) >= 0) {
+                keyTimer = now + 70;
+                if (s.del) delEdge = true; else added = down.substring(down.length() - 1);
             }
-            if (s.del && text.length() > 0 && millis() - keyTimer > 100) {
-                text.remove(text.length() - 1);
-                keyTimer = millis();
-            }
-            if (s.enter) { waitRelease(); return text; }
-            if (M5Cardputer.Keyboard.isKeyPressed('`')) { waitRelease(); return ""; }
-            delay(1);
+            prevDown = down; prevDel = s.del; prevEnt = s.enter;
+            if (entEdge) { waitRelease(); return text; }
+            // ` cancels on an empty field; inside a password it's a character.
+            if (fresh && added == "`" && text.length() == 0) { waitRelease(); return ""; }
+            if (delEdge) { if (text.length() > 0) text.remove(text.length() - 1); }
+            else text += added;
+            delay(5);
         }
     }
 

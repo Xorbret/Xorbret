@@ -185,8 +185,12 @@ public:
                     wm.connectSlot(_netSel);
                     OsUI::showToast(_canvas, "Connecting...", COL_OK);
                     _canvas.pushSprite(0, 0);
-                    delay(2000);
-                    if (wm.isConnected()) PaperClock::syncTime();
+                    // Phone hotspots can take several seconds to accept.
+                    const char* why = wm.waitResult(12000);
+                    OsUI::showToast(_canvas, why ? why : "Connected", why ? COL_ERR : COL_OK);
+                    _canvas.pushSprite(0, 0);
+                    delay(why ? 2500 : 1000);
+                    if (!why) PaperClock::syncTime();
                 }
                 OsUI::waitRelease();
                 _draw();

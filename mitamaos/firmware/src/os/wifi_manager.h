@@ -51,44 +51,49 @@ public:
         SdSettings::changed();
     }
 
-  // Connect using the first non-empty slot (max timeoutMs, 0 = begin() only)
+    // Connect to the slot that worked last (else the first saved one).
+    // timeoutMs: how long to wait for it (0 = begin() only). If it isn't
+    // around, ensureConnected() tries the other slots in turn.
     void connectFirst(uint32_t timeoutMs = 0) {
         if (WiFi.status() == WL_CONNECTED) return;
         WiFi.mode(WIFI_STA);
         WiFi.setAutoReconnect(false);
-        bool started = false;
-        for (int i = 0; i < MAX_WIFI_SLOTS; i++) {
-            if (slots[i].ssid != "") {
-                if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == slots[i].ssid) return;
-                lastBeginMs = millis();
-                WiFi.begin(slots[i].ssid.c_str(), slots[i].pass.c_str());
-                started = true;
-                break;
-            }
-        }
-        if (!started || timeoutMs == 0) return;
+        _tryIdx = _goodSlot();
+        if (!_beginNext()) return;
+        if (timeoutMs == 0) return;
         uint32_t t0 = millis();
         while (WiFi.status() != WL_CONNECTED && millis() - t0 < timeoutMs) {
             delay(50);
         }
+        noteResult();
     }
 
-    // Background reconnect (launcher / returning from apps)
+    // Background reconnect (launcher / returning from apps). Each call
+    // after a failed attempt moves on to the next saved slot, so a phone
+    // hotspot in slot 2 gets its turn when the home network in slot 1
+    // isn't in range.
     // ESP32 Arduino has no WL_CONNECTING (ESP8266 does); WL_IDLE_STATUS = assoc in progress.
     void ensureConnected() {
-        if (WiFi.status() == WL_CONNECTED) return;
+        if (noteResult()) return;
         wl_status_t st = WiFi.status();
         if (st == WL_IDLE_STATUS) return;  // already connecting
         if (st == WL_DISCONNECTED || st == WL_CONNECTION_LOST
             || st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) {
-            for (int i = 0; i < MAX_WIFI_SLOTS; i++) {
-                if (slots[i].ssid != "") {
-                    lastBeginMs = millis();
-                WiFi.begin(slots[i].ssid.c_str(), slots[i].pass.c_str());
-                    return;
-                }
-            }
+            _beginNext();
         }
+    }
+
+    // True when connected; remembers which slot did it, so that one is
+    // tried first next time.
+    bool noteResult() {
+        if (WiFi.status() != WL_CONNECTED) return false;
+        String ss = WiFi.SSID();
+        for (int i = 0; i < MAX_WIFI_SLOTS; i++)
+            if (slots[i].ssid.length() && slots[i].ssid == ss && i != _good) {
+                _good = i;
+                Preferences p; p.begin("wifi-config", false); p.putUChar("good", i); p.end();
+            }
+        return true;
     }
 
     bool isConnecting() const {
@@ -99,12 +104,54 @@ public:
         if (idx < 0 || idx >= MAX_WIFI_SLOTS) return;
         WiFi.disconnect(true);
         WiFi.mode(WIFI_STA);
-        lastBeginMs = millis();
-        WiFi.begin(slots[idx].ssid.c_str(), slots[idx].pass.c_str());
+        _tryIdx = idx;
+        _beginNext();
+    }
+
+    // Waits up to timeoutMs for a join started by connectSlot(); returns a
+    // short reason if it didn't work (nullptr = connected).
+    const char* waitResult(uint32_t timeoutMs) {
+        uint32_t t0 = millis();
+        wl_status_t st = WiFi.status();
+        while (millis() - t0 < timeoutMs) {
+            st = WiFi.status();
+            if (st == WL_CONNECTED) { noteResult(); return nullptr; }
+            if (st == WL_CONNECT_FAILED && millis() - t0 > 1500) break;
+            delay(100);
+        }
+        if (st == WL_NO_SSID_AVAIL) return "Not found (2.4 GHz only)";
+        if (st == WL_CONNECT_FAILED) return "Rejected: password?";
+        return "No answer yet";
     }
 
     bool isConnected() const { return WiFi.status() == WL_CONNECTED; }
 
 private:
     WiFiManager() = default;
+
+    int _tryIdx = 0;          // next slot ensureConnected() will try
+    int _good = -1;           // slot that connected last (-1 = not loaded)
+
+    int _goodSlot() {
+        if (_good < 0) {
+            Preferences p; p.begin("wifi-config", true);
+            _good = p.getUChar("good", 0); p.end();
+            if (_good >= MAX_WIFI_SLOTS) _good = 0;
+        }
+        return _good;
+    }
+
+    // Starts joining the first saved slot from _tryIdx on, then moves
+    // _tryIdx past it. False if no slot is saved.
+    bool _beginNext() {
+        for (int k = 0; k < MAX_WIFI_SLOTS; k++) {
+            int i = (_tryIdx + k) % MAX_WIFI_SLOTS;
+            if (slots[i].ssid == "") continue;
+            lastBeginMs = millis();
+            WiFi.begin(slots[i].ssid.c_str(), slots[i].pass.c_str());
+            _tryIdx = (i + 1) % MAX_WIFI_SLOTS;
+            return true;
+        }
+        return false;
+    }
 };
