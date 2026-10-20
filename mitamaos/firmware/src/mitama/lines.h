@@ -11,6 +11,7 @@
 // Slots: {sp} species (CAMERA, AIRTAG...), {d} detail (maker / device),
 //        {n} how many of that race are active now.
 #include <stdint.h>
+#include "../detect/signatures.h"
 
 namespace Lines {
 
@@ -87,22 +88,46 @@ static const Line BANK[] = {
     { EV_VILE, T_ANY,    "{d}. Bentham called it the Panopticon. They call it a subscription." },
     { EV_VILE, T_ANY,    "Argus had a hundred eyes. This {sp} wants to catch up." },
     { EV_VILE, T_ANY,    "{sp} nearby. Smile. Or don't. I would not." },
+    { EV_VILE, T_ANY, "{sp} logging plates. Every car gets a page in its book." },
+    { EV_VILE, T_ANY, "Surveillance pole ahead. It never blinks. Neither do I." },
     { EV_NIGHT, T_ANY,   "A camera. Beholder energy: one big eye, zero chill." },
     { EV_NIGHT, T_ANY,   "{d} spotted. Someone's playing Big Brother on easy mode." },
     { EV_NIGHT, T_ANY,   "{sp} in range. Don't look into it. Very Medusa." },
+    { EV_NIGHT, T_ANY, "{d}. An eye that never sleeps. Rude. That's my job." },
     { EV_FAIRY, T_ANY,   "{sp} drifting with us. Fairies lead travelers astray. This one follows." },
     { EV_FAIRY, T_ANY,   "{d} nearby. If it's still with us later, we talk." },
     { EV_FAIRY, T_ANY,   "Tracker spotted. Probably someone's keys. Probably." },
+    { EV_FAIRY, T_ANY, "{d} close by. Lost keys, or a leash. Time will tell." },
+    { EV_FAIRY, T_ANY, "A tracker nearby. If it follows us across town, we talk." },
     { EV_AVIAN, T_ANY,   "Drone overhead. Huginn and Muninn, reporting to some Odin." },
     { EV_AVIAN, T_ANY,   "{d} in the sky. I'd throw a rock, but no arms." },
+    { EV_AVIAN, T_ANY, "Something's flying. {d}. Watch the sky. I'll watch the rest." },
+    { EV_AVIAN, T_ANY, "Drone signal. An eye with propellers. The sky isn't private." },
+    { EV_AVIAN, T_ANY, "{d} broadcasting its ID. At least this bird introduces itself." },
+    { EV_AVIAN, T_ANY, "Airborne camera. Don't wave. It'll think you're friendly." },
     { EV_HERALD, T_ANY,  "A beacon. Shouting its name into the void. Relatable." },
+    { EV_HERALD, T_ANY, "iBeacon nearby. A shop saying: I see you. Buy things." },
+    { EV_HERALD, T_ANY, "Beacon pinging. Some store wants to know which aisle you're in." },
+    { EV_HERALD, T_ANY, "{d}. A herald with nothing to announce. Every second." },
+    { EV_HERALD, T_ANY, "A beacon. It knows when you walk past. That's all it knows." },
+    { EV_HERALD, T_ANY, "Retail beacon. Mostly harmless. Mostly nosy." },
     { EV_FOUL, T_ANY,    "{d}. That's how skimmers whisper. Guard your card." },
     { EV_FOUL, T_ANY,    "Something foul nearby. Check card readers before you swipe." },
+    { EV_FOUL, T_ANY, "Possible skimmer. Tug the card slot. If it wiggles, walk away." },
+    { EV_FOUL, T_ANY, "{d} nearby. Skimmers love those. Tap or pay cash here." },
+    { EV_FOUL, T_ANY, "Bluetooth where none belongs. Check the pump. Check the ATM." },
+    { EV_FOUL, T_ANY, "Skimmer signal. A mimic in a card reader. Don't feed it." },
+    { EV_FOUL, T_ANY, "Something foul close by. Cover the keypad when you type your PIN." },
     { EV_JAKI, T_ANY,    "{d}. An ear on a pole. The amanojaku reads hearts; this hears bangs." },
     { EV_JAKI, T_ANY,    "Acoustic sensor. Keep your voice down. Or don't. It's listening anyway." },
+    { EV_JAKI, T_ANY, "Gunshot sensor. It hears everything loud. Whisper your secrets." },
+    { EV_JAKI, T_ANY, "Odin's ravens report thoughts. This Raven reports bangs." },
+    { EV_JAKI, T_ANY, "Acoustic sensor overhead. The street has ears tonight." },
+    { EV_JAKI, T_ANY, "{d}. Always listening. Like me, but with a city contract." },
     { EV_FIEND, T_ANY,   "Roll initiative. {d} nearby." },
     { EV_FIEND, T_ANY,   "{d}. Hostile. I'm watching it. Closely." },
     { EV_FIEND, T_ANY,   "Hostile signal. Cute tool. Mine's bigger." },
+    { EV_FIEND, T_ANY, "Hostile tool active. I'm not scared. Stay close anyway." },
 
     // ── state changes ──
     { EV_CLEAR,   T_ANY, "Threat gone. Fear of me, probably." },
@@ -117,5 +142,37 @@ static const Line BANK[] = {
 };
 
 static constexpr int BANK_N = sizeof(BANK) / sizeof(BANK[0]);
+
+// Device-specific sighting lines: offered alongside the family's lines when
+// that exact species is seen, so an AirTag and a Tile don't sound the same.
+struct SpLine { uint8_t sp; const char* text; };
+
+static const SpLine SP_BANK[] = {
+    { Sig::T_FLOCK, "Flock camera. It keeps your plate for weeks. I keep grudges longer." },
+    { Sig::T_FLOCK, "A Flock. Ironic name. It stands alone and watches everyone." },
+    { Sig::T_AXON, "Axon gear. Body cam or taser dock. Someone official is near." },
+    { Sig::T_AXON, "Axon signal. Police tech close by. Act natural. You're bad at it." },
+    { Sig::T_ALPR, "Plate reader. Your car just got read like a scroll." },
+    { Sig::T_ALPR, "Plate reader in range. It reads faster than you skip quest text." },
+    { Sig::T_CAMERA, "Wi-Fi camera nearby. Somewhere a stranger is watching a stream." },
+    { Sig::T_CAMERA, "Camera on the network. A scrying pool, but cheaper." },
+    { Sig::T_RING, "Ring doorbell. Every porch a watchtower. Every neighbor a guard." },
+    { Sig::T_RING, "A Ring doorbell. The porch has eyes now. Wave, or don't." },
+    { Sig::T_META, "Smart glasses nearby. Someone's face is a camera. Stay mysterious." },
+    { Sig::T_META, "Meta glasses. If the little light is on, they're recording." },
+    { Sig::T_AIRTAG, "AirTag nearby. Apple's fairy. It whispers to every iPhone it passes." },
+    { Sig::T_AIRTAG, "AirTag. If it isn't yours and it tags along, check your bag." },
+    { Sig::T_TILE, "Tile tracker. Square, quiet, and very interested in where we go." },
+    { Sig::T_SAMSUNG_TAG, "SmartTag. Samsung's familiar. It reports to Galaxy phones." },
+    { Sig::T_GOOGLE_TAG, "Google tag. Every Android it passes carries its messages." },
+    { Sig::T_DEAUTH, "Deauth flood. Someone's kicking people off Wi-Fi. Petty magic." },
+    { Sig::T_DEAUTH, "Wi-Fi under attack. If you drop off, that's why. Use mobile data." },
+    { Sig::T_EVILTWIN, "Evil twin network. Same name, wrong soul. Don't join it." },
+    { Sig::T_EVILTWIN, "A doppelganger Wi-Fi. If it asks for your password, it's lying." },
+    { Sig::T_HACKER, "{d} nearby. A hacker's toy. Keep your phone locked." },
+    { Sig::T_HACKER, "{d} in range. Cute gadget. Sharp intentions." },
+};
+
+static constexpr int SP_N = sizeof(SP_BANK) / sizeof(SP_BANK[0]);
 
 } // namespace Lines

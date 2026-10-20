@@ -98,6 +98,12 @@ def line_bank(path=LINES_H):
             sp = prompt[6:-1] if prompt.startswith("*seen ") else "something"
             a = text.replace("{sp}", sp).replace("{d}", DETAIL.get(sp, sp)).replace("{n}", "2")
             pairs.append((prompt, a))
+    # device-specific lines: { Sig::T_AIRTAG, "..." }
+    names = {"T_SAMSUNG_TAG": "SMARTTAG", "T_GOOGLE_TAG": "GOOGLE TAG", "T_EVILTWIN": "EVIL TWIN"}
+    for sp, text in re.findall(r'\{\s*Sig::(T_\w+)\s*,\s*"((?:[^"\\]|\\.)*)"\s*\}', path.read_text("utf-8")):
+        name = names.get(sp, sp[2:])
+        a = text.encode().decode("unicode_escape").replace("{sp}", name).replace("{d}", DETAIL.get(name, name))
+        pairs.append((f"*seen {name}*", a))
     return pairs
 
 

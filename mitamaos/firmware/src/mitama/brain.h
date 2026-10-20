@@ -169,36 +169,42 @@ private:
 
     // Picks a line for the event (temperament-matched lines preferred,
     // avoiding the last few used), fills its slots and makes it current.
+    // For a sighting, lines written for that exact device join the
+    // family's lines; their index is offset by BANK_N.
     void _say(Lines::Event ev, const DetectionEngine::Sighting* r, Mood m, uint32_t now, int n = 0) {
         Lines::Temper tmp = _temper();
-        int cand[24]; int nc = 0;
+        int cand[32]; int nc = 0;
         for (int pass = 0; pass < 2 && nc == 0; pass++) {
-            for (int i = 0; i < Lines::BANK_N && nc < 24; i++) {
+            for (int i = 0; i < Lines::BANK_N && nc < 32; i++) {
                 const auto& L = Lines::BANK[i];
                 if (L.ev != ev) continue;
-                bool fits = pass == 1 || L.temper == Lines::T_ANY || L.temper == tmp;
                 // temperament-specific lines only when that temperament applies
-                if (pass == 0 && L.temper != Lines::T_ANY && L.temper != tmp) fits = false;
-                if (!fits) continue;
-                bool recent = false;
-                for (int k : _lastIdx) if (k == i) recent = true;
-                if (!recent || pass == 1) cand[nc++] = i;
+                if (pass == 0 && L.temper != Lines::T_ANY && L.temper != tmp) continue;
+                if (!_recent(i) || pass == 1) cand[nc++] = i;
             }
+            for (int i = 0; r && i < Lines::SP_N && nc < 32; i++)
+                if (Lines::SP_BANK[i].sp == r->type && (!_recent(Lines::BANK_N + i) || pass == 1))
+                    cand[nc++] = Lines::BANK_N + i;
         }
         if (nc == 0) return;
         // Favor temperament-specific lines when they exist.
         int pick = cand[random(nc)];
         for (int tries = 0; tries < 2; tries++) {
             int c = cand[random(nc)];
-            if (Lines::BANK[c].temper == tmp && tmp != Lines::T_ANY) { pick = c; break; }
+            if (c < Lines::BANK_N && Lines::BANK[c].temper == tmp && tmp != Lines::T_ANY) { pick = c; break; }
         }
         memmove(_lastIdx + 1, _lastIdx, sizeof(int) * 3);
         _lastIdx[0] = pick;
-        _fill(Lines::BANK[pick].text, r, n);
+        _fill(pick < Lines::BANK_N ? Lines::BANK[pick].text : Lines::SP_BANK[pick - Lines::BANK_N].text, r, n);
         _mood = m;
         _serial++;
         _lastLineMs = now;
         _idleGapMs = _nextGap();
+    }
+
+    bool _recent(int i) const {
+        for (int k : _lastIdx) if (k == i) return true;
+        return false;
     }
 
     void _fill(const char* t, const DetectionEngine::Sighting* r, int n) {
