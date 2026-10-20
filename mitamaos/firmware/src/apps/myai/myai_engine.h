@@ -35,28 +35,38 @@ static int8_t row_buf[FF_DIM];
 static float  scores[KV_MAX_POS];
 static float  k_t[HEAD_DIM], v_t[HEAD_DIM];
 
-static int8_t *kv_data  = nullptr;
+// The key/value cache is ~74 KB. Allocated one layer at a time (6 KB
+// each), so it fits a fragmented heap that has no single 74 KB block.
+static int8_t *kv_layer[N_LAYER] = {};
 static float  *kv_scale = nullptr;
+static constexpr size_t KV_LAYER_BYTES = (size_t)KV_MAX_POS * 2 * HEAD_DIM;
 
 static inline size_t kv_slot(int layer, int pos, int kv) {
     return ((size_t)layer * KV_MAX_POS + pos) * 2 + kv;
 }
+static inline int8_t* kv_ptr(int layer, int pos, int kv) {
+    return kv_layer[layer] + ((size_t)pos * 2 + kv) * HEAD_DIM;
+}
+
+static void kv_ram_free() {
+    for (auto &p : kv_layer) { free(p); p = nullptr; }
+    free(kv_scale); kv_scale = nullptr;
+}
 
 static bool kv_ram_init() {
-    size_t data_sz = (size_t)N_LAYER * KV_MAX_POS * 2 * HEAD_DIM;
     size_t scale_n = (size_t)N_LAYER * KV_MAX_POS * 2;
-    kv_data  = (int8_t*)malloc(data_sz);
-    kv_scale = (float*) malloc(scale_n * sizeof(float));
-    if (!kv_data || !kv_scale) { Serial.println("KV malloc failed"); return false; }
-    memset(kv_data, 0, data_sz);
+    kv_scale = (float*)malloc(scale_n * sizeof(float));
+    bool ok = kv_scale != nullptr;
+    for (int l = 0; ok && l < N_LAYER; l++) ok = (kv_layer[l] = (int8_t*)calloc(KV_LAYER_BYTES, 1)) != nullptr;
+    if (!ok) { Serial.println("KV malloc failed"); kv_ram_free(); return false; }
     for (size_t i = 0; i < scale_n; i++) kv_scale[i] = 1.0f;
-    Serial.printf("KV RAM OK: %.1f KB\n", (data_sz + scale_n*4) / 1024.0f);
+    Serial.printf("KV RAM OK: %.1f KB\n", (N_LAYER * KV_LAYER_BYTES + scale_n*4) / 1024.0f);
     return true;
 }
 
 static void kv_reset() {
-    if (!kv_data || !kv_scale) return;
-    memset(kv_data, 0, (size_t)N_LAYER * KV_MAX_POS * 2 * HEAD_DIM);
+    if (!kv_scale) return;
+    for (auto p : kv_layer) memset(p, 0, KV_LAYER_BYTES);
     size_t n = (size_t)N_LAYER * KV_MAX_POS * 2;
     for (size_t i = 0; i < n; i++) kv_scale[i] = 1.0f;
 }
@@ -67,7 +77,7 @@ static void kv_write(int layer, int pos, int kv_idx, const float *vec) {
     for (int i = 0; i < HEAD_DIM; i++) { float a = fabsf(vec[i]); if (a > sc) sc = a; }
     sc /= 127.0f;
     kv_scale[slot] = sc;
-    int8_t *dst = kv_data + slot * HEAD_DIM;
+    int8_t *dst = kv_ptr(layer, pos, kv_idx);
     for (int i = 0; i < HEAD_DIM; i++) {
         int v = (int)roundf(vec[i] / sc);
         dst[i] = v > 127 ? 127 : v < -127 ? -127 : (int8_t)v;
@@ -75,9 +85,8 @@ static void kv_write(int layer, int pos, int kv_idx, const float *vec) {
 }
 
 static void kv_read(int layer, int pos, int kv_idx, float *out) {
-    size_t slot = kv_slot(layer, pos, kv_idx);
-    float sc = kv_scale[slot];
-    const int8_t *src = kv_data + slot * HEAD_DIM;
+    float sc = kv_scale[kv_slot(layer, pos, kv_idx)];
+    const int8_t *src = kv_ptr(layer, pos, kv_idx);
     for (int i = 0; i < HEAD_DIM; i++) out[i] = src[i] * sc;
 }
 
@@ -457,8 +466,7 @@ inline bool init() {
     g_model_ok = model_init();
     if (!g_model_ok) {
         _last_error = "bad model.bin";
-        free(kv_data);  kv_data  = nullptr;
-        free(kv_scale); kv_scale = nullptr;
+        kv_ram_free();
         return false;
     }
 
@@ -476,8 +484,7 @@ inline bool init() {
         Serial.printf("AI task creation FAILED (free heap was %u)\n", ESP.getFreeHeap());
         _last_error = "task fail (low RAM)";
         _task_handle = nullptr;
-        free(kv_data);  kv_data  = nullptr;
-        free(kv_scale); kv_scale = nullptr;
+        kv_ram_free();
         g_model_ok = false;
         return false;
     }
@@ -502,8 +509,7 @@ inline void deinit() {
         vTaskDelete(_task_handle);
         _task_handle = nullptr;
     }
-    free(kv_data);  kv_data  = nullptr;
-    free(kv_scale); kv_scale = nullptr;
+    kv_ram_free();
     g_model_ok = false; _started = false;
     _busy = false; _busy_since = 0; _cur_phase = 0; _cur_pos = 0;
 }

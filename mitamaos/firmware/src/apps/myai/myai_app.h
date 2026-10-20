@@ -7,6 +7,7 @@
 #include "../../os/os_ui.h"
 #include "../../os/wifi_manager.h"
 #include "../../config.h"
+#include "../../detect/detection.h"   // before the engine: its #defines are short names
 #include "myai_engine.h"
 
 // Screen: 240x135  font 6x8px at textSize=1
@@ -55,6 +56,13 @@ public:
         _wifiWasOn = WiFiManager::get().isConnected();
         if (_wifiWasOn) { WiFi.disconnect(true); WiFi.mode(WIFI_OFF); delay(50); }
 
+        // The detection watcher's Bluetooth stack holds ~50 KB. Wait for it
+        // to stand down before asking for the cache, or there isn't room.
+        auto& det = DetectionEngine::get();
+        det.hold(true);
+        for (int i = 0; i < 60 && !det.paused(); i++) delay(50);
+        delay(100);   // let the freed memory settle back into the heap
+
         if (!MyAI::init()) {
             String msg = String("MiTalk  [") + MyAI::lastError() + "]";
             _push(msg, MSG_SYS);
@@ -67,6 +75,7 @@ public:
 
     void onStop() override {
         MyAI::deinit();
+        DetectionEngine::get().hold(false);
         if (_wifiWasOn) { WiFi.mode(WIFI_STA); WiFiManager::get().connectFirst(0); }
     }
 
