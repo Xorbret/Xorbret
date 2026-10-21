@@ -380,12 +380,12 @@ namespace MUI {
             }
             p.dot(12, 12, 1.4f);
             break;
-        case SIG_OMIKUJI: { // the shrine's six-sided fortune box, one stick drawn
-            float h[] = { 12, 8.5f, 17.2f, 11.5f, 17.2f, 18.5f, 12, 21.5f, 6.8f, 18.5f, 6.8f, 11.5f };
-            p.poly(h, 6);
-            p.line(12, 8.5f, 14.6f, 2.5f);
-            p.dot(14.8f, 2.2f, 1.1f);
-            p.line(9.5f, 15, 14.5f, 15);
+        case SIG_OMIKUJI: { // an unrolled fortune slip from the shrine, its rods top and bottom
+            p.rect(6, 4, 12, 16);
+            p.line(4.6f, 4, 19.4f, 4); p.line(4.6f, 20, 19.4f, 20);
+            p.line(8.6f, 4, 8.6f, 20); p.line(15.4f, 4, 15.4f, 20);
+            p.line(10.6f, 8, 13.4f, 8); p.line(10.6f, 10.6f, 13.4f, 10.6f);
+            p.ring(12, 15, 1.8f);
             break; }
         case SIG_AETHER: // the fifth element, measured: a ring of air over three channel bars
             p.ring(12, 12, 9.5f);
