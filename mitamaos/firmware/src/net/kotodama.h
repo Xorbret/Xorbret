@@ -38,15 +38,28 @@ public:
         int8_t   snr = 0;
         char     text[Mesh::MAX_TEXT + 1] = "";
     };
+    // A Mitama's card, shared with the crew: which form it wears and how far
+    // its Compendium has come. Sent after our name on the Mitama channel.
+    struct Card {
+        uint8_t  form = 0, forms = 0;            // worn form, forms unlocked
+        uint8_t  species = 0, speciesTotal = 0;  // Compendium pages filled / total
+        uint8_t  races = 0;                      // bit per race (Sig::Race) completed
+        uint32_t encounters = 0;
+    };
     struct Node {
         uint32_t num = 0; char shortName[5] = ""; char longName[25] = "";
+        bool     hasCard = false;
+        Card     card;
         uint32_t heardMs = 0;    // millis() of the last packet from it (0 = only named)
         int16_t  rssi = 0;
         bool     crew = false;   // heard on the Mitama channel: another MitamaOS user
     };
     // One row of the Crew list: friends first (heard or not), then other
     // Mitama heard this session, most recent first.
-    struct CrewRow { uint32_t num = 0; char name[25] = ""; uint32_t heardMs = 0; int16_t rssi = 0; bool isFriend = false; };
+    struct CrewRow {
+        uint32_t num = 0; char name[25] = ""; uint32_t heardMs = 0; int16_t rssi = 0; bool isFriend = false;
+        bool hasCard = false; Card card;
+    };
     // Someone from the crew came into range (first time, or back after 30 min).
     struct Arrival { uint32_t num = 0; bool isFriend = false; };
 
@@ -216,13 +229,16 @@ public:
             r.num = _friends[i].num; r.isFriend = true;
             strncpy(r.name, _friends[i].name, sizeof(r.name) - 1);
             const Node* nd = _find(r.num);
-            if (nd) { r.heardMs = nd->heardMs; r.rssi = nd->rssi; if (nd->longName[0]) strncpy(r.name, nd->longName, sizeof(r.name) - 1); }
+            if (nd) {
+                r.heardMs = nd->heardMs; r.rssi = nd->rssi; r.hasCard = nd->hasCard; r.card = nd->card;
+                if (nd->longName[0]) strncpy(r.name, nd->longName, sizeof(r.name) - 1);
+            }
         }
         int firstOther = n;
         for (auto& nd : _nodes) {
             if (n >= cap) break;
             if (!nd.num || !nd.crew || _friendIdx(nd.num) >= 0) continue;
-            CrewRow r; r.num = nd.num; r.heardMs = nd.heardMs; r.rssi = nd.rssi;
+            CrewRow r; r.num = nd.num; r.heardMs = nd.heardMs; r.rssi = nd.rssi; r.hasCard = nd.hasCard; r.card = nd.card;
             if (nd.longName[0]) strncpy(r.name, nd.longName, sizeof(r.name) - 1);
             else snprintf(r.name, sizeof(r.name), "!%04x", (unsigned)(nd.num & 0xFFFF));
             int k = n++;   // insertion sort, most recent first
@@ -231,6 +247,12 @@ public:
         }
         portEXIT_CRITICAL(&_mux);
         return n;
+    }
+    // Our own card, kept fresh by the brain; sent with our name to the crew.
+    void setMyCard(const Card& c) {
+        portENTER_CRITICAL(&_mux);
+        _myCard = c; _hasMyCard = true;
+        portEXIT_CRITICAL(&_mux);
     }
     bool isFriend(uint32_t num) {
         portENTER_CRITICAL(&_mux);
@@ -363,6 +385,21 @@ private:
     Arrival  _arrivals[4];
     int      _nArrivals = 0;
     uint32_t _crewAt = 0;
+    Card     _myCard;
+    bool     _hasMyCard = false;
+    static constexpr size_t CARD_LEN = 10;
+    static void _packCard(const Card& c, uint8_t* b) {
+        b[0] = 1;   // card version
+        b[1] = c.form; b[2] = c.forms; b[3] = c.species; b[4] = c.speciesTotal; b[5] = c.races;
+        for (int i = 0; i < 4; i++) b[6 + i] = (c.encounters >> (8 * i)) & 0xFF;
+    }
+    static bool _unpackCard(const uint8_t* b, size_t n, Card& c) {
+        if (n < CARD_LEN || b[0] != 1) return false;    // newer versions keep these bytes first
+        c.form = b[1]; c.forms = b[2]; c.species = b[3]; c.speciesTotal = b[4]; c.races = b[5];
+        c.encounters = 0;
+        for (int i = 0; i < 4; i++) c.encounters |= (uint32_t)b[6 + i] << (8 * i);
+        return true;
+    }
     struct Seen { uint32_t from, id; } _seen[32] = {};
     int      _seenNext = 0;
     Msg      _lastIn;
@@ -471,6 +508,14 @@ private:
             // replies don't collide, and at most once a minute.
             if (wantResp && ch == Mesh::CH_MITAMA && !_replyAt && millis() - _lastReply > 60000)
                 _replyAt = millis() + 1000 + esp_random() % 4000;
+        } else if (port == Mesh::PORT_CARD && pl && ch == Mesh::CH_MITAMA) {
+            Card c;
+            if (_unpackCard(pl, plen, c)) {
+                portENTER_CRITICAL(&_mux);
+                Node* n = _slot(h.from);
+                n->card = c; n->hasCard = true;
+                portEXIT_CRITICAL(&_mux);
+            }
         } else if (port == Mesh::PORT_TEXT && pl) {
             Msg m;
             m.from = h.from; m.ch = ch; m.rssi = rssi; m.snr = snr;
@@ -618,7 +663,7 @@ private:
         }
     }
 
-    bool _sendData(uint8_t ch, uint8_t port, const uint8_t* payload, size_t len, bool wantResponse) {
+    bool _sendData(uint8_t ch, uint32_t port, const uint8_t* payload, size_t len, bool wantResponse) {
         uint8_t pkt[Mesh::MAX_PKT];
         size_t n = Mesh::encodeData(pkt + Mesh::HDR, sizeof(pkt) - Mesh::HDR, port, payload, len, wantResponse);
         if (!n) return false;
@@ -664,5 +709,12 @@ private:
         uint8_t user[80];
         size_t n = Mesh::encodeUser(user, sizeof(user), nodeNum(), longName(), shortName());
         if (n) _sendData(ch, Mesh::PORT_NODEINFO, user, n, wantResponse);
+        if (ch != Mesh::CH_MITAMA) return;
+        uint8_t card[CARD_LEN];
+        portENTER_CRITICAL(&_mux);
+        bool have = _hasMyCard;
+        if (have) _packCard(_myCard, card);
+        portEXIT_CRITICAL(&_mux);
+        if (have && !_stopping) { _listen(300); _sendData(ch, Mesh::PORT_CARD, card, CARD_LEN, false); }
     }
 };

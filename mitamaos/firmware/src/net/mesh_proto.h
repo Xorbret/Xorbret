@@ -18,6 +18,8 @@ namespace Mesh {
 
 static constexpr uint32_t BROADCAST = 0xFFFFFFFF;
 static constexpr uint8_t  PORT_TEXT = 1, PORT_NODEINFO = 4;
+// Meshtastic's PRIVATE_APP port: our Mitama card (see Kotodama::Card), Mitama channel only.
+static constexpr uint32_t PORT_CARD = 256;
 static constexpr uint8_t  HW_PRIVATE = 255;
 static constexpr int      HDR = 16, MAX_PKT = 255, MAX_TEXT = 200;
 
@@ -154,7 +156,7 @@ struct Reader {
 };
 
 // Data { 1: portnum, 2: payload, 3: want_response }
-inline size_t encodeData(uint8_t* out, size_t cap, uint8_t port, const uint8_t* payload, size_t len,
+inline size_t encodeData(uint8_t* out, size_t cap, uint32_t port, const uint8_t* payload, size_t len,
                          bool wantResponse = false) {
     Writer w{ out, cap };
     w.tagVarint(1, port);

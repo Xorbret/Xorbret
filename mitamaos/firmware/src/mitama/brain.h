@@ -66,6 +66,7 @@ public:
                  threat ? M_ALARMED : M_SMUG, now);
             spoke = true;
         }
+        if (now - _cardAt > 30000 || !_cardAt) { _cardAt = now | 1; _shareCard(); }
         Kotodama::Arrival ka;
         if (!spoke && !threatFresh && _sass > 0 && Kotodama::get().takeArrival(ka)) {
             static char crewName[28];
@@ -169,7 +170,24 @@ private:
     bool     _hadThreat = false, _hadFix = false, _hadScry = false, _wasOnline = false;
     bool     _sincerePending = false;
     uint32_t _sincereAt = 0;
-    uint32_t _formLineMs = 0;
+    uint32_t _formLineMs = 0, _cardAt = 0;
+
+    // What the crew sees of us (Kotodama sends it with our name).
+    static void _shareCard() {
+        auto& comp = Compendium::get();
+        auto& fm = Forms::get();
+        Kotodama::Card c;
+        c.form = fm.current();
+        c.forms = fm.unlockedCount();
+        c.species = comp.metCount();
+        c.speciesTotal = Compendium::total();
+        for (uint8_t r = 0; r < Sig::R_COUNT; r++) {
+            int size = Compendium::raceSize(r);
+            if (size > 1 && comp.raceMet(r) == size) c.races |= 1 << r;
+        }
+        for (uint8_t t = 0; t < Sig::T_COUNT; t++) if (Compendium::listed(t)) c.encounters += comp.entry(t).count;
+        Kotodama::get().setMyCard(c);
+    }
     const char* _formName = "";
     // last few demons spoken about, for the 60s collapse rule
     struct Seen { uint8_t type; uint8_t mac[6]; uint32_t ms; } _seen[6] = {};

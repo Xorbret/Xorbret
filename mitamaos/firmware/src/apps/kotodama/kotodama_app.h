@@ -8,6 +8,7 @@
 #include "../../config.h"
 #include "../../ui/mitama_ui.h"
 #include "../../net/kotodama.h"
+#include "../../mitama/forms.h"
 
 // Kotodama - "spirit of words": LoRa chat with other MitamaOS users (the
 // Mitama channel) and the public Meshtastic mesh (LongFast). Needs the
@@ -16,7 +17,8 @@
 // Keys: type and Enter to send, Tab switch channel, fn+; fn+. scroll,
 // fn+R radio on/off, fn+N set your name, fn+G change region, fn+` back.
 // fn+C opens Crew: other Mitama heard in range, and your friends
-// (; . move, Enter add / remove a friend, ` back to the chat).
+// (; . move, Enter their card - form and Compendium progress -, F add /
+// remove a friend, ` back).
 class KotodamaApp : public App {
 public:
     KotodamaApp(LGFX_Sprite& canvas) : _canvas(canvas) {}
@@ -61,26 +63,90 @@ private:
     String   _note;                       // one-line status under the input
     Kotodama::CrewRow* _crew = nullptr;   // the Crew screen's rows, only while it's open
     int      _crewN = 0, _crewSel = 0, _crewTop = 0;
+    uint32_t _cardNum = 0;                // whose card is open (0 = the list)
     static constexpr int CREW_MAX = Kotodama::MAX_FRIENDS + Kotodama::MAX_NODES;
 
     void _openCrew() {
         if (!_crew) _crew = new (std::nothrow) Kotodama::CrewRow[CREW_MAX];
         _crewSel = _crewTop = 0; _note = "";
     }
-    void _closeCrew() { delete[] _crew; _crew = nullptr; _crewN = 0; }
+    void _closeCrew() { delete[] _crew; _crew = nullptr; _crewN = 0; _cardNum = 0; }
+
+    // The open card's row, refreshed with each draw.
+    const Kotodama::CrewRow* _cardRow() const {
+        for (int i = 0; i < _crewN; i++) if (_crew[i].num == _cardNum) return &_crew[i];
+        return nullptr;
+    }
+    void _toggleFriend(const Kotodama::CrewRow& r) {
+        if (!Kotodama::get().setFriend(r.num, !r.isFriend)) _note = "Friend list is full (16).";
+        else _note = r.isFriend ? "Removed from friends." : "Added to friends.";
+    }
 
     bool _crewKeys(const Keyboard_Class::KeysState& st) {
+        if (_cardNum) {   // a card is open
+            for (char c : st.word) {
+                if (c == '`') { _cardNum = 0; _note = ""; return true; }
+                if ((c == 'f' || c == 'F') && _cardRow()) _toggleFriend(*_cardRow());
+            }
+            return true;
+        }
         for (char c : st.word) {
             if (c == '`' || (st.fn && (c == 'c' || c == 'C'))) { _closeCrew(); _note = ""; return true; }
             if (c == ';') _crewSel = max(0, _crewSel - 1);
             if (c == '.') _crewSel = min(_crewN - 1, _crewSel + 1);
+            if ((c == 'f' || c == 'F') && _crewSel < _crewN) _toggleFriend(_crew[_crewSel]);
         }
-        if (st.enter && _crewSel < _crewN) {
-            auto& r = _crew[_crewSel];
-            if (!Kotodama::get().setFriend(r.num, !r.isFriend)) _note = "Friend list is full (16).";
-            else _note = r.isFriend ? "Removed from friends." : "Added to friends.";
-        }
+        if (st.enter && _crewSel < _crewN) { _cardNum = _crew[_crewSel].num; _note = ""; }
         return true;
+    }
+
+    void _drawCard() {
+        const Kotodama::CrewRow* r = _cardRow();
+        if (!r) { _cardNum = 0; _drawCrew(); return; }
+        uint8_t form = r->hasCard && r->card.form < MUI::F_COUNT ? r->card.form : MUI::F_SOUL;
+        _canvas.setClipRect(0, HEADER_H + 1, 86, SCREEN_H - FOOTER_H - HEADER_H - 1);
+        MUI::soulForm(_canvas, 42, 68, 80, r->hasCard ? MUI::YELLOW : MUI::DIM,
+                      r->isFriend ? MUI::CYAN : MUI::MAGENTA, 0, (MUI::Form)form);
+        _canvas.clearClipRect();
+
+        const int x = 90;
+        int y = HEADER_H + 3;
+        _canvas.setClipRect(x, y, SCREEN_W - x - 2, 16);
+        MUI::text(_canvas, MUI::title(), r->name, x, y, r->isFriend ? MUI::YELLOW : MUI::MAGENTA, 1);
+        _canvas.clearClipRect();
+        y += 16;
+        char buf[40], ago[12];
+        _ago(ago, sizeof(ago), r->heardMs);
+        if (r->heardMs) snprintf(buf, sizeof(buf), "%s  %d dBm  %s", r->isFriend ? "Friend" : "Crew", r->rssi, ago);
+        else snprintf(buf, sizeof(buf), "Friend  %s", ago);
+        MUI::text(_canvas, MUI::small(), buf, x, y, MUI::DIM);
+        y += 15;
+        if (!r->hasCard) {
+            MUI::text(_canvas, MUI::small(), "No card yet. It comes", x, y, MUI::DIM);
+            MUI::text(_canvas, MUI::small(), "with their next check-in.", x, y + 11, MUI::DIM);
+        } else {
+            const Kotodama::Card& c = r->card;
+            auto row = [&](const char* k, const char* v, uint16_t col) {
+                MUI::text(_canvas, MUI::small(), k, x, y, MUI::DIM);
+                MUI::text(_canvas, MUI::small(), v, x + 44, y, col);
+                y += 11;
+            };
+            row("Form", Forms::name(form), MUI::YELLOW);
+            snprintf(buf, sizeof(buf), "%u / %u", c.forms, (unsigned)MUI::F_COUNT);
+            row("Forms", buf, MUI::WHITE);
+            snprintf(buf, sizeof(buf), "%u / %u", c.species, c.speciesTotal);
+            row("Pages", buf, MUI::WHITE);
+            snprintf(buf, sizeof(buf), "%lu", (unsigned long)c.encounters);
+            row("Met", buf, MUI::WHITE);
+            buf[0] = 0;
+            for (uint8_t rc = 0; rc < Sig::R_COUNT; rc++)
+                if (c.races >> rc & 1) { if (buf[0]) strncat(buf, " ", sizeof(buf) - strlen(buf) - 1); strncat(buf, Sig::raceName(rc), sizeof(buf) - strlen(buf) - 1); }
+            _canvas.setClipRect(x, y, SCREEN_W - x - 2, 12);
+            row("Races", buf[0] ? buf : "none yet", buf[0] ? MUI::GREEN : MUI::DIM);
+            _canvas.clearClipRect();
+        }
+        const char* foot = _note.length() ? _note.c_str() : (r->isFriend ? "F unfriend  ` back" : "F add friend  ` back");
+        MUI::footer(_canvas, foot, _note.length() ? MUI::YELLOW : MUI::DIM);
     }
 
     static void _ago(char* out, size_t n, uint32_t heardMs) {
@@ -93,7 +159,6 @@ private:
 
     void _drawCrew() {
         auto& k = Kotodama::get();
-        _crewN = _crew ? k.crew(_crew, CREW_MAX) : 0;
         if (_crewSel >= _crewN) _crewSel = max(0, _crewN - 1);
         int y = HEADER_H + 2;
         MUI::text(_canvas, MUI::small(), "CREW", 4, y, MUI::YELLOW, 1);
@@ -126,7 +191,7 @@ private:
             _canvas.clearClipRect();
             MUI::text(_canvas, MUI::small(), right, SCREEN_W - 5 - rw, ry, r.heardMs ? MUI::CYAN : MUI::DIM);
         }
-        const char* foot = _note.length() ? _note.c_str() : (_crewN ? "ENT friend  ; . move  ` chat" : "` back to the chat");
+        const char* foot = _note.length() ? _note.c_str() : (_crewN ? "ENT card  F friend  ` chat" : "` back to the chat");
         MUI::footer(_canvas, foot, _note.length() ? MUI::YELLOW : MUI::DIM);
     }
 
@@ -321,7 +386,9 @@ private:
         _seenSerial = Kotodama::get().serial();
         _canvas.fillSprite(MUI::BG);
         MUI::header(_canvas, "KOTODAMA", MUI::YELLOW);
-        if (_picking) _drawPicker(); else if (_crew) _drawCrew(); else _drawChat();
+        if (_picking) _drawPicker();
+        else if (_crew) { _crewN = Kotodama::get().crew(_crew, CREW_MAX); if (_cardNum) _drawCard(); else _drawCrew(); }
+        else _drawChat();
         if (_redraw) { _redraw = false; _draw(); return; }
         { DispLock _lk; _canvas.pushSprite(0, 0); }
     }
