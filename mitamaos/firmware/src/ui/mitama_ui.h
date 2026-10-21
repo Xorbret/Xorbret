@@ -270,10 +270,14 @@ namespace MUI {
     inline void sigil(LGFX_Sprite& c, Sigil id, int cx, int cy, int size, uint16_t col) {
         _Pen p{ c, (float)cx, (float)cy, size / 24.0f, col };
         switch (id) {
-        case SIG_COMPENDIUM: // the crest: magatama sealed in a dashed ring
-            p.dashed(12, 12, 9.2f, 2.4f, 4);
-            MitamaLogo::_magatama(c, cx, cy + 0.5f * p.s, 3.6f * p.s, 2.7f * p.s, -60, 185, 0.82f, col);
-            break;
+        case SIG_COMPENDIUM: { // transmutation circle: the seal that keeps the spirits bound
+            p.ring(12, 12, 10.4f); p.ring(12, 12, 8.2f);
+            float t[] = { 12, 3.8f, 19.1f, 16.1f, 4.9f, 16.1f };
+            p.poly(t, 3);
+            for (int i = 0; i < 3; i++) p.ring(t[i * 2], t[i * 2 + 1], 1.2f);
+            float q[] = { 13.56f, 15.16f, 10.44f, 15.16f, 10.44f, 12.04f, 13.56f, 12.04f };
+            p.poly(q, 4);
+            break; }
         case SIG_PROXIMA: { // core + dashed orbit + cardinal ticks
             p.dot(12, 12, 3);
             p.line(12, 4, 12, 6); p.line(12, 18, 12, 20); p.line(4, 12, 6, 12); p.line(18, 12, 20, 12);
@@ -387,10 +391,11 @@ namespace MUI {
             p.line(10.6f, 8, 13.4f, 8); p.line(10.6f, 10.6f, 13.4f, 10.6f);
             p.ring(12, 15, 1.8f);
             break; }
-        case SIG_AETHER: // the fifth element, measured: a ring of air over three channel bars
-            p.ring(12, 12, 9.5f);
-            p.line(6.5f, 16, 17.5f, 16);
-            p.line(8.5f, 16, 8.5f, 12); p.line(12, 16, 12, 7.5f); p.line(15.5f, 16, 15.5f, 10.5f);
+        case SIG_AETHER: // the seeing stone: a vertical eye set in a rimmed round stone
+            p.ring(12, 12, 9.6f); p.ring(12, 12, 8.2f);
+            p.arc(18.2f, 12, 8.6f, 145, 215); p.arc(5.8f, 12, 8.6f, -35, 35);
+            p.ring(12, 12, 2.2f);
+            p.dot(12, 12, 0.9f);
             break;
         case SIG_SYSTEM: // sealed chip
             p.rect(7.5f, 7.5f, 9, 9);
