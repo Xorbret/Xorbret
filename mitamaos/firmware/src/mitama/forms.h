@@ -9,13 +9,14 @@
 #include "../detect/compendium.h"
 #include "../system/sd_settings.h"
 #include "../ui/mitama_forms.h"
+#include <mbedtls/md.h>
 
 class Forms {
 public:
     static Forms& get() { static Forms f; return f; }
 
     // one-time achievements that the Compendium can't show
-    enum Flag : uint32_t { FL_NIGHT = 1, FL_SCRY = 2, FL_KOTO = 4 };
+    enum Flag : uint32_t { FL_NIGHT = 1, FL_SCRY = 2, FL_KOTO = 4, FL_CREATOR = 8 };
 
     static const char* name(uint8_t f) {
         static const char* const N[MUI::F_COUNT] = {
@@ -24,6 +25,7 @@ public:
             "Tinfoil", "Braindance", "Kitsune", "Oni", "Omamori",
             "Kabuto", "Mekura", "Suzu", "Hoshi",
             "Yurei", "Kekkai", "Chochin", "Kotodama",
+            "Kyubi",
         };
         return f < MUI::F_COUNT ? N[f] : "?";
     }
@@ -39,6 +41,7 @@ public:
             "Meet 10 Axon devices.", "Meet 25 Flock cameras.", "Meet 20 Ring doorbells.", "Meet 20 AirTags.",
             "See a demon between 1 and 5 AM.", "Meet a demon at -35 dBm or closer.",
             "Log 100 networks on one Scry drive.", "Send a Kotodama message.",
+            "The creator's own form.",
         };
         return f < MUI::F_COUNT ? H[f] : "";
     }
@@ -91,6 +94,7 @@ public:
             any(Sig::R_AVIAN) && any(Sig::R_FOUL) && any(Sig::R_JAKI),
             cnt(Sig::T_AXON) >= 10, cnt(Sig::T_FLOCK) >= 25, cnt(Sig::T_RING) >= 20, cnt(Sig::T_AIRTAG) >= 20,
             (_flags & FL_NIGHT) != 0, close, (_flags & FL_SCRY) != 0, (_flags & FL_KOTO) != 0,
+            (_flags & FL_CREATOR) != 0,
         };
         uint32_t m = 0;
         for (int i = 0; i < MUI::F_COUNT; i++) if (on[i]) m |= 1UL << i;
@@ -98,7 +102,26 @@ public:
         return m;
     }
     bool isUnlocked(uint8_t f) { return f < MUI::F_COUNT && (unlocked() >> f & 1); }
-    int unlockedCount() { return __builtin_popcount(unlocked()); }
+    // Earnable forms unlocked (the creator's form isn't counted).
+    int unlockedCount() { return __builtin_popcount(unlocked() & ((1UL << MUI::F_PUBLIC) - 1)); }
+    // Forms the Compendium lists: the creator's form only once it's yours.
+    int listed() { return isUnlocked(MUI::F_KYUBI) ? MUI::F_COUNT : MUI::F_PUBLIC; }
+
+    // The creator's code. Only a salted SHA-256 of it is in the firmware.
+    bool tryCode(const String& typed) {
+        String code = typed; code.trim(); code.toLowerCase(); code.replace(" ", ""); code.replace("-", "");
+        String salted = "MitamaOS creator:" + code;
+        static const uint8_t WANT[32] = { 0x75, 0x66, 0xfa, 0xae, 0x0d, 0x2d, 0x34, 0x82, 0xee, 0x39, 0x01, 0xcb, 0x12, 0x6b, 0x57, 0x0b, 0xb2, 0x7a, 0x7f, 0xe6, 0xb5, 0xe4, 0x71, 0x4b, 0x86, 0x43, 0x05, 0x91, 0xf9, 0x8c, 0x35, 0xe1 };
+        uint8_t got[32];
+        mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), (const uint8_t*)salted.c_str(), salted.length(), got);
+        uint8_t diff = 0;
+        for (int i = 0; i < 32; i++) diff |= got[i] ^ WANT[i];
+        if (diff) return false;
+        setFlag(FL_CREATOR);
+        _maskAt = 0;
+        wear(MUI::F_KYUBI);
+        return true;
+    }
 
     MUI::Form current() { return isUnlocked(_cur) ? (MUI::Form)_cur : MUI::F_SOUL; }
     void wear(uint8_t f) {

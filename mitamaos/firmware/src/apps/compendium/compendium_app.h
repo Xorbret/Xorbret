@@ -49,7 +49,7 @@ public:
         if (kb.isKeyPressed('f')) {
             OsUI::waitRelease();
             _formsView = !_formsView;
-            if (_formsView) { _fsel = Forms::get().current(); _fScrollTo(); }
+            if (_formsView) { _fsel = Forms::get().current(); _fScrollTo(); _fnote = ""; }
             _draw();
             return;
         }
@@ -83,6 +83,7 @@ private:
     bool     _formsView = false;
     uint8_t  _fsel = 0;
     int      _fscroll = 0;
+    String   _fnote;                     // one-line result for the code prompt
 
     static uint16_t _raceCol(uint8_t r) { return MUI::raceColor(r); }
 
@@ -91,8 +92,18 @@ private:
         auto& kb = M5Cardputer.Keyboard;
         auto st = kb.keysState();
         bool moved = false;
-        if (kb.isKeyPressed(';')) { _fsel = (_fsel + MUI::F_COUNT - 1) % MUI::F_COUNT; moved = true; }
-        if (kb.isKeyPressed('.')) { _fsel = (_fsel + 1) % MUI::F_COUNT; moved = true; }
+        int n = Forms::get().listed();
+        if (kb.isKeyPressed(';')) { _fsel = (_fsel + n - 1) % n; moved = true; }
+        if (kb.isKeyPressed('.')) { _fsel = (_fsel + 1) % n; moved = true; }
+        if (st.fn && kb.isKeyPressed('k')) {      // the creator's code
+            String code = OsUI::inputText(_canvas, "Code:");
+            if (code.length()) {
+                if (Forms::get().tryCode(code)) { _fsel = MUI::F_KYUBI; _fScrollTo(); _fnote = "Welcome back, creator."; }
+                else _fnote = "That's not it.";
+            }
+            _draw();
+            return;
+        }
         if (st.enter && Forms::get().isUnlocked(_fsel)) {
             OsUI::waitRelease();
             Forms::get().wear(_fsel);
@@ -111,7 +122,7 @@ private:
     void _drawForms() {
         auto& fm = Forms::get();
         uint8_t worn = fm.current();
-        for (int k = 0; k < VIS && _fscroll + k < MUI::F_COUNT; k++) {
+        for (int k = 0; k < VIS && _fscroll + k < fm.listed(); k++) {
             uint8_t f = _fscroll + k;
             int y = LIST_Y + k * ROW_H;
             bool on = fm.isUnlocked(f);
@@ -337,9 +348,10 @@ private:
             MUI::header(_canvas, "FORMS", MUI::YELLOW);
             _drawForms();
             char n[12];
-            snprintf(n, sizeof(n), "%d/%d", Forms::get().unlockedCount(), (int)MUI::F_COUNT);
-            MUI::footer(_canvas, Forms::get().isUnlocked(_fsel) ? "ENT wear   F demons" : "F demons",
-                        MUI::DIM, n);
+            snprintf(n, sizeof(n), "%d/%d", Forms::get().unlockedCount(), (int)MUI::F_PUBLIC);
+            if (_fnote.length()) { MUI::footer(_canvas, _fnote.c_str(), MUI::YELLOW, n); _fnote = ""; }
+            else MUI::footer(_canvas, Forms::get().isUnlocked(_fsel) ? "ENT wear   F demons" : "F demons",
+                             MUI::DIM, n);
             { DispLock _lk; _canvas.pushSprite(0, 0); }
             return;
         }

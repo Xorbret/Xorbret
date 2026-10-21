@@ -16,8 +16,10 @@ enum Form : uint8_t {
     F_TINFOIL, F_BRAINDANCE, F_KITSUNE, F_ONI, F_OMAMORI,
     F_KABUTO, F_MEKURA, F_SUZU, F_HOSHI,
     F_YUREI, F_KEKKAI, F_CHOCHIN, F_KOTODAMA,
+    F_KYUBI,        // the creator's own form: never listed, unlocked by code
     F_COUNT
 };
+constexpr uint8_t F_PUBLIC = F_KYUBI;   // forms anyone can earn
 
 namespace _FormCol {
     constexpr uint16_t GOLD   = 0xFE87;
@@ -63,6 +65,29 @@ struct _FormPen {
         }
     }
 };
+
+// Slices of whatever is drawn, shoved sideways, plus stray scanlines.
+inline void _formGlitch(const _FormPen& p) {
+    const float cx = p.cx, cy = p.cy, s = p.s, f = p.f;
+    const float DY[] = { -30, 4, 20 }, DX[] = { 6, -5, 4 };
+    int x0 = lroundf(cx - 96 * s), x1 = lroundf(cx + 98 * s);
+    int w = x1 - x0;
+    if (w > 0 && w <= 240) {
+        uint16_t row[240];
+        for (int j = 0; j < 3; j++) {
+            int y0 = (int)(cy + DY[j] * s), dx = lroundf(DX[j] * f);
+            for (int y = y0; y < y0 + max(2, (int)lroundf(3 * f)); y++) {
+                for (int i = 0; i < w; i++) row[i] = p.c.readPixel(x0 + i, y);
+                for (int i = 0; i < w; i++) {
+                    int src = i - dx;
+                    if (src >= 0 && src < w) p.c.drawPixel(x0 + i, y, row[src]);
+                }
+            }
+        }
+    }
+    p.rect(cx - 30 * s, cy + 42 * s, 8 * f, 1, CYAN);
+    p.rect(cx + 8 * s, cy - 48 * s, 6 * f, 1, MAGENTA);
+}
 
 inline void _formBehind(const _FormPen& p, Form form) {
     if (form != F_KAMI) return;
@@ -170,26 +195,24 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
             zx = x; zy = y;
         }
         break; }
-    case F_BRAINDANCE: { // slices of the soul shoved sideways, plus stray scanlines
-        const float DY[] = { -30, 4, 20 }, DX[] = { 6, -5, 4 };
-        int x0 = lroundf(cx - 96 * s), x1 = lroundf(cx + 98 * s);
-        int w = x1 - x0;
-        if (w > 0 && w <= 240) {
-            uint16_t row[240];
-            for (int j = 0; j < 3; j++) {
-                int y0 = (int)(cy + DY[j] * s), dx = lroundf(DX[j] * f);
-                for (int y = y0; y < y0 + max(2, (int)lroundf(3 * f)); y++) {
-                    for (int i = 0; i < w; i++) row[i] = p.c.readPixel(x0 + i, y);
-                    for (int i = 0; i < w; i++) {
-                        int src = i - dx;
-                        if (src >= 0 && src < w) p.c.drawPixel(x0 + i, y, row[src]);
-                    }
-                }
-            }
+    case F_BRAINDANCE: // slices of the soul shoved sideways
+        _formGlitch(p);
+        break;
+    case F_KYUBI: // the creator: hollow neon ears, green foxfire, a doubled crest, glitching
+        MitamaLogo::_magatama(p.c, cx - 2 * f, cy + 6 * s, 19 * s, 14 * s, -60, 185, 0.82f, MAGENTA);
+        MitamaLogo::_magatama(p.c, cx + 1 * f, cy + 6 * s, 19 * s, 14 * s, -60, 185, 0.82f, CYAN);
+        for (int side = -1; side <= 1; side += 2) {
+            p.tri(p.px(-90 + side * 18, 57), p.py(-90 + side * 18, 57), cx + side * 40 * s, cy - 100 * s,
+                  p.px(-90 + side * 56, 57), p.py(-90 + side * 56, 57), MAGENTA);
+            p.tri(p.px(-90 + side * 31, 62), p.py(-90 + side * 31, 62), cx + side * 38 * s, cy - 80 * s,
+                  p.px(-90 + side * 44, 62), p.py(-90 + side * 44, 62), PANEL);
         }
-        p.rect(cx - 30 * s, cy + 42 * s, 8 * f, 1, CYAN);
-        p.rect(cx + 8 * s, cy - 48 * s, 6 * f, 1, MAGENTA);
-        break; }
+        {
+            const float A[] = { 205, -25, 155 }, R[] = { 78, 80, 84 };
+            for (int k = 0; k < 3; k++) p.mag(p.px(A[k], R[k]), p.py(A[k], R[k]), 3.2f, 2.4f, -120, 125, GREEN);
+        }
+        _formGlitch(p);
+        break;
     case F_KITSUNE: // fox ears and foxfire
         for (int side = -1; side <= 1; side += 2) {
             p.tri(p.px(-90 + side * 18, 57), p.py(-90 + side * 18, 57), cx + side * 40 * s, cy - 100 * s,
@@ -303,6 +326,7 @@ inline void soulForm(LGFX_Sprite& c, int cx, int cy, int size, uint16_t accent, 
     uint16_t bones = BONES;
     if (form == F_GILDED) { accent = _FormCol::GOLD; bones = _FormCol::GOLD; }
     if (form == F_YUREI)  { accent = _FormCol::PALE; bones = _FormCol::GHOST; cy += max(1, size / 30); }
+    if (form == F_KYUBI)  { accent = CYAN; bones = MAGENTA; }
     _FormPen p{ c, (float)cx, (float)cy, size / 200.0f, size / 92.0f };
     _formBehind(p, form);
     soul(c, cx, cy, size, accent, aura, spin, bones);

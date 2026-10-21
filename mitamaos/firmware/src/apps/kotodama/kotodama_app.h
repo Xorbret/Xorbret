@@ -112,9 +112,11 @@ private:
         const int x = 90;
         int y = HEADER_H + 3;
         _canvas.setClipRect(x, y, SCREEN_W - x - 2, 16);
-        MUI::text(_canvas, MUI::title(), r->name, x, y, r->isFriend ? MUI::YELLOW : MUI::MAGENTA, 1);
+        bool creator = r->hasCard && r->card.form == MUI::F_KYUBI;
+        MUI::text(_canvas, MUI::title(), r->name, x, y, creator ? MUI::GREEN : r->isFriend ? MUI::YELLOW : MUI::MAGENTA, 1);
         _canvas.clearClipRect();
         y += 16;
+        if (creator) { MUI::text(_canvas, MUI::small(), "Creator of MitamaOS", x, y, MUI::MAGENTA); y += 11; }
         char buf[40], ago[12];
         _ago(ago, sizeof(ago), r->heardMs);
         if (r->heardMs) snprintf(buf, sizeof(buf), "%s  %d dBm  %s", r->isFriend ? "Friend" : "Crew", r->rssi, ago);
@@ -132,7 +134,7 @@ private:
                 y += 11;
             };
             row("Form", Forms::name(form), MUI::YELLOW);
-            snprintf(buf, sizeof(buf), "%u / %u", c.forms, (unsigned)MUI::F_COUNT);
+            snprintf(buf, sizeof(buf), "%u / %u", c.forms, (unsigned)MUI::F_PUBLIC);
             row("Forms", buf, MUI::WHITE);
             snprintf(buf, sizeof(buf), "%u / %u", c.species, c.speciesTotal);
             row("Pages", buf, MUI::WHITE);
@@ -180,14 +182,17 @@ private:
                 _canvas.fillRect(1, ry - 1, SCREEN_W - 2, lh, MUI::PANEL);
                 _canvas.drawRect(1, ry - 1, SCREEN_W - 2, lh, MUI::MAGENTA);
             }
-            if (r.isFriend) MUI::text(_canvas, MUI::small(), "*", 5, ry, MUI::YELLOW);
+            bool creator = r.hasCard && r.card.form == MUI::F_KYUBI;
+            if (creator) MitamaLogo::_magatama(_canvas, 8, ry + 6, 2.4f, 1.8f, -60, 185, 0.82f, MUI::GREEN);
+            else if (r.isFriend) MUI::text(_canvas, MUI::small(), "*", 5, ry, MUI::YELLOW);
             char right[24], ago[12];
             _ago(ago, sizeof(ago), r.heardMs);
             if (r.heardMs) snprintf(right, sizeof(right), "%d dBm  %s", r.rssi, ago);
             else snprintf(right, sizeof(right), "%s", ago);
             int rw = MUI::width(_canvas, MUI::small(), right);
             _canvas.setClipRect(14, ry, SCREEN_W - 22 - rw, lh);
-            MUI::text(_canvas, MUI::small(), r.name, 14, ry, r.heardMs ? (sel ? MUI::WHITE : MUI::LABEL) : MUI::DIM);
+            MUI::text(_canvas, MUI::small(), r.name, 14, ry,
+                      creator ? MUI::MAGENTA : r.heardMs ? (sel ? MUI::WHITE : MUI::LABEL) : MUI::DIM);
             _canvas.clearClipRect();
             MUI::text(_canvas, MUI::small(), right, SCREEN_W - 5 - rw, ry, r.heardMs ? MUI::CYAN : MUI::DIM);
         }

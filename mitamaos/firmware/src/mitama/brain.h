@@ -72,8 +72,10 @@ public:
             static char crewName[28];
             Kotodama::get().nameOf(ka.num, crewName, sizeof(crewName));
             DetectionEngine::Sighting s; s.detail = crewName;
-            _say(ka.isFriend ? Lines::EV_CREW_FRIEND : Lines::EV_CREW_STRANGER, &s, false,
-                 ka.isFriend ? M_SMUG : M_CURIOUS, now);
+            Kotodama::Card kc;
+            bool creator = Kotodama::get().cardOf(ka.num, kc) && kc.form == MUI::F_KYUBI;
+            _say(creator ? Lines::EV_CREW_CREATOR : ka.isFriend ? Lines::EV_CREW_FRIEND : Lines::EV_CREW_STRANGER,
+                 &s, false, creator || ka.isFriend ? M_SMUG : M_CURIOUS, now);
             spoke = true;
         }
         Kotodama::Msg km;

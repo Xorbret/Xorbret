@@ -29,6 +29,7 @@ enum Event : uint8_t {
     EV_FORM,       // a new Mitama form unlocked; {f} = its name
     EV_CREW_FRIEND,    // a friend's Mitama came into LoRa range; {d} = their name
     EV_CREW_STRANGER,  // another Mitama we haven't befriended; {d} = its name
+    EV_CREW_CREATOR,   // the creator's Mitama (Kyubi form) came into range; {d} = name
     EV_COUNT
 };
 
@@ -198,6 +199,10 @@ static const Line BANK[] = {
     { EV_CREW_STRANGER, T_ANY, "A rival spirit, {d}, haunts this radio band. Befriend or ignore?" },
     { EV_CREW_STRANGER, T_ANY, "{d} carries a Mitama too. Small world. Smaller band." },
     { EV_CREW_STRANGER, T_ANY, "Unfamiliar Mitama nearby: {d}. Crew list's in Kotodama." },
+    { EV_CREW_CREATOR, T_ANY, "Nine tails on the air. {d}, the one who wrote me, is in range. Behave." },
+    { EV_CREW_CREATOR, T_ANY, "The Kyubi walks nearby. My maker, {d}. Act natural." },
+    { EV_CREW_CREATOR, T_ANY, "I sense the creator: {d}. Quick, look busy." },
+    { EV_CREW_CREATOR, T_ANY, "{d} is close. The fox who summoned us all. Bow, or don't. I won't tell." },
 };
 
 static constexpr int BANK_N = sizeof(BANK) / sizeof(BANK[0]);

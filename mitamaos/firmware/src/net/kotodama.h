@@ -61,7 +61,7 @@ public:
         bool hasCard = false; Card card;
     };
     // Someone from the crew came into range (first time, or back after 30 min).
-    struct Arrival { uint32_t num = 0; bool isFriend = false; };
+    struct Arrival { uint32_t num = 0; bool isFriend = false; uint32_t ms = 0; };
 
     static constexpr int MAX_MSGS = 16, MAX_NODES = 24;     // MAX_MSGS per channel
     static constexpr int MAX_FRIENDS = 16;
@@ -248,6 +248,14 @@ public:
         portEXIT_CRITICAL(&_mux);
         return n;
     }
+    bool cardOf(uint32_t num, Card& out) {
+        portENTER_CRITICAL(&_mux);
+        const Node* n = _find(num);
+        bool ok = n && n->hasCard;
+        if (ok) out = n->card;
+        portEXIT_CRITICAL(&_mux);
+        return ok;
+    }
     // Our own card, kept fresh by the brain; sent with our name to the crew.
     void setMyCard(const Card& c) {
         portENTER_CRITICAL(&_mux);
@@ -283,9 +291,11 @@ public:
         portEXIT_CRITICAL(&_mux);
         return ok;
     }
+    // Handed out a few seconds late, so the card that follows a name has
+    // usually arrived too (see cardOf).
     bool takeArrival(Arrival& out) {
         portENTER_CRITICAL(&_mux);
-        bool had = _nArrivals > 0;
+        bool had = _nArrivals > 0 && millis() - _arrivals[0].ms > 4000;
         if (had) { out = _arrivals[0]; memmove(_arrivals, _arrivals + 1, sizeof(Arrival) * --_nArrivals); }
         portEXIT_CRITICAL(&_mux);
         return had;
@@ -565,7 +575,7 @@ private:
         if (ch == Mesh::CH_MITAMA) {
             bool arriving = !n->crew || now - n->heardMs > CREW_AWAY_MS;
             n->crew = true;
-            if (arriving && _nArrivals < 4) _arrivals[_nArrivals++] = { from, _friendIdx(from) >= 0 };
+            if (arriving && _nArrivals < 4) _arrivals[_nArrivals++] = { from, _friendIdx(from) >= 0, now };
         }
         n->heardMs = now; n->rssi = rssi;
         portEXIT_CRITICAL(&_mux);
