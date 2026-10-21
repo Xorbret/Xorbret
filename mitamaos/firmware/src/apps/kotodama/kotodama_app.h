@@ -15,6 +15,8 @@
 //
 // Keys: type and Enter to send, Tab switch channel, fn+; fn+. scroll,
 // fn+R radio on/off, fn+N set your name, fn+G change region, fn+` back.
+// fn+C opens Crew: other Mitama heard in range, and your friends
+// (; . move, Enter add / remove a friend, ` back to the chat).
 class KotodamaApp : public App {
 public:
     KotodamaApp(LGFX_Sprite& canvas) : _canvas(canvas) {}
@@ -26,14 +28,14 @@ public:
     void onStart() override {
         OsUI::waitRelease();
         _msgs = new (std::nothrow) Kotodama::Msg[Kotodama::MAX_MSGS];
-        _input = ""; _scroll = 0; _naming = false; _note = "";
+        _input = ""; _scroll = 0; _naming = false; _note = ""; _closeCrew();
         auto& k = Kotodama::get();
         _picking = k.region() == Mesh::REG_UNSET;
         // Respect fn+R: only start the radio if it was left on (or never set).
         if (!_picking && k.wantOn() && k.state() != Kotodama::ST_ON) k.start();
         _draw();
     }
-    void onStop() override { delete[] _msgs; _msgs = nullptr; }
+    void onStop() override { delete[] _msgs; _msgs = nullptr; _closeCrew(); }
 
     void update() override {
         M5Cardputer.update();
@@ -41,7 +43,7 @@ public:
         auto& k = Kotodama::get();
         if (kb.isChange() && kb.isPressed()) {
             auto st = kb.keysState();
-            if (!(_picking ? _pickKeys(st) : _handleKeys(st))) return;   // left the app
+            if (!(_picking ? _pickKeys(st) : _crew ? _crewKeys(st) : _handleKeys(st))) return;   // left the app
             _draw();
         }
         if (k.serial() != _seenSerial || millis() - _lastDraw > 1000) _draw();
@@ -57,6 +59,76 @@ private:
     uint32_t _seenSerial = 0, _lastDraw = 0;
     bool     _redraw = false;                 // scroll was clamped; draw again
     String   _note;                       // one-line status under the input
+    Kotodama::CrewRow* _crew = nullptr;   // the Crew screen's rows, only while it's open
+    int      _crewN = 0, _crewSel = 0, _crewTop = 0;
+    static constexpr int CREW_MAX = Kotodama::MAX_FRIENDS + Kotodama::MAX_NODES;
+
+    void _openCrew() {
+        if (!_crew) _crew = new (std::nothrow) Kotodama::CrewRow[CREW_MAX];
+        _crewSel = _crewTop = 0; _note = "";
+    }
+    void _closeCrew() { delete[] _crew; _crew = nullptr; _crewN = 0; }
+
+    bool _crewKeys(const Keyboard_Class::KeysState& st) {
+        for (char c : st.word) {
+            if (c == '`' || (st.fn && (c == 'c' || c == 'C'))) { _closeCrew(); _note = ""; return true; }
+            if (c == ';') _crewSel = max(0, _crewSel - 1);
+            if (c == '.') _crewSel = min(_crewN - 1, _crewSel + 1);
+        }
+        if (st.enter && _crewSel < _crewN) {
+            auto& r = _crew[_crewSel];
+            if (!Kotodama::get().setFriend(r.num, !r.isFriend)) _note = "Friend list is full (16).";
+            else _note = r.isFriend ? "Removed from friends." : "Added to friends.";
+        }
+        return true;
+    }
+
+    static void _ago(char* out, size_t n, uint32_t heardMs) {
+        if (!heardMs) { snprintf(out, n, "not heard"); return; }
+        uint32_t s = (millis() - heardMs) / 1000;
+        if (s < 60)        snprintf(out, n, "now");
+        else if (s < 3600) snprintf(out, n, "%um", (unsigned)(s / 60));
+        else               snprintf(out, n, "%uh", (unsigned)(s / 3600));
+    }
+
+    void _drawCrew() {
+        auto& k = Kotodama::get();
+        _crewN = _crew ? k.crew(_crew, CREW_MAX) : 0;
+        if (_crewSel >= _crewN) _crewSel = max(0, _crewN - 1);
+        int y = HEADER_H + 2;
+        MUI::text(_canvas, MUI::small(), "CREW", 4, y, MUI::YELLOW, 1);
+        MUI::text(_canvas, MUI::small(), "Mitama in LoRa range, and friends", 40, y, MUI::DIM);
+        const int top = HEADER_H + 16, lh = 12;
+        const int vis = (SCREEN_H - FOOTER_H - top) / lh;
+        const char* stateMsg = _stateText(k.state());
+        if (!_crewN) {
+            MUI::text(_canvas, MUI::small(), stateMsg ? stateMsg : "No other Mitama heard yet.", 4, top + 4, stateMsg ? MUI::YELLOW : MUI::DIM);
+            if (!stateMsg) MUI::text(_canvas, MUI::small(), "They show up here when they're in range.", 4, top + 17, MUI::DIM);
+        }
+        if (_crewSel < _crewTop) _crewTop = _crewSel;
+        if (_crewSel >= _crewTop + vis) _crewTop = _crewSel - vis + 1;
+        for (int i = 0; i < vis && _crewTop + i < _crewN; i++) {
+            auto& r = _crew[_crewTop + i];
+            int ry = top + i * lh;
+            bool sel = _crewTop + i == _crewSel;
+            if (sel) {
+                _canvas.fillRect(1, ry - 1, SCREEN_W - 2, lh, MUI::PANEL);
+                _canvas.drawRect(1, ry - 1, SCREEN_W - 2, lh, MUI::MAGENTA);
+            }
+            if (r.isFriend) MUI::text(_canvas, MUI::small(), "*", 5, ry, MUI::YELLOW);
+            char right[24], ago[12];
+            _ago(ago, sizeof(ago), r.heardMs);
+            if (r.heardMs) snprintf(right, sizeof(right), "%d dBm  %s", r.rssi, ago);
+            else snprintf(right, sizeof(right), "%s", ago);
+            int rw = MUI::width(_canvas, MUI::small(), right);
+            _canvas.setClipRect(14, ry, SCREEN_W - 22 - rw, lh);
+            MUI::text(_canvas, MUI::small(), r.name, 14, ry, r.heardMs ? (sel ? MUI::WHITE : MUI::LABEL) : MUI::DIM);
+            _canvas.clearClipRect();
+            MUI::text(_canvas, MUI::small(), right, SCREEN_W - 5 - rw, ry, r.heardMs ? MUI::CYAN : MUI::DIM);
+        }
+        const char* foot = _note.length() ? _note.c_str() : (_crewN ? "ENT friend  ; . move  ` chat" : "` back to the chat");
+        MUI::footer(_canvas, foot, _note.length() ? MUI::YELLOW : MUI::DIM);
+    }
 
     bool _pickKeys(const Keyboard_Class::KeysState& st) {
         for (char c : st.word) {
@@ -83,6 +155,7 @@ private:
                 if (c == 'r' || c == 'R') { k.setOn(!k.wantOn()); _note = ""; }
                 if (c == 'n' || c == 'N') { _naming = true; _input = k.longName(); }
                 if (c == 'g' || c == 'G') _picking = true;
+                if (c == 'c' || c == 'C') _openCrew();
             }
             return true;
         }
@@ -239,7 +312,7 @@ private:
 
         if (k.takeSendFailed()) _note = "That one didn't send. Try again.";
         else if (_note == "Sending..." && !k.sending()) _note = "";
-        const char* foot = _note.length() ? _note.c_str() : "ENT send  TAB channel  fn+R radio  fn+N name";
+        const char* foot = _note.length() ? _note.c_str() : "ENT send  TAB channel  fn+C crew  fn+R radio";
         MUI::footer(_canvas, foot, _note.length() ? MUI::YELLOW : MUI::DIM);
     }
 
@@ -248,7 +321,7 @@ private:
         _seenSerial = Kotodama::get().serial();
         _canvas.fillSprite(MUI::BG);
         MUI::header(_canvas, "KOTODAMA", MUI::YELLOW);
-        if (_picking) _drawPicker(); else _drawChat();
+        if (_picking) _drawPicker(); else if (_crew) _drawCrew(); else _drawChat();
         if (_redraw) { _redraw = false; _draw(); return; }
         { DispLock _lk; _canvas.pushSprite(0, 0); }
     }

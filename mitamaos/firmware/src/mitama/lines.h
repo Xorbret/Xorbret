@@ -27,6 +27,8 @@ enum Event : uint8_t {
     EV_RACE_DONE,  // ...and that finished its race
     EV_WHISPER,    // a Kotodama (LoRa chat) message arrived; {d} = sender
     EV_FORM,       // a new Mitama form unlocked; {f} = its name
+    EV_CREW_FRIEND,    // a friend's Mitama came into LoRa range; {d} = their name
+    EV_CREW_STRANGER,  // another Mitama we haven't befriended; {d} = its name
     EV_COUNT
 };
 
@@ -186,6 +188,16 @@ static const Line BANK[] = {
     { EV_FORM, T_ANY, "{f} form acquired. Fashion is a status effect. F to equip." },
     { EV_FORM, T_ANY, "Unlocked {f}. Every demon needs a wardrobe. Press F on Proxima." },
     { EV_FORM, T_ANY, "A new shape stirs: {f}. The Compendium lists the rest." },
+
+    // ── crew: other Mitama in LoRa range ──
+    { EV_CREW_FRIEND, T_ANY, "{d} is in range. Your party grows. Try not to embarrass me." },
+    { EV_CREW_FRIEND, T_ANY, "I sense {d}'s Mitama nearby. We go way back. Days, even." },
+    { EV_CREW_FRIEND, T_ANY, "{d} has joined the party. Kotodama, if you've got something to say." },
+    { EV_CREW_FRIEND, T_ANY, "Friendly spirit on the air: {d}. Wave. Metaphorically." },
+    { EV_CREW_STRANGER, T_ANY, "Another Mitama in range: {d}. One of us. Add them in Kotodama, fn+C." },
+    { EV_CREW_STRANGER, T_ANY, "A rival spirit, {d}, haunts this radio band. Befriend or ignore?" },
+    { EV_CREW_STRANGER, T_ANY, "{d} carries a Mitama too. Small world. Smaller band." },
+    { EV_CREW_STRANGER, T_ANY, "Unfamiliar Mitama nearby: {d}. Crew list's in Kotodama." },
 };
 
 static constexpr int BANK_N = sizeof(BANK) / sizeof(BANK[0]);

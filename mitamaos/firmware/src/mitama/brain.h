@@ -66,6 +66,15 @@ public:
                  threat ? M_ALARMED : M_SMUG, now);
             spoke = true;
         }
+        Kotodama::Arrival ka;
+        if (!spoke && !threatFresh && _sass > 0 && Kotodama::get().takeArrival(ka)) {
+            static char crewName[28];
+            Kotodama::get().nameOf(ka.num, crewName, sizeof(crewName));
+            DetectionEngine::Sighting s; s.detail = crewName;
+            _say(ka.isFriend ? Lines::EV_CREW_FRIEND : Lines::EV_CREW_STRANGER, &s, false,
+                 ka.isFriend ? M_SMUG : M_CURIOUS, now);
+            spoke = true;
+        }
         Kotodama::Msg km;
         if (!spoke && !threatFresh && _sass > 0 && Kotodama::get().takeIncoming(km)) {
             static char who[28];

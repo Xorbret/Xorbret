@@ -38,9 +38,20 @@ public:
         int8_t   snr = 0;
         char     text[Mesh::MAX_TEXT + 1] = "";
     };
-    struct Node { uint32_t num = 0; char shortName[5] = ""; char longName[25] = ""; };
+    struct Node {
+        uint32_t num = 0; char shortName[5] = ""; char longName[25] = "";
+        uint32_t heardMs = 0;    // millis() of the last packet from it (0 = only named)
+        int16_t  rssi = 0;
+        bool     crew = false;   // heard on the Mitama channel: another MitamaOS user
+    };
+    // One row of the Crew list: friends first (heard or not), then other
+    // Mitama heard this session, most recent first.
+    struct CrewRow { uint32_t num = 0; char name[25] = ""; uint32_t heardMs = 0; int16_t rssi = 0; bool isFriend = false; };
+    // Someone from the crew came into range (first time, or back after 30 min).
+    struct Arrival { uint32_t num = 0; bool isFriend = false; };
 
     static constexpr int MAX_MSGS = 16, MAX_NODES = 24;     // MAX_MSGS per channel
+    static constexpr int MAX_FRIENDS = 16;
 
     enum State : uint8_t { ST_OFF, ST_NO_REGION, ST_NO_CAP, ST_RADIO_FAIL, ST_ON };
 
@@ -120,6 +131,7 @@ public:
         _radio->startReceive();
         _state = ST_ON;
         _announceAt = millis() + 3000;      // say who we are shortly after starting
+        _crewAt = millis() + CREW_MS;
         // The task ends itself when the radio stops (frees its stack); the
         // lock makes "is it still running?" and its exit one step.
         if (!_task) xTaskCreatePinnedToCore(_taskFn, "kotodama", 8192, this, 1, &_task, 0);
@@ -194,6 +206,69 @@ public:
         snprintf(out, cap, "!%04x", (unsigned)(num & 0xFFFF));
     }
 
+    // ── Crew: other Mitama in radio range, and your friends ──
+    int crew(CrewRow* out, int cap) {
+        int n = 0;
+        portENTER_CRITICAL(&_mux);
+        for (int i = 0; i < _nFriends && n < cap; i++) {
+            CrewRow& r = out[n++];
+            r = CrewRow();
+            r.num = _friends[i].num; r.isFriend = true;
+            strncpy(r.name, _friends[i].name, sizeof(r.name) - 1);
+            const Node* nd = _find(r.num);
+            if (nd) { r.heardMs = nd->heardMs; r.rssi = nd->rssi; if (nd->longName[0]) strncpy(r.name, nd->longName, sizeof(r.name) - 1); }
+        }
+        int firstOther = n;
+        for (auto& nd : _nodes) {
+            if (n >= cap) break;
+            if (!nd.num || !nd.crew || _friendIdx(nd.num) >= 0) continue;
+            CrewRow r; r.num = nd.num; r.heardMs = nd.heardMs; r.rssi = nd.rssi;
+            if (nd.longName[0]) strncpy(r.name, nd.longName, sizeof(r.name) - 1);
+            else snprintf(r.name, sizeof(r.name), "!%04x", (unsigned)(nd.num & 0xFFFF));
+            int k = n++;   // insertion sort, most recent first
+            while (k > firstOther && (int32_t)(out[k - 1].heardMs - r.heardMs) < 0) { out[k] = out[k - 1]; k--; }
+            out[k] = r;
+        }
+        portEXIT_CRITICAL(&_mux);
+        return n;
+    }
+    bool isFriend(uint32_t num) {
+        portENTER_CRITICAL(&_mux);
+        bool f = _friendIdx(num) >= 0;
+        portEXIT_CRITICAL(&_mux);
+        return f;
+    }
+    // Adds or removes a friend. False when the list is full.
+    bool setFriend(uint32_t num, bool on) {
+        char name[25];
+        nameOf(num, name, sizeof(name));
+        bool ok = true;
+        portENTER_CRITICAL(&_mux);
+        int i = _friendIdx(num);
+        if (on && i < 0) {
+            if (_nFriends < MAX_FRIENDS) {
+                _friends[_nFriends].num = num;
+                strncpy(_friends[_nFriends].name, name, sizeof(_friends[0].name) - 1);
+                _friends[_nFriends].name[sizeof(_friends[0].name) - 1] = 0;
+                _nFriends++;
+                _friendsDirty = true;
+            } else ok = false;
+        } else if (!on && i >= 0) {
+            memmove(&_friends[i], &_friends[i + 1], sizeof(_friends[0]) * (_nFriends - i - 1));
+            _nFriends--;
+            _friendsDirty = true;
+        }
+        portEXIT_CRITICAL(&_mux);
+        return ok;
+    }
+    bool takeArrival(Arrival& out) {
+        portENTER_CRITICAL(&_mux);
+        bool had = _nArrivals > 0;
+        if (had) { out = _arrivals[0]; memmove(_arrivals, _arrivals + 1, sizeof(Arrival) * --_nArrivals); }
+        portEXIT_CRITICAL(&_mux);
+        return had;
+    }
+
     // Newest incoming text, for the Mitama to mention (once).
     bool takeIncoming(Msg& out) {
         portENTER_CRITICAL(&_mux);
@@ -203,8 +278,9 @@ public:
         return had;
     }
 
-    // Main loop: append new messages to the SD log.
+    // Main loop: load / save the friend list, append new messages to the SD log.
     void tick() {
+        _friendsTick();
         if (!_msgs || _serial == _loggedSerial) return;
         _loggedSerial = _serial;
         _Crumb cr("kotodama log");
@@ -235,6 +311,12 @@ private:
     static constexpr int LORA_CS = 5, LORA_IRQ = 4, LORA_RST = 3, LORA_BUSY = 6;
     static constexpr uint8_t IOE_ADDR = 0x43;
     static constexpr uint32_t ANNOUNCE_MS = 3UL * 3600 * 1000;   // Meshtastic's own default
+    // A short "still here" on the Mitama channel only, so crew in range can
+    // see each other (LongFast keeps Meshtastic's 3 h).
+    static constexpr uint32_t CREW_MS = 15UL * 60 * 1000;
+    static constexpr uint32_t CREW_AWAY_MS = 30UL * 60 * 1000;   // gone this long = "arrives" again
+    static constexpr const char* FRIENDS = "/MitamaOS/kotodama/friends.txt";
+    static constexpr const char* FRIENDS_TMP = "/MitamaOS/kotodama/friends.tmp";
 
     // Marks what the radio is doing for the crash log, until scope end.
     struct _Crumb { _Crumb(const char* w) { CrashLog::crumb(w); } ~_Crumb() { CrashLog::done(); } };
@@ -275,6 +357,12 @@ private:
     uint32_t _loggedSerial = 0;
     volatile int _unread[Mesh::CH_COUNT] = {0, 0};
     Node     _nodes[MAX_NODES];
+    struct Friend { uint32_t num; char name[25]; } _friends[MAX_FRIENDS] = {};
+    int      _nFriends = 0;
+    bool     _friendsLoaded = false, _friendsDirty = false;
+    Arrival  _arrivals[4];
+    int      _nArrivals = 0;
+    uint32_t _crewAt = 0;
     struct Seen { uint32_t from, id; } _seen[32] = {};
     int      _seenNext = 0;
     Msg      _lastIn;
@@ -333,6 +421,7 @@ private:
             if (_txPending) _sendQueued();
             else if ((int32_t)(millis() - _announceAt) >= 0) { _announce(); _announceAt = millis() + ANNOUNCE_MS; }
             else if (_replyAt && (int32_t)(millis() - _replyAt) >= 0) { _replyAt = 0; _lastReply = millis(); _announceOn(Mesh::CH_MITAMA, false); }
+            else if ((int32_t)(millis() - _crewAt) >= 0) { _crewAt = millis() + CREW_MS; _announceOn(Mesh::CH_MITAMA, false); }
         }
     }
 
@@ -371,6 +460,7 @@ private:
         Mesh::crypt(Mesh::channel(ch).key, h.id, h.from, body, blen);
         uint32_t port; const uint8_t* pl; size_t plen; bool wantResp;
         if (!Mesh::decodeData(body, blen, port, pl, plen, &wantResp)) return;
+        _heard(h.from, ch, rssi);
 
         if (port == Mesh::PORT_NODEINFO && pl) {
             Node n; n.num = h.from;
@@ -398,14 +488,102 @@ private:
         return false;
     }
 
-    void _rememberNode(const Node& n) {
+    // Call under _mux.
+    Node* _find(uint32_t num) {
+        for (auto& n : _nodes) if (n.num == num) return &n;
+        return nullptr;
+    }
+    int _friendIdx(uint32_t num) const {
+        for (int i = 0; i < _nFriends; i++) if (_friends[i].num == num) return i;
+        return -1;
+    }
+    // The node's slot, made if new (replacing the longest-silent one). Under _mux.
+    Node* _slot(uint32_t num) {
+        Node* n = _find(num);
+        if (n) return n;
+        Node* best = &_nodes[0];
+        for (auto& x : _nodes) {
+            if (!x.num) { best = &x; break; }
+            if ((int32_t)(x.heardMs - best->heardMs) < 0) best = &x;
+        }
+        *best = Node();
+        best->num = num;
+        return best;
+    }
+
+    // Any packet we could read: note when and how strong; on the Mitama
+    // channel that's a crew member, maybe just arriving.
+    void _heard(uint32_t from, int ch, int16_t rssi) {
+        uint32_t now = millis() | 1;
         portENTER_CRITICAL(&_mux);
-        int slot = -1;
-        for (int i = 0; i < MAX_NODES; i++) if (_nodes[i].num == n.num) slot = i;
-        if (slot < 0) for (int i = 0; i < MAX_NODES; i++) if (!_nodes[i].num) { slot = i; break; }
-        if (slot < 0) slot = esp_random() % MAX_NODES;
-        _nodes[slot] = n;
+        Node* n = _slot(from);
+        if (ch == Mesh::CH_MITAMA) {
+            bool arriving = !n->crew || now - n->heardMs > CREW_AWAY_MS;
+            n->crew = true;
+            if (arriving && _nArrivals < 4) _arrivals[_nArrivals++] = { from, _friendIdx(from) >= 0 };
+        }
+        n->heardMs = now; n->rssi = rssi;
         portEXIT_CRITICAL(&_mux);
+    }
+
+    void _rememberNode(const Node& in) {
+        portENTER_CRITICAL(&_mux);
+        Node* n = _slot(in.num);
+        memcpy(n->longName, in.longName, sizeof(n->longName));
+        memcpy(n->shortName, in.shortName, sizeof(n->shortName));
+        int f = _friendIdx(in.num);   // a friend renamed: keep the saved name current
+        if (f >= 0 && in.longName[0] && strcmp(_friends[f].name, in.longName)) {
+            strncpy(_friends[f].name, in.longName, sizeof(_friends[f].name) - 1);
+            _friendsDirty = true;
+        }
+        portEXIT_CRITICAL(&_mux);
+    }
+
+    // friends.txt: one "<node number in hex> <name>" per line. Written
+    // whole to a .tmp and swapped in, like the Compendium.
+    void _friendsTick() {
+        if (SD.cardType() == CARD_NONE) return;
+        if (!_friendsLoaded) {
+            _friendsLoaded = true;
+            if (!SD.exists(FRIENDS) && SD.exists(FRIENDS_TMP)) SD.rename(FRIENDS_TMP, FRIENDS);
+            File f = SD.open(FRIENDS, FILE_READ);
+            if (f) {
+                Friend tmp[MAX_FRIENDS]; int n = 0;
+                while (f.available() && n < MAX_FRIENDS) {
+                    String line = f.readStringUntil('\n');
+                    line.trim();
+                    int sp = line.indexOf(' ');
+                    if (sp <= 0) continue;
+                    uint32_t num = strtoul(line.substring(0, sp).c_str(), nullptr, 16);
+                    if (!num) continue;
+                    tmp[n].num = num;
+                    String nm = line.substring(sp + 1); nm.trim();
+                    strncpy(tmp[n].name, nm.c_str(), sizeof(tmp[n].name) - 1);
+                    tmp[n].name[sizeof(tmp[n].name) - 1] = 0;
+                    n++;
+                }
+                f.close();
+                portENTER_CRITICAL(&_mux);
+                memcpy(_friends, tmp, sizeof(Friend) * n);
+                _nFriends = n;
+                portEXIT_CRITICAL(&_mux);
+            }
+        }
+        if (!_friendsDirty) return;
+        Friend copy[MAX_FRIENDS]; int n;
+        portENTER_CRITICAL(&_mux);
+        _friendsDirty = false;
+        n = _nFriends;
+        memcpy(copy, _friends, sizeof(Friend) * n);
+        portEXIT_CRITICAL(&_mux);
+        _Crumb cr("kotodama friends");
+        if (!SD.exists("/MitamaOS/kotodama")) SD.mkdir("/MitamaOS/kotodama");
+        File f = SD.open(FRIENDS_TMP, FILE_WRITE);
+        if (!f) return;
+        for (int i = 0; i < n; i++) f.printf("%08lx %s\n", (unsigned long)copy[i].num, copy[i].name);
+        f.close();
+        SD.remove(FRIENDS);
+        SD.rename(FRIENDS_TMP, FRIENDS);
     }
 
     // k-th oldest message of a channel's ring. Call under _mux.
