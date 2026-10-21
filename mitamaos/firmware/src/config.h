@@ -73,7 +73,7 @@ static const uint16_t TILE_COLORS[NUM_TILE_COLORS] = {
 
 // Feature toggles. All apps are compiled in by default; flip one of these
 // to 0 to drop it from the binary if flash/RAM ever gets tight.
-#define PAPEROS_ENABLE_BROWSER  1
+#define PAPEROS_ENABLE_BROWSER  0   // removed 2026-10-21 (Robert): text-only, frees flash and RAM
 #define PAPEROS_ENABLE_EDITOR3D 0   // removed 2026-10-19 (Robert): frees RAM for Scry
 #define PAPEROS_ENABLE_PAINT    0   // removed 2026-10-19
 #define PAPEROS_ENABLE_PIANO    0   // removed 2026-10-19

@@ -133,6 +133,7 @@ public:
         _clipMove = false;
         _hintPage = 0;
 
+#if PAPEROS_ENABLE_BROWSER
         // Set by Browser::_downloadAndViewImage right before launch("Files")
         // - same pending-file handoff pattern as g_musicPendingFile /
         // g_editor3dPendingFile, just declared in browser.h (included
@@ -148,6 +149,7 @@ public:
             String lowExt = pendingPath; lowExt.toLowerCase();
             _viewImage(pendingPath, lowExt);
         }
+#endif
 
         _loadDir();
         _draw();
