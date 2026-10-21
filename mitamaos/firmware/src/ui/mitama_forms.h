@@ -273,11 +273,13 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         p.rect(bx - 1 * f, by + 1, 2 * f, 4 * f, BROWN);
         p.disc(bx, by - 1 * f, 1 * f, WHITE);
         break; }
-    case F_HOSHI: { // a glowing pearl in the curl of the crest
-        float x = cx + 6 * s, y = cy + 10 * s;
-        p.disc(x, y, 5 * f, WHITE);
-        p.tri(x - 4 * f, y - 2 * f, x + 1 * f, y - 10 * f, x + 4 * f, y - 2 * f, WHITE);
-        p.disc(x, y, 2.5f * f, CYAN);
+    case F_HOSHI: { // a glowing pearl floating beside the Mitama
+        float x = p.px(-48, 84), y = p.py(-48, 84), r = 4 * f;
+        p.c.drawCircle(lroundf(x), lroundf(y), lroundf(r + 2.2f * f), CYAN);
+        p.disc(x, y, r, WHITE);
+        p.disc(x - r * 0.35f, y - r * 0.35f, max(1.0f, r * 0.35f), 0xBF7F);   // highlight
+        p.disc(x - 9 * f, y + 6 * f, 1 * f, CYAN);
+        p.disc(x + 7 * f, y - 8 * f, 1 * f, WHITE);
         break; }
     case F_YUREI: // the white forehead triangle of a ghost
         p.tri(cx - 10 * s, cy - 56 * s, cx + 10 * s, cy - 56 * s, cx, cy - 74 * s, WHITE);
