@@ -356,26 +356,29 @@ namespace MUI {
         case SIG_ORACLE: // three linked circles
             p.ring(12, 9, 4); p.ring(8.8f, 14.6f, 4); p.ring(15.2f, 14.6f, 4);
             break;
-        case SIG_SCRY: // scrying eye: almond lids, iris, pupil, sight-line ticks
-            p.arc(12, 21, 12, 223, 317);
-            p.arc(12, 3, 12, 43, 137);
-            p.ring(12, 12, 3.4f);
-            p.dot(12, 12, 1.2f);
-            p.line(12, 1.5f, 12, 4.5f); p.line(12, 19.5f, 12, 22.5f);
-            p.line(1.5f, 12, 3.2f, 12); p.line(20.8f, 12, 22.5f, 12);
-            break;
+        case SIG_SCRY: { // the spoken seal: a sigil rises from the torii and scatters into the unseen
+            float kasagi[] = { 4.6f, 12.6f, 6.2f, 13.5f, 17.8f, 13.5f, 19.4f, 12.6f };
+            p.poly(kasagi, 4, false);
+            p.line(7, 15.6f, 17, 15.6f);
+            p.line(8.4f, 13.5f, 8.4f, 21); p.line(15.6f, 13.5f, 15.6f, 21);
+            float seal[] = { 12, 3.6f, 14.6f, 6.6f, 12, 9.6f, 9.4f, 6.6f };
+            p.poly(seal, 4);
+            p.dot(12, 6.6f, 0.9f);
+            p.dot(7.6f, 4.4f, 0.8f); p.dot(16.6f, 3.4f, 0.6f); p.dot(17.6f, 7.4f, 0.9f); p.dot(6.6f, 8.4f, 0.5f);
+            break; }
         case SIG_MOLT: // ouroboros: the serpent swallowing its tail, renewed
             p.arc(12, 12, 8, 40, 340);
             p.ring(18.1f, 17.1f, 2.2f);           // head
             p.line(19.5f, 9.3f, 19.0f, 14.9f);    // tail into the jaws
             p.dot(12, 12, 1.4f);
             break;
-        case SIG_KOTODAMA: // spirit of words: a voice carried off on the wind
-            p.dot(6, 18, 1.8f);
-            p.arc(6, 18, 6, 270, 360);
-            p.arc(6, 18, 10.5f, 270, 360);
-            p.arc(6, 18, 15, 280, 350);
-            p.dot(8.6f, 3.2f, 0.9f); p.dot(20.8f, 15.4f, 0.9f);
+        case SIG_KOTODAMA: // one spirit, four souls (ichirei shikon): four magatama turned to the centre
+            for (int k = 0; k < 4; k++) {
+                float phi = -45 + 90 * k, r = phi * (float)DEG_TO_RAD;
+                float mx = 12 + (3.6f + 2.4f) * cosf(r), my = 12 + (3.6f + 2.4f) * sinf(r);
+                MitamaLogo::_magatama(c, p.X(mx), p.Y(my), 2.4f * p.s, 1.6f * p.s, phi + 180, phi + 415, 0.82f, col);
+            }
+            p.dot(12, 12, 1.4f);
             break;
         case SIG_OMIKUJI: { // the shrine's six-sided fortune box, one stick drawn
             float h[] = { 12, 8.5f, 17.2f, 11.5f, 17.2f, 18.5f, 12, 21.5f, 6.8f, 18.5f, 6.8f, 11.5f };
