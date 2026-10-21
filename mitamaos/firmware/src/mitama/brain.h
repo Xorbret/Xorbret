@@ -17,6 +17,7 @@
 #include "../detect/scry.h"
 #include "../system/gps.h"
 #include "../ui/mitama_ui.h"
+#include "forms.h"
 
 class MitamaBrain {
 public:
@@ -27,7 +28,7 @@ public:
     // Call about once a second with fresh detection stats.
     void update(const DetectionEngine::Stats& st) {
         uint32_t now = millis();
-        if (!_started) { _started = true; _sass = _loadSass(); _say(Lines::EV_BOOT, nullptr, false, M_CALM, now); }
+        if (!_started) { _started = true; _sass = _loadSass(); Forms::get().begin(); _say(Lines::EV_BOOT, nullptr, false, M_CALM, now); }
 
         // ── events, most important first ──
         // One event line per check: a later event only speaks if nothing
@@ -40,6 +41,7 @@ public:
             if (r.firstMs <= _lastSightMs) continue;
             _lastSightMs = r.firstMs;
             uint8_t race = Sig::raceOf(r.type);
+            { struct tm t; if (MUI::localNow(t) && t.tm_hour >= 1 && t.tm_hour < 5) Forms::get().setFlag(Forms::FL_NIGHT); }
             if (_sameDemon(r) ) continue;         // same demon within 60s: no repeat flavor
             Mood m = race == Sig::R_FIEND ? M_ALARMED
                    : race == Sig::R_FOUL  ? M_CONTEMPT
@@ -91,6 +93,16 @@ public:
         bool scry = ScryLogger::get().recording();
         if (scry && !_hadScry && _sass > 0 && !spoke) { _say(Lines::EV_SCRY_ON, nullptr, false, M_CURIOUS, now); spoke = true; }
         _hadScry = scry;
+        if (scry && fix && ScryLogger::get().wifiCount() >= 100) Forms::get().setFlag(Forms::FL_SCRY);
+        if (Kotodama::get().sentCount()) Forms::get().setFlag(Forms::FL_KOTO);
+        // A newly earned form: one announcement at a time, 20 s apart.
+        uint8_t form;
+        if (!spoke && !threatFresh && _sass > 0 && now - _formLineMs > 20000 && Forms::get().takeNew(form)) {
+            _formName = Forms::name(form);
+            _say(Lines::EV_FORM, nullptr, false, M_SMUG, now);
+            _formLineMs = now;
+            spoke = true;
+        }
         bool online = WiFi.status() == WL_CONNECTED;
         if (online && !_wasOnline && now > 15000 && _sass > 0 && !spoke) _say(Lines::EV_WIFI_JOIN, nullptr, false, M_CALM, now);
         _wasOnline = online;
@@ -148,6 +160,8 @@ private:
     bool     _hadThreat = false, _hadFix = false, _hadScry = false, _wasOnline = false;
     bool     _sincerePending = false;
     uint32_t _sincereAt = 0;
+    uint32_t _formLineMs = 0;
+    const char* _formName = "";
     // last few demons spoken about, for the 60s collapse rule
     struct Seen { uint8_t type; uint8_t mac[6]; uint32_t ms; } _seen[6] = {};
     uint8_t  _seenNext = 0;
@@ -250,6 +264,7 @@ private:
             if (strncmp(t, "{sp}", 4) == 0)     { sub = r ? Sig::typeName(r->type) : "something"; t += 4; }
             else if (strncmp(t, "{d}", 3) == 0) { sub = r && r->detail ? r->detail : (r ? Sig::typeName(r->type) : "Something"); t += 3; }
             else if (strncmp(t, "{n}", 3) == 0) { snprintf(num, sizeof(num), "%d", n); sub = num; t += 3; }
+            else if (strncmp(t, "{f}", 3) == 0) { sub = _formName; t += 3; }
             else if (strncmp(t, "{r}", 3) == 0) { sub = r ? Sig::raceName(Sig::raceOf(r->type)) : "demon"; t += 3; }
             if (sub) { while (*sub && k < sizeof(_line) - 1) _line[k++] = *sub++; }
             else _line[k++] = *t++;

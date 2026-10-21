@@ -156,9 +156,11 @@ public:
         strncpy(_txText, text, Mesh::MAX_TEXT); _txText[Mesh::MAX_TEXT] = 0;
         _txCh = ch;
         _txPending = true;
+        _sentN++;
         return true;
     }
     bool sending() const { return _txPending; }
+    uint32_t sentCount() const { return _sentN; }   // messages queued since boot
     // Set when the last queued message failed to go out; read once.
     bool takeSendFailed() { bool f = _txFailed; _txFailed = false; return f; }
 
@@ -261,6 +263,7 @@ private:
     char    _long[25] = "", _short[5] = "";
 
     volatile bool _txPending = false;
+    uint32_t _sentN = 0;
     char     _txText[Mesh::MAX_TEXT + 1];
     uint8_t  _txCh = 0;
     uint32_t _announceAt = 0;

@@ -127,7 +127,7 @@ namespace MUI {
     // design box from docs/ui.html's soul(); (cx,cy) is the centre. `spin`
     // rotates the dashed bones ring (degrees) for the slow idle turn.
     inline void soul(LGFX_Sprite& c, int cx, int cy, int size, uint16_t accent, uint16_t aura,
-                     float spin = 0) {
+                     float spin = 0, uint16_t bones = BONES) {
         float s = size / 200.0f;
         uint16_t sh[3]; _auraShades(aura, sh);
         int ay = cy + (int)(4 * s);
@@ -137,7 +137,7 @@ namespace MUI {
         c.fillCircle(cx, cy, (int)(58 * s), PANEL);
         int r = (int)(58 * s), w = max(1, (int)(3 * s + 0.5f));
         c.fillArc(cx, cy, r - w + 1, r, 0, 360, accent);
-        MitamaLogo::_dashRing(c, cx, cy, 50 * s, 1, 3, 6, BONES, spin);
+        MitamaLogo::_dashRing(c, cx, cy, 50 * s, 1, 3, 6, bones, spin);
         MitamaLogo::_magatama(c, cx, cy + 6 * s, 19 * s, 14 * s, -60, 185, 0.82f, accent);
     }
 

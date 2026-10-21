@@ -10,6 +10,7 @@
 #include "../../ui/species_sigils.h"
 #include "../../ui/race_colors.h"
 #include "../../detect/compendium.h"
+#include "../../mitama/forms.h"
 
 // Compendium - the bestiary of every demon (device) the Mitama has met
 // (outline §5a, §15). Split view: a race-grouped list on the left, the
@@ -17,7 +18,10 @@
 // Fiend entries are drawn wrong on purpose: a jittering sigil with the red
 // bones showing through and a name that won't hold still.
 //
-// Keys: ; . move, , / jump a race, ` back.
+// F switches to the Mitama's forms: every form, how to unlock it, and
+// ENT to wear an unlocked one.
+//
+// Keys: ; . move, , / jump a race, F forms, ` back.
 class CompendiumApp : public App {
 public:
     CompendiumApp(LGFX_Sprite& canvas) : _canvas(canvas) {}
@@ -42,6 +46,14 @@ public:
         M5Cardputer.update();
         auto& kb = M5Cardputer.Keyboard;
         if (kb.isKeyPressed('`')) { OsUI::waitRelease(); AppManager::get().goHome(); return; }
+        if (kb.isKeyPressed('f')) {
+            OsUI::waitRelease();
+            _formsView = !_formsView;
+            if (_formsView) { _fsel = Forms::get().current(); _fScrollTo(); }
+            _draw();
+            return;
+        }
+        if (_formsView) { _formsUpdate(); return; }
         bool moved = false;
         if (kb.isKeyPressed(';')) { _step(-1); moved = true; }
         if (kb.isKeyPressed('.')) { _step(+1); moved = true; }
@@ -68,7 +80,66 @@ private:
     uint32_t _lastDraw = 0;
     static inline uint8_t _openAt = Sig::T_COUNT;
 
+    bool     _formsView = false;
+    uint8_t  _fsel = 0;
+    int      _fscroll = 0;
+
     static uint16_t _raceCol(uint8_t r) { return MUI::raceColor(r); }
+
+    // ---- forms view ----
+    void _formsUpdate() {
+        auto& kb = M5Cardputer.Keyboard;
+        auto st = kb.keysState();
+        bool moved = false;
+        if (kb.isKeyPressed(';')) { _fsel = (_fsel + MUI::F_COUNT - 1) % MUI::F_COUNT; moved = true; }
+        if (kb.isKeyPressed('.')) { _fsel = (_fsel + 1) % MUI::F_COUNT; moved = true; }
+        if (st.enter && Forms::get().isUnlocked(_fsel)) {
+            OsUI::waitRelease();
+            Forms::get().wear(_fsel);
+            _draw();
+            return;
+        }
+        if (moved) { _fScrollTo(); _draw(); delay(KEY_REPEAT_MS); }
+        else if (millis() - _lastDraw > 1000) _draw();
+    }
+
+    void _fScrollTo() {
+        if (_fsel < _fscroll) _fscroll = _fsel;
+        if (_fsel >= _fscroll + VIS) _fscroll = _fsel - VIS + 1;
+    }
+
+    void _drawForms() {
+        auto& fm = Forms::get();
+        uint8_t worn = fm.current();
+        for (int k = 0; k < VIS && _fscroll + k < MUI::F_COUNT; k++) {
+            uint8_t f = _fscroll + k;
+            int y = LIST_Y + k * ROW_H;
+            bool on = fm.isUnlocked(f);
+            if (f == _fsel) {
+                _canvas.fillRect(1, y - 1, LIST_W - 3, ROW_H, MUI::PANEL);
+                _canvas.drawRect(1, y - 1, LIST_W - 3, ROW_H, MUI::YELLOW);
+            }
+            MUI::text(_canvas, MUI::small(), on ? Forms::name(f) : "???", 6, y,
+                      on ? (f == _fsel ? MUI::WHITE : MUI::LABEL) : MUI::DIM);
+            if (f == worn) MUI::text(_canvas, MUI::small(), "*", LIST_W - 10, y, MUI::YELLOW);
+        }
+        _canvas.drawFastVLine(LIST_W, HEADER_H + 1, SCREEN_H - FOOTER_H - HEADER_H - 2, MUI::BONES_DIM);
+
+        const int x0 = LIST_W + 4, w = SCREEN_W - 3 - x0, cx = x0 + w / 2, cy = HEADER_H + 36;
+        bool on = fm.isUnlocked(_fsel);
+        if (on) {
+            _canvas.setClipRect(LIST_W + 1, HEADER_H + 1, SCREEN_W - LIST_W - 1, 70);
+            MUI::soulForm(_canvas, cx, cy, 62, MUI::YELLOW, MUI::YELLOW, 0, (MUI::Form)_fsel);
+            _canvas.clearClipRect();
+        } else {
+            _canvas.drawCircle(cx, cy, 20, MUI::DIM);
+            MUI::textCentered(_canvas, MUI::title(), "?", cx, cy - 7, MUI::DIM);
+        }
+        int e = MUI::text(_canvas, MUI::title(), on ? Forms::name(_fsel) : "???", x0, HEADER_H + 71,
+                          on ? MUI::YELLOW : MUI::DIM, 1);
+        if (_fsel == worn) MUI::text(_canvas, MUI::small(), "  worn", e, HEADER_H + 73, MUI::DIM);
+        _wrap(Forms::hint(_fsel), x0, HEADER_H + 85, w, 2, on ? MUI::CREAM : MUI::DIM);
+    }
 
     static const char* _devName(uint8_t t) {
         static const char* const N[Sig::T_COUNT] = {
@@ -262,13 +333,23 @@ private:
     void _draw() {
         _lastDraw = millis();
         _canvas.fillSprite(MUI::BG);
+        if (_formsView) {
+            MUI::header(_canvas, "FORMS", MUI::YELLOW);
+            _drawForms();
+            char n[12];
+            snprintf(n, sizeof(n), "%d/%d", Forms::get().unlockedCount(), (int)MUI::F_COUNT);
+            MUI::footer(_canvas, Forms::get().isUnlocked(_fsel) ? "ENT wear   F demons" : "F demons",
+                        MUI::DIM, n);
+            { DispLock _lk; _canvas.pushSprite(0, 0); }
+            return;
+        }
         MUI::header(_canvas, "COMPENDIUM", MUI::YELLOW);
         _drawList();
         _drawCard();
         auto& comp = Compendium::get();
         char count[12];
         snprintf(count, sizeof(count), "%d/%d", comp.metCount(), Compendium::total());
-        if (comp.persistent()) MUI::footer(_canvas, "; . move   , / race", MUI::DIM, count);
+        if (comp.persistent()) MUI::footer(_canvas, "; . move  , / race  F forms", MUI::DIM, count);
         else MUI::footer(_canvas, "No SD card: forgets on reboot", MUI::YELLOW, count);
         { DispLock _lk; _canvas.pushSprite(0, 0); }
     }

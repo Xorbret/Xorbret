@@ -42,6 +42,21 @@ public:
         if (M5Cardputer.Keyboard.isKeyPressed('s')) {
             OsUI::waitRelease();
             MitamaBrain::get().cycleSass();
+            snprintf(_toast, sizeof(_toast), "Sass %u: %s", MitamaBrain::get().sass(),
+                     MitamaBrain::sassName(MitamaBrain::get().sass()));
+            _sassToastTicks = 30;
+            _needRedraw = true;
+        }
+        // F changes the Mitama's form (the unlocked ones; the rest are in the Compendium).
+        if (M5Cardputer.Keyboard.isKeyPressed('f')) {
+            OsUI::waitRelease();
+            auto& fm = Forms::get();
+            if (fm.unlockedCount() > 1) {
+                MUI::Form f = fm.next();
+                snprintf(_toast, sizeof(_toast), "Form: %s", Forms::name(f));
+            } else {
+                snprintf(_toast, sizeof(_toast), "No forms yet. The Compendium lists them.");
+            }
             _sassToastTicks = 30;
             _needRedraw = true;
         }
@@ -82,6 +97,7 @@ private:
     uint32_t _lineShownMs = 0;     // when the current line started showing
     uint32_t _lastSerial = 0xFFFFFFFF;
     int      _sassToastTicks = 0;
+    char     _toast[48] = "";
     float    _spin = 0;
     uint8_t  _shown[3] = {};       // sighting types on screen, for keys 1-3
     int      _shownN = 0;
@@ -107,7 +123,10 @@ private:
                       : st.watch ? MUI::CYAN : online ? MUI::GREEN : MUI::YELLOW;
 
         MUI::header(_canvas, "PROXIMA", aura);
-        MUI::soul(_canvas, 40, 68, 92, MUI::YELLOW, aura, _spin);
+        // forms may reach past the soul: keep them off the header and the text column
+        _canvas.setClipRect(0, HEADER_H + 1, 82, SCREEN_H - FOOTER_H - HEADER_H - 1);
+        MUI::soulForm(_canvas, 40, 68, 92, MUI::YELLOW, aura, _spin, Forms::get().current());
+        _canvas.clearClipRect();
 
         const int x = 84;
         int y = HEADER_H + 3;
@@ -185,7 +204,7 @@ private:
         char say[110];
         if (_sassToastTicks > 0) {
             _sassToastTicks--;
-            snprintf(say, sizeof(say), "Sass %u: %s", brain.sass(), MitamaBrain::sassName(brain.sass()));
+            snprintf(say, sizeof(say), "%s", _toast);
             MUI::footer(_canvas, say, MUI::YELLOW, "ENT apps", aura);
         } else {
             const char* ln = brain.line();

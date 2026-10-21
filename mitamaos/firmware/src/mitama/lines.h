@@ -9,7 +9,8 @@
 // checkable (mythology, folklore, tabletop and JRPG conventions).
 //
 // Slots: {sp} species (CAMERA, AIRTAG...), {d} detail (maker / device),
-//        {n} how many of that race are active now, {r} race name.
+//        {n} how many of that race are active now, {r} race name,
+//        {f} a form's name.
 #include <stdint.h>
 #include "../detect/signatures.h"
 
@@ -25,6 +26,7 @@ enum Event : uint8_t {
     EV_NEW_DEMON,  // a species registered in the Compendium for the first time
     EV_RACE_DONE,  // ...and that finished its race
     EV_WHISPER,    // a Kotodama (LoRa chat) message arrived; {d} = sender
+    EV_FORM,       // a new Mitama form unlocked; {f} = its name
     EV_COUNT
 };
 
@@ -177,6 +179,13 @@ static const Line BANK[] = {
     { EV_WHISPER, T_ANY, "{d} sent word over LoRa. Spirits gossip too." },
     { EV_WHISPER, T_ANY, "Message from {d}, carried over the hills by spirit-speech." },
     { EV_WHISPER, T_ANY, "{d} speaks through the Kotodama. Going to answer?" },
+
+    // ── a new form ──
+    { EV_FORM, T_ANY, "New form unlocked: {f}. F on Proxima to wear it." },
+    { EV_FORM, T_ANY, "I can take the {f} form now. Press F. I'll pretend not to care." },
+    { EV_FORM, T_ANY, "{f} form acquired. Fashion is a status effect. F to equip." },
+    { EV_FORM, T_ANY, "Unlocked {f}. Every demon needs a wardrobe. Press F on Proxima." },
+    { EV_FORM, T_ANY, "A new shape stirs: {f}. The Compendium lists the rest." },
 };
 
 static constexpr int BANK_N = sizeof(BANK) / sizeof(BANK[0]);
