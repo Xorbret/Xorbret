@@ -1206,18 +1206,19 @@ static int lb_bit_rshift(lua_State* L) { lua_pushinteger(L,(lua_Integer)((uint32
 static int lb_bit_arshift(lua_State* L){ lua_pushinteger(L,luaL_checkinteger(L,1)>>luaL_checkinteger(L,2)); return 1; }
 static int lb_bit_tohex(lua_State* L)  { char b[32]; snprintf(b,sizeof(b),"%0*llX",(int)luaL_optinteger(L,2,8),(unsigned long long)(uint64_t)luaL_checkinteger(L,1)); lua_pushstring(L,b); return 1; }
 
-// i2c.*
+// i2c.* - defaults to the Grove port (SDA G2, SCL G1). Wire's own default
+// pins are the internal keyboard bus, which M5Unified already drives.
 static bool g_i2cBegun = false;
-static int lb_i2c_begin(lua_State* L)  { int sda=luaL_optinteger(L,1,-1),scl=luaL_optinteger(L,2,-1); if(sda>=0&&scl>=0)Wire.begin(sda,scl);else Wire.begin(); g_i2cBegun=true; lua_pushboolean(L,true);return 1; }
+static int lb_i2c_begin(lua_State* L)  { int sda=luaL_optinteger(L,1,-1),scl=luaL_optinteger(L,2,-1); if(sda<0||scl<0){sda=2;scl=1;} Wire.begin(sda,scl); g_i2cBegun=true; lua_pushboolean(L,true);return 1; }
 static int lb_i2c_scan(lua_State* L) {
-    if (!g_i2cBegun) { Wire.begin(); g_i2cBegun = true; } // scan()/write()/read() without begin() first used to hang instead of erroring - don't rely on the user remembering
+    if (!g_i2cBegun) { Wire.begin(2, 1); g_i2cBegun = true; } // scan()/write()/read() without begin() first used to hang instead of erroring - don't rely on the user remembering
     Wire.setTimeOut(20); // default timeout multiplied by 126 addresses is what made this feel "slow"
     lua_newtable(L); int idx=1;
     for(uint8_t addr=0x08;addr<=0x77;addr++){Wire.beginTransmission(addr);if(Wire.endTransmission()==0){lua_pushinteger(L,addr);lua_rawseti(L,-2,idx++);}vTaskDelay(1);}
     return 1;
 }
-static int lb_i2c_write(lua_State* L)  { if(!g_i2cBegun){Wire.begin();g_i2cBegun=true;} uint8_t addr=luaL_checkinteger(L,1);size_t len;const char* data=luaL_checklstring(L,2,&len);Wire.beginTransmission(addr);Wire.write((const uint8_t*)data,len);uint8_t err=Wire.endTransmission();lua_pushboolean(L,err==0);lua_pushinteger(L,err);return 2; }
-static int lb_i2c_read(lua_State* L)   { if(!g_i2cBegun){Wire.begin();g_i2cBegun=true;} Wire.requestFrom((uint8_t)luaL_checkinteger(L,1),(uint8_t)luaL_checkinteger(L,2));String out;while(Wire.available())out+=(char)Wire.read();lua_pushlstring(L,out.c_str(),out.length());return 1; }
+static int lb_i2c_write(lua_State* L)  { if(!g_i2cBegun){Wire.begin(2,1);g_i2cBegun=true;} uint8_t addr=luaL_checkinteger(L,1);size_t len;const char* data=luaL_checklstring(L,2,&len);Wire.beginTransmission(addr);Wire.write((const uint8_t*)data,len);uint8_t err=Wire.endTransmission();lua_pushboolean(L,err==0);lua_pushinteger(L,err);return 2; }
+static int lb_i2c_read(lua_State* L)   { if(!g_i2cBegun){Wire.begin(2,1);g_i2cBegun=true;} Wire.requestFrom((uint8_t)luaL_checkinteger(L,1),(uint8_t)luaL_checkinteger(L,2));String out;while(Wire.available())out+=(char)Wire.read();lua_pushlstring(L,out.c_str(),out.length());return 1; }
 static int lb_i2c_end(lua_State* L)    { Wire.end(); return 0; }
 
 // require(modname) — standalone implementation, fully independent of the
@@ -1479,7 +1480,8 @@ static void lua_register_all(lua_State* L) {
     lua_pushcfunction(L,lb_bit_tohex);   lua_setfield(L,-2,"tohex");
     lua_setglobal(L,"bit");
 
-    // i2c.*
+    // i2c.* - defaults to the Grove port (SDA G2, SCL G1). Wire's own default
+// pins are the internal keyboard bus, which M5Unified already drives.
     lua_newtable(L);
     lua_pushcfunction(L,lb_i2c_begin); lua_setfield(L,-2,"begin");
     lua_pushcfunction(L,lb_i2c_scan);  lua_setfield(L,-2,"scan");

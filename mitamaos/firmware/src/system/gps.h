@@ -20,7 +20,9 @@ public:
 
     void begin() {
         Serial1.setRxBufferSize(1024);
-        Serial1.begin(_baud(), SERIAL_8N1, RX_PIN, TX_PIN);
+        // Listen only. G13 stays untouched until a GPS has actually spoken on
+        // G15, so a different cap on the EXT header never sees it driven.
+        Serial1.begin(_baud(), SERIAL_8N1, RX_PIN, -1);
         _sinceSwitch = millis();
     }
 
@@ -36,6 +38,7 @@ public:
         if (_lastMs && !_configured) {
             _configured = true;
             _searchMs = now;
+            Serial1.setPins(RX_PIN, TX_PIN);
             Serial1.print("$PCAS04,7*1E\r\n");
         }
         // No sentences yet: alternate between 115200 and the module's other
