@@ -21,20 +21,23 @@
 // remove a friend, ` back).
 class KotodamaApp : public App {
 public:
-    KotodamaApp(LGFX_Sprite& canvas) : _canvas(canvas) {}
+    // crewOnly: the Kizuna tile - this app opened straight on Crew, which is
+    // also where ` leaves from.
+    KotodamaApp(LGFX_Sprite& canvas, bool crewOnly = false) : _canvas(canvas), _crewOnly(crewOnly) {}
 
-    const char* getName() const override { return "Kotodama"; }
-    const char* getIcon() const override { return "K"; }
-    const char* getDesc() const override { return "LoRa chat"; }
+    const char* getName() const override { return _crewOnly ? "Kizuna" : "Kotodama"; }
+    const char* getIcon() const override { return _crewOnly ? "Z" : "K"; }
+    const char* getDesc() const override { return _crewOnly ? "Your crew and friends" : "LoRa chat"; }
 
     void onStart() override {
         OsUI::waitRelease();
-        _msgs = new (std::nothrow) Kotodama::Msg[Kotodama::MAX_MSGS];
+        _msgs = _crewOnly ? nullptr : new (std::nothrow) Kotodama::Msg[Kotodama::MAX_MSGS];
         _input = ""; _scroll = 0; _naming = false; _note = ""; _closeCrew();
         auto& k = Kotodama::get();
         _picking = k.region() == Mesh::REG_UNSET;
         // Respect fn+R: only start the radio if it was left on (or never set).
         if (!_picking && k.wantOn() && k.state() != Kotodama::ST_ON) k.start();
+        if (_crewOnly && !_picking) _openCrew();
         _draw();
     }
     void onStop() override { delete[] _msgs; _msgs = nullptr; _closeCrew(); }
@@ -53,6 +56,7 @@ public:
 
 private:
     LGFX_Sprite& _canvas;
+    const bool _crewOnly;
     Kotodama::Msg* _msgs = nullptr;
     String   _input;
     uint8_t  _ch = Mesh::CH_MITAMA;
@@ -91,7 +95,11 @@ private:
             return true;
         }
         for (char c : st.word) {
-            if (c == '`' || (st.fn && (c == 'c' || c == 'C'))) { _closeCrew(); _note = ""; return true; }
+            if (c == '`' || (st.fn && (c == 'c' || c == 'C'))) {
+                _closeCrew(); _note = "";
+                if (_crewOnly) { OsUI::waitRelease(); AppManager::get().goHome(); return false; }
+                return true;
+            }
             if (c == ';') _crewSel = max(0, _crewSel - 1);
             if (c == '.') _crewSel = min(_crewN - 1, _crewSel + 1);
             if ((c == 'f' || c == 'F') && _crewSel < _crewN) _toggleFriend(_crew[_crewSel]);
@@ -196,7 +204,8 @@ private:
             _canvas.clearClipRect();
             MUI::text(_canvas, MUI::small(), right, SCREEN_W - 5 - rw, ry, r.heardMs ? MUI::CYAN : MUI::DIM);
         }
-        const char* foot = _note.length() ? _note.c_str() : (_crewN ? "ENT card  F friend  ` chat" : "` back to the chat");
+        const char* foot = _note.length() ? _note.c_str() : (_crewN ? (_crewOnly ? "ENT card  F friend  ` back" : "ENT card  F friend  ` chat")
+                                   : (_crewOnly ? "` back" : "` back to the chat"));
         MUI::footer(_canvas, foot, _note.length() ? MUI::YELLOW : MUI::DIM);
     }
 
@@ -208,6 +217,7 @@ private:
                 k.setRegion(c == '1' ? Mesh::REG_US : Mesh::REG_EU868);
                 _picking = false;
                 if (first) k.setOn(true);    // first setup turns it on; later changes keep fn+R's choice
+                if (_crewOnly) _openCrew();
             }
             if (c == '`') { OsUI::waitRelease(); AppManager::get().goHome(); return false; }
         }
@@ -390,7 +400,7 @@ private:
         _lastDraw = millis();
         _seenSerial = Kotodama::get().serial();
         _canvas.fillSprite(MUI::BG);
-        MUI::header(_canvas, "KOTODAMA", MUI::YELLOW);
+        MUI::header(_canvas, _crewOnly ? "KIZUNA" : "KOTODAMA", MUI::YELLOW);
         if (_picking) _drawPicker();
         else if (_crew) { _crewN = Kotodama::get().crew(_crew, CREW_MAX); if (_cardNum) _drawCard(); else _drawCrew(); }
         else _drawChat();

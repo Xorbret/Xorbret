@@ -125,6 +125,7 @@ private:
             { "SysInfo",   "System",   MUI::SIG_SYSTEM,   MUI::DIM     },
             { "Molt",      "Molt",     MUI::SIG_MOLT,     MUI::GREEN   },
             { "Kotodama",  "Kotodama", MUI::SIG_KOTODAMA, MUI::MAGENTA },
+            { "Kizuna",    "Kizuna",   MUI::SIG_KIZUNA,   MUI::MAGENTA },
             { "Omikuji",   "Omikuji",  MUI::SIG_OMIKUJI,  MUI::YELLOW  },
             { "Aether",    "Aether",   MUI::SIG_AETHER,   MUI::CYAN    },
         };

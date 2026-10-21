@@ -233,7 +233,7 @@ namespace MUI {
     enum Sigil : uint8_t {
         SIG_COMPENDIUM, SIG_PROXIMA, SIG_FILES, SIG_PAINT, SIG_MUSIC, SIG_GAMES,
         SIG_LUA, SIG_GRIMOIRE, SIG_BROWSER, SIG_SETTINGS, SIG_STORE, SIG_PIANO,
-        SIG_CUBE, SIG_CALC, SIG_CLOCK, SIG_ORACLE, SIG_SYSTEM, SIG_SCRY, SIG_MOLT, SIG_KOTODAMA, SIG_OMIKUJI, SIG_AETHER, SIG_UNKNOWN
+        SIG_CUBE, SIG_CALC, SIG_CLOCK, SIG_ORACLE, SIG_SYSTEM, SIG_SCRY, SIG_MOLT, SIG_KOTODAMA, SIG_OMIKUJI, SIG_AETHER, SIG_KIZUNA, SIG_UNKNOWN
     };
 
     struct _Pen {
@@ -412,6 +412,11 @@ namespace MUI {
             shard(6.4f, 13.53f, 0.56f, 200); shard(17.6f, 12.93f, 0.53f, -20); shard(8.2f, 9.93f, 0.42f, 60);
             MitamaLogo::_magatama(c, p.X(12.8f), p.Y(9.33f), 2.6f * p.s, 1.9f * p.s, -60, 185, 0.82f, col);
             break; }
+        case SIG_KIZUNA: // bonds: two spirits sharing one ring
+            p.ring(12, 12, 10.2f);
+            MitamaLogo::_magatama(c, p.X(7.4f), p.Y(12.8f), 2.5f * p.s, 1.8f * p.s, -60, 185, 0.82f, col);
+            MitamaLogo::_magatama(c, p.X(16.6f), p.Y(11.2f), 2.5f * p.s, 1.8f * p.s, 120, 365, 0.82f, col);
+            break;
         case SIG_KOTODAMA: // one spirit, four souls (ichirei shikon): four magatama turned to the centre
             for (int k = 0; k < 4; k++) {
                 float phi = -45 + 90 * k, r = phi * (float)DEG_TO_RAD;

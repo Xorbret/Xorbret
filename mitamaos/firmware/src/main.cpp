@@ -82,6 +82,7 @@ ProximaApp    proximaApp(canvas);
 ScryApp       scryApp(canvas);
 CompendiumApp compendiumApp(canvas);
 KotodamaApp   kotodamaApp(canvas);
+KotodamaApp   kizunaApp(canvas, true);
 OmikujiApp    omikujiApp(canvas);
 AetherApp     aetherApp(canvas);
 MoltApp       moltApp(canvas);
@@ -228,6 +229,7 @@ void setup() {
     AppManager::get().registerApp(&compendiumApp);
     AppManager::get().registerApp(&scryApp);
     AppManager::get().registerApp(&kotodamaApp);
+    AppManager::get().registerApp(&kizunaApp);
     AppManager::get().registerApp(&aetherApp);
     AppManager::get().registerApp(&filesApp);
     AppManager::get().registerApp(&notesApp);
