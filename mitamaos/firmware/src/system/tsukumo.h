@@ -33,7 +33,10 @@ inline volatile bool luaWire = false;
 enum Drv : uint8_t {
     D_NONE, D_SHT3X, D_SHT4X, D_BMP280, D_SCD4X, D_BH1750, D_MLX90614,
     D_RTC, D_RFID, D_TOF, D_JOY, D_CARDKB, D_ENCODER, D_M5FW,
+    D_MONSTER,    // M5MonsterC5 on the Grove UART (addr UART_ADDR)
 };
+
+static constexpr uint8_t UART_ADDR = 0xFF;   // Found.addr for a serial Unit
 
 enum Bus : uint8_t { B_GROVE, B_CAP, B_HUB };   // B_HUB: behind a PaHub on the Grove port
 
@@ -57,6 +60,7 @@ struct Result {
     bool    linesHigh = false;    // both lines pulled/driven high with nothing on I2C
     bool    capLora = false;      // Cap LoRa-1262/868 (I/O expander at 0x43)
     bool    gpsGrove = false;     // Grove port handed to the GPS
+    bool    monster = false;      // M5MonsterC5 answered ping on the Grove UART
     // UART listen (on request only)
     int8_t  uartPin = -1;
     uint32_t uartBaud = 0;
@@ -291,14 +295,47 @@ public:
         _r.scanned = true;
         _r.capLora = m5::In_I2C.scanID(0x43, 400000);
         _r.gpsGrove = gpsOnGrove();
-        if (!_r.gpsGrove && _linesOk()) _scanGrove();
+        if (!_r.gpsGrove && _linesOk()) {
+            // Something driving G1 high may be a serial board's TX. Ask
+            // before any I2C, so the scan never pulls against it.
+            if (_g1Driven && pingMonster()) {
+                _r.monster = true;
+                _add({ UART_ADDR, B_GROVE, 0, 0, D_MONSTER, "M5MonsterC5",
+                       "ESP32-C5 board with 5 GHz Wi-Fi, talking over the Grove port. MitamaOS only pings it, "
+                       "and never sends it attack commands." });
+            } else _scanGrove();
+        }
         _scanCap();
+    }
+
+    // M5MonsterC5 (JanOS firmware): a UART on Grove, its TX on G1 and RX
+    // on G2, 115200 8N1. "ping" gets "pong" back. That's the only command
+    // MitamaOS sends it. Takes up to 150 ms.
+    bool pingMonster(uint32_t* ms = nullptr) {
+        Serial2.begin(115200, SERIAL_8N1, G_SCL, G_SDA);
+        while (Serial2.available()) Serial2.read();
+        uint32_t t0 = millis();
+        Serial2.print("ping\r\n");
+        Serial2.flush();
+        char line[24]; int n = 0; bool ok = false;
+        while (!ok && millis() - t0 < 150) {
+            while (Serial2.available()) {
+                char c = Serial2.read();
+                if (c == '\n' || c == '\r') { line[n] = 0; if (strstr(line, "pong")) { ok = true; break; } n = 0; }
+                else if (n < (int)sizeof(line) - 1) line[n++] = c;
+            }
+            delay(2);
+        }
+        if (ms) *ms = millis() - t0;
+        Serial2.end();
+        pinMode(G_SDA, INPUT); pinMode(G_SCL, INPUT);
+        return ok;
     }
 
     // Listens on the Grove pins for a serial Unit that talks first (GPS,
     // QR scanner). Receive-only. Takes about 3 s.
     void listenUart() {
-        if (_r.n > 0 || _r.gpsGrove) return;   // something answered I2C: not a UART
+        if (_r.n > 0 || _r.gpsGrove || _r.monster) return;   // something already answered
         static const uint32_t BAUD[2] = { 115200, 9600 };
         static const int PIN[2] = { G_SDA, G_SCL };
         for (int p = 0; p < 2; p++) for (int b = 0; b < 2; b++) {
@@ -328,6 +365,7 @@ public:
 
 private:
     Result _r;
+    bool   _g1Driven = false;
     bool   _direct[128] = {};    // ACKs on the Grove port with every PaHub channel closed
 
     // With the pins as inputs: a line that reads low even with the pull-up
@@ -338,7 +376,8 @@ private:
         bool up = digitalRead(G_SDA) && digitalRead(G_SCL);
         pinMode(G_SDA, INPUT_PULLDOWN); pinMode(G_SCL, INPUT_PULLDOWN);
         delayMicroseconds(50);
-        bool driven = digitalRead(G_SDA) && digitalRead(G_SCL);
+        _g1Driven = digitalRead(G_SCL);
+        bool driven = digitalRead(G_SDA) && _g1Driven;
         pinMode(G_SDA, INPUT); pinMode(G_SCL, INPUT);
         _r.lineLow = !up;
         _r.linesHigh = driven;

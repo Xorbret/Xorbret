@@ -252,6 +252,15 @@ private:
             L(1, "No readings in MitamaOS yet.");
             break;
         }
+        case Tsukumo::D_MONSTER: {
+            uint32_t ms = 0;
+            bool up = Tsukumo::Scanner::get().pingMonster(&ms);
+            if (up) L(0, "Answering ping  %lu ms", (unsigned long)ms);
+            else L(0, "Not answering ping.");
+            L(1, "Its own screen app runs it;");
+            L(2, "MitamaOS just says hello.");
+            break;
+        }
         default:
             L(0, "No driver yet. It's safe to leave");
             L(1, "plugged in; MitamaOS won't touch it.");
@@ -327,7 +336,8 @@ private:
     }
 
     static const char* _where(const F& f, char* buf, size_t n) {
-        if (f.bus == Tsukumo::B_CAP) snprintf(buf, n, "Cap port  0x%02X", f.addr);
+        if (f.addr == Tsukumo::UART_ADDR) snprintf(buf, n, "Grove serial");
+        else if (f.bus == Tsukumo::B_CAP) snprintf(buf, n, "Cap port  0x%02X", f.addr);
         else if (f.bus == Tsukumo::B_HUB) snprintf(buf, n, "Hub ch %u  0x%02X", f.hubCh, f.addr);
         else snprintf(buf, n, "Grove  0x%02X", f.addr);
         return buf;
