@@ -11,6 +11,7 @@
 // Slots: {sp} species (CAMERA, AIRTAG...), {d} detail (maker / device),
 //        {n} how many of that race are active now, {r} race name,
 //        {f} a form's name.
+//        {m} a module's name (Tsukumo).
 #include <stdint.h>
 #include "../detect/signatures.h"
 
@@ -30,6 +31,7 @@ enum Event : uint8_t {
     EV_CREW_FRIEND,    // a friend's Mitama came into LoRa range; {d} = their name
     EV_CREW_STRANGER,  // another Mitama we haven't befriended; {d} = its name
     EV_CREW_CREATOR,   // the creator's Mitama (Kyubi form) came into range; {d} = name
+    EV_MODULE,         // a Unit is plugged in at boot; {m} = its name
     EV_COUNT
 };
 
@@ -203,6 +205,10 @@ static const Line BANK[] = {
     { EV_CREW_CREATOR, T_ANY, "The Kyubi walks nearby. My maker, {d}. Act natural." },
     { EV_CREW_CREATOR, T_ANY, "I sense the creator: {d}. Quick, look busy." },
     { EV_CREW_CREATOR, T_ANY, "{d} is close. The fox who summoned us all. Bow, or don't. I won't tell." },
+    { EV_MODULE, T_ANY, "Something's plugged into me: {m}. Settings > Tsukumo has the details." },
+    { EV_MODULE, T_ANY, "{m} attached. A new familiar. I'll be polite to it." },
+    { EV_MODULE, T_ANY, "I feel {m} on my port. Old tools grow spirits, you know. Tsukumo lists it." },
+    { EV_MODULE, T_ANY, "{m} detected. Party member joined. Stats in Settings > Tsukumo." },
 };
 
 static constexpr int BANK_N = sizeof(BANK) / sizeof(BANK[0]);

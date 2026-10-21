@@ -45,6 +45,7 @@ static const Key _SCHEMA[] = {
     { "notes",       "n",      K_STR, 5 },
     { "kotodama",    "region", K_U8,  0 },
     { "kotodama",    "on",     K_U8,  0 },
+    { "tsukumo",     "gpspin", K_U8,  0 },
     { "kotodama",    "name",   K_STR, 0 },
 };
 

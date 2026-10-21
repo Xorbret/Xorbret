@@ -88,6 +88,10 @@ public:
                     AppManager::get().requestLaunch("Clock");
                     return;
                 }
+                if (strcmp(_menuItems[_menuSel], "Tsukumo") == 0) {  // attached modules
+                    AppManager::get().requestLaunch("Tsukumo");
+                    return;
+                }
                 _section = _menuSel + 1;
                 _draw();
             }
@@ -541,5 +545,6 @@ const char* SettingsApp::_menuItems[] = {
     "Network",
     "System",
     "Clock",
+    "Tsukumo",
 };
-const int SettingsApp::_menuCount = 7;
+const int SettingsApp::_menuCount = 8;

@@ -36,6 +36,7 @@
 #include "apps/files/filemanager.h"
 #include "apps/notes/notes.h"
 #include "apps/sysinfo/sysinfo.h"
+#include "apps/tsukumo/tsukumo_app.h"
 #include "apps/calc/calc.h"
 #include "apps/clock/clock_app.h"
 #include "apps/games/games.h"
@@ -105,6 +106,7 @@ Piano         pianoApp(canvas);
 Paint         paintApp(canvas);
 #endif
 SysInfo       sysinfoApp(canvas);
+TsukumoApp    tsukumoApp(canvas);
 SettingsApp   settingsApp(canvas);
 #if PAPEROS_ENABLE_MYAI
 MyAiApp       myaiApp(canvas);
@@ -218,6 +220,10 @@ void setup() {
     }
     if (crashed) CrashLog::show();
 
+    // Name whatever is plugged into the Grove port or a Cap (read-only
+    // probing; see system/tsukumo.h). Before the GPS service claims pins.
+    Tsukumo::Scanner::get().scan();
+
     // WiFi
     WiFiManager::get().loadFromPrefs();
 
@@ -230,6 +236,7 @@ void setup() {
     AppManager::get().registerApp(&scryApp);
     AppManager::get().registerApp(&kotodamaApp);
     AppManager::get().registerApp(&kizunaApp);
+    AppManager::get().registerApp(&tsukumoApp);   // off the grid; opened from Settings
     AppManager::get().registerApp(&aetherApp);
     AppManager::get().registerApp(&filesApp);
     AppManager::get().registerApp(&notesApp);

@@ -11,6 +11,7 @@
 #include "nmea.h"
 #include "paper_clock.h"
 #include "../ui/mitama_ui.h"
+#include "tsukumo.h"
 
 class Gps {
 public:
@@ -22,7 +23,10 @@ public:
         Serial1.setRxBufferSize(1024);
         // Listen only. G13 stays untouched until a GPS has actually spoken on
         // G15, so a different cap on the EXT header never sees it driven.
-        Serial1.begin(_baud(), SERIAL_8N1, RX_PIN, -1);
+        // A GPS Unit on the Grove port (saved in Tsukumo) replaces the cap's.
+        _rx = Tsukumo::Scanner::gpsPin();
+        if (_rx < 0) _rx = RX_PIN;
+        Serial1.begin(_baud(), SERIAL_8N1, _rx, -1);
         _sinceSwitch = millis();
     }
 
@@ -38,8 +42,10 @@ public:
         if (_lastMs && !_configured) {
             _configured = true;
             _searchMs = now;
-            Serial1.setPins(RX_PIN, TX_PIN);
-            Serial1.print("$PCAS04,7*1E\r\n");
+            if (_rx == RX_PIN) {     // the cap's GPS; a Grove GPS is only listened to
+                Serial1.setPins(RX_PIN, TX_PIN);
+                Serial1.print("$PCAS04,7*1E\r\n");
+            }
         }
         // No sentences yet: alternate between 115200 and the module's other
         // common rate (9600) until one of them talks.
@@ -67,6 +73,7 @@ private:
     Nmea::Fix    _fix;
     uint32_t     _lastMs = 0, _sinceSwitch = 0, _clockSetMs = 0;
     uint8_t      _baudIdx = 0;
+    int          _rx = RX_PIN;
     bool         _configured = false;
     uint32_t     _searchMs = 0;
 

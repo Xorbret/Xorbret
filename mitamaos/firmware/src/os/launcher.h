@@ -134,8 +134,8 @@ private:
     }
 
     static bool _isHiddenFromGrid(App* a) {
-        // Proxima is the home screen; System and Clock live in Settings.
-        static const char* HIDDEN[] = { "Proxima", "SysInfo", "Clock" };
+        // Proxima is the home screen; System, Clock and Tsukumo live in Settings.
+        static const char* HIDDEN[] = { "Proxima", "SysInfo", "Clock", "Tsukumo" };
         if (!a) return false;
         for (auto h : HIDDEN) if (strcmp(a->getName(), h) == 0) return true;
         return false;

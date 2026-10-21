@@ -6,6 +6,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Wire.h>
+#include "../../system/tsukumo.h"
 #include <Preferences.h>
 #include <AudioFileSourceSD.h>
 #include <AudioGeneratorWAV.h>
@@ -1208,8 +1209,8 @@ static int lb_bit_tohex(lua_State* L)  { char b[32]; snprintf(b,sizeof(b),"%0*ll
 
 // i2c.* - defaults to the Grove port (SDA G2, SCL G1). Wire's own default
 // pins are the internal keyboard bus, which M5Unified already drives.
-static bool g_i2cBegun = false;
-static int lb_i2c_begin(lua_State* L)  { int sda=luaL_optinteger(L,1,-1),scl=luaL_optinteger(L,2,-1); if(sda<0||scl<0){sda=2;scl=1;} Wire.begin(sda,scl); g_i2cBegun=true; lua_pushboolean(L,true);return 1; }
+#define g_i2cBegun Tsukumo::luaWire   // shared with the module scanner
+static int lb_i2c_begin(lua_State* L)  { int sda=luaL_optinteger(L,1,-1),scl=luaL_optinteger(L,2,-1); if(sda<0||scl<0){sda=2;scl=1;} if(sda==8||sda==9||scl==8||scl==9) return luaL_error(L,"i2c.begin: G8/G9 are the internal keyboard bus, which MitamaOS already runs"); Wire.begin(sda,scl); g_i2cBegun=true; lua_pushboolean(L,true);return 1; }
 static int lb_i2c_scan(lua_State* L) {
     if (!g_i2cBegun) { Wire.begin(2, 1); g_i2cBegun = true; } // scan()/write()/read() without begin() first used to hang instead of erroring - don't rely on the user remembering
     Wire.setTimeOut(20); // default timeout multiplied by 126 addresses is what made this feel "slow"
@@ -1219,7 +1220,7 @@ static int lb_i2c_scan(lua_State* L) {
 }
 static int lb_i2c_write(lua_State* L)  { if(!g_i2cBegun){Wire.begin(2,1);g_i2cBegun=true;} uint8_t addr=luaL_checkinteger(L,1);size_t len;const char* data=luaL_checklstring(L,2,&len);Wire.beginTransmission(addr);Wire.write((const uint8_t*)data,len);uint8_t err=Wire.endTransmission();lua_pushboolean(L,err==0);lua_pushinteger(L,err);return 2; }
 static int lb_i2c_read(lua_State* L)   { if(!g_i2cBegun){Wire.begin(2,1);g_i2cBegun=true;} Wire.requestFrom((uint8_t)luaL_checkinteger(L,1),(uint8_t)luaL_checkinteger(L,2));String out;while(Wire.available())out+=(char)Wire.read();lua_pushlstring(L,out.c_str(),out.length());return 1; }
-static int lb_i2c_end(lua_State* L)    { Wire.end(); return 0; }
+static int lb_i2c_end(lua_State* L)    { Wire.end(); g_i2cBegun = false; return 0; }
 
 // require(modname) — standalone implementation, fully independent of the
 // (deliberately empty) stub `package` library in loadlib.c on ESP32.

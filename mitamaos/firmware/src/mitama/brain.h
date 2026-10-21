@@ -6,6 +6,7 @@
 //
 // Invariants: facts are never suppressed (they're on screen regardless);
 // the same demon within ~60s doesn't repeat flavor; nothing here blocks.
+#include "../system/tsukumo.h"
 #include <Arduino.h>
 #include <Preferences.h>
 #include "../system/sd_settings.h"
@@ -115,6 +116,12 @@ public:
             _formLineMs = now;
             spoke = true;
         }
+        // A Unit found at boot gets one line, once things settle.
+        if (!_modSaid && now > 8000 && !spoke && _sass > 0) {
+            _modSaid = true;
+            const char* m = Tsukumo::Scanner::get().firstName();
+            if (m) { _modName = m; _say(Lines::EV_MODULE, nullptr, false, M_CURIOUS, now); spoke = true; }
+        }
         bool online = WiFi.status() == WL_CONNECTED;
         if (online && !_wasOnline && now > 15000 && _sass > 0 && !spoke) _say(Lines::EV_WIFI_JOIN, nullptr, false, M_CALM, now);
         _wasOnline = online;
@@ -191,6 +198,8 @@ private:
         Kotodama::get().setMyCard(c);
     }
     const char* _formName = "";
+    const char* _modName = "";
+    bool        _modSaid = false;
     // last few demons spoken about, for the 60s collapse rule
     struct Seen { uint8_t type; uint8_t mac[6]; uint32_t ms; } _seen[6] = {};
     uint8_t  _seenNext = 0;
@@ -294,6 +303,7 @@ private:
             else if (strncmp(t, "{d}", 3) == 0) { sub = r && r->detail ? r->detail : (r ? Sig::typeName(r->type) : "Something"); t += 3; }
             else if (strncmp(t, "{n}", 3) == 0) { snprintf(num, sizeof(num), "%d", n); sub = num; t += 3; }
             else if (strncmp(t, "{f}", 3) == 0) { sub = _formName; t += 3; }
+            else if (strncmp(t, "{m}", 3) == 0) { sub = _modName; t += 3; }
             else if (strncmp(t, "{r}", 3) == 0) { sub = r ? Sig::raceName(Sig::raceOf(r->type)) : "demon"; t += 3; }
             if (sub) { while (*sub && k < sizeof(_line) - 1) _line[k++] = *sub++; }
             else _line[k++] = *t++;
