@@ -370,12 +370,48 @@ namespace MUI {
             p.dot(12, 6.6f, 0.9f);
             p.dot(7.6f, 4.4f, 0.8f); p.dot(16.6f, 3.4f, 0.6f); p.dot(17.6f, 7.4f, 0.9f); p.dot(6.6f, 8.4f, 0.5f);
             break; }
-        case SIG_MOLT: // ouroboros: the serpent swallowing its tail, renewed
-            p.arc(12, 12, 8, 40, 340);
-            p.ring(18.1f, 17.1f, 2.2f);           // head
-            p.line(19.5f, 9.3f, 19.0f, 14.9f);    // tail into the jaws
-            p.dot(12, 12, 1.4f);
-            break;
+        case SIG_MOLT: { // the spirit rising out of its cracked husk: a hollow magatama arched like an "n"
+            // husk centre, radius, half-width; arc runs 180..360 deg (head lower left, tail lower right)
+            const float hx = 12, hy = 17.33f, hR = 4.0f, hT = 1.55f;
+            auto husk = [&](float u0, float u1, bool head) {
+                const int N = 16;
+                float pts[(N + 1) * 4 + 4 + 15 * 2]; int n = 0;
+                auto put = [&](float x, float y) { pts[n * 2] = x; pts[n * 2 + 1] = y; n++; };
+                auto edge = [&](float u, float side) {
+                    float th = (180 + 180 * u) * (float)DEG_TO_RAD, t = hT * powf(1 - u, 0.82f);
+                    put(hx + (hR + side * t) * cosf(th), hy + (hR + side * t) * sinf(th));
+                };
+                auto jag = [&](float u, float dir) {   // the broken edge points into the crack
+                    float th = (180 + 180 * u + dir * 6.3f) * (float)DEG_TO_RAD;
+                    put(hx + hR * cosf(th), hy + hR * sinf(th));
+                };
+                for (int i = 0; i <= N; i++) edge(u0 + (u1 - u0) * i / N, 1);
+                if (u1 < 1) jag(u1, 1);
+                for (int i = N; i >= 0; i--) edge(u0 + (u1 - u0) * i / N, -1);
+                if (u0 > 0) jag(u0, -1);
+                if (head) {                             // round head cap at the lower-left end
+                    float hcx = hx - hR, hcy = hy;
+                    for (int i = 1; i < 16; i++) {
+                        float ph = (float)M_PI * (1 - i / 16.0f);
+                        put(hcx - hT * cosf(ph), hcy + hT * sinf(ph));
+                    }
+                }
+                p.poly(pts, n);
+            };
+            husk(0, 0.36f, true);
+            husk(0.64f, 1, false);
+            auto shard = [&](float x, float y, float r, float a) {
+                const float rr[] = { 1, 0.6f, 0.9f }, da[] = { 0, 130, 230 };
+                float t[6];
+                for (int k = 0; k < 3; k++) {
+                    float th = (a + da[k]) * (float)DEG_TO_RAD;
+                    t[k * 2] = x + r * rr[k] * cosf(th); t[k * 2 + 1] = y + r * rr[k] * sinf(th);
+                }
+                p.poly(t, 3);
+            };
+            shard(6.4f, 13.53f, 0.56f, 200); shard(17.6f, 12.93f, 0.53f, -20); shard(8.2f, 9.93f, 0.42f, 60);
+            MitamaLogo::_magatama(c, p.X(12.8f), p.Y(9.33f), 2.6f * p.s, 1.9f * p.s, -60, 185, 0.82f, col);
+            break; }
         case SIG_KOTODAMA: // one spirit, four souls (ichirei shikon): four magatama turned to the centre
             for (int k = 0; k < 4; k++) {
                 float phi = -45 + 90 * k, r = phi * (float)DEG_TO_RAD;
