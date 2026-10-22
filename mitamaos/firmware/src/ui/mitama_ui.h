@@ -435,10 +435,10 @@ namespace MUI {
             p.ring(12, 15, 1.8f);
             break; }
         case SIG_AETHER: // the seeing stone: a vertical eye set in a rimmed round stone
-            p.ring(12, 12, 9.6f); p.ring(12, 12, 8.2f);
-            p.arc(18.2f, 12, 8.6f, 145, 215); p.arc(5.8f, 12, 8.6f, -35, 35);
-            p.ring(12, 12, 2.2f);
-            p.dot(12, 12, 0.9f);
+            // one rim, a wider eye and a hollow pupil, so it doesn't fill in at tile size
+            p.ring(12, 12, 9.8f);
+            p.arc(22, 12, 14.5f, 150, 210); p.arc(2, 12, 14.5f, -30, 30);
+            p.ring(12, 12, 3.4f);
             break;
         case SIG_SYSTEM: // sealed chip
             p.rect(7.5f, 7.5f, 9, 9);
