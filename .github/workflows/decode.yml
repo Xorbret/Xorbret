@@ -43,7 +43,7 @@ jobs:
       - name: Decode
         run: |
           pip install -q platformio
-          pio pkg install -g -t "platformio/toolchain-xtensa-esp32s3" > /dev/null
+          pio pkg install -g -t "espressif/toolchain-xtensa-esp32s3" > /dev/null
           A2L=$(find ~/.platformio/packages -name 'xtensa-esp32s3-elf-addr2line' | head -1)
           addrs=$(sed -n 2p mitamaos/tools/crash-decode.txt)
           echo "=== decoded ==="
