@@ -119,10 +119,10 @@ public:
             snprintf(utc, sizeof(utc), "%04u-%02u-%02u %02u:%02u:%02u",
                      fx.year, fx.mon, fx.day, fx.hour, fx.min, fx.sec);
             Scry::Where w{ fx.lat, fx.lon, fx.altM, g.accuracyM(), utc };
-            char row[200];
+            char row[320];   // an SSID of 32 quotes doubles to 66 characters
             int n = r.ble ? Scry::bleRow(row, sizeof(row), r.ap.bssid, r.ap.ssid, r.rssi, r.mfgr, w)
                           : Scry::wifiRow(row, sizeof(row), r.ap, r.rssi, w);
-            if (n > 0) _f.write((const uint8_t*)row, min(n, (int)sizeof(row) - 1));
+            if (n > 0 && n < (int)sizeof(row)) _f.write((const uint8_t*)row, n);   // a cut-off row would merge with the next
             if (r.ble) _bleN++; else _wifiN++;
         }
         if (_closeReq) {

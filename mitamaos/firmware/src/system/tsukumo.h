@@ -125,7 +125,7 @@ static inline uint8_t shtKind(const Io& io, uint8_t a) {
 }
 
 // Name one address. `seen` is the ACK map of the same bus, for Units made
-// of two chips (ENV III = 0x44 + 0x70). Only reads, except: SHT/SCD/SGP
+// of two chips (ENV III = 0x44 + 0x70). Only reads, except: SHT/SCD
 // measurement commands, and restoring a PaHub's mask to 0.
 static inline Found identify(const Io& io, uint8_t a, const bool* seen) {
     Found f{ a, B_GROVE, 0, 0, D_NONE, "Unknown device", "Not in MitamaOS's list. Left alone." };
@@ -177,8 +177,10 @@ static inline Found identify(const Io& io, uint8_t a, const bool* seen) {
     case 0x42: if (io.m5unit(a)) set("Unit AC Measure", "Mains power meter. Read only.", D_M5FW); break;
     case 0x43: if (io.m5unit(a)) set("Unit 8Angle", "Eight knobs.", D_M5FW); break;
     case 0x44:
-        if (seen[0x70]) set("Unit ENV III", "Temperature, humidity, pressure.", D_SHT3X);
-        else { uint8_t k = shtKind(io, a);
+        // ENV III pairs it with a QMP6988 at 0x70, but 0x70 may be a PaHub:
+        // ask the chip there, and close the hub's channels again if it was one.
+        if (seen[0x70] && io.reg8(0x70, 0xD1) == 0x5C) set("Unit ENV III", "Temperature, humidity, pressure.", D_SHT3X);
+        else { if (seen[0x70]) { uint8_t z = 0; io.cmd(0x70, &z, 1); } uint8_t k = shtKind(io, a);
                set(k == D_SHT4X ? "Unit ENV IV" : seen[0x76] ? "Unit ENV II" : "SHT30 sensor", "Temperature, humidity, pressure.", k ? k : D_SHT3X); }
         break;
     case 0x45: if (io.m5unit(a)) set("Unit EXT.IO2", "Pin expander. Pins left alone.", D_M5FW); break;
@@ -215,9 +217,10 @@ static inline Found identify(const Io& io, uint8_t a, const bool* seen) {
     }
     case 0x58: case 0x59: {
         if (a == 0x59 && io.m5unit(a)) { set("Unit ExtEncoder", "Encoder input.", D_M5FW); break; }
-        uint8_t s[2] = { 0x36, 0x82 };
-        if (a == 0x58 && io.cmd(a, s, 2)) { delay(2); if (io.raw(a, b, 9) && sensirion(b, 3)) { set("Unit TVOC/eCO2", "Air quality (SGP30)."); break; } }
-        set("Unit DAC2", "0-10 V output. Never written by MitamaOS.");
+        // An SGP30 only answers a command, and any command could reach a
+        // DAC2's registers, so 0x58 is named without asking.
+        if (a == 0x58) set("Unit TVOC/eCO2 or DAC2", "Air quality sensor (SGP30) or 0-10 V output. Left alone.");
+        else set("Unit DAC2", "0-10 V output. Never written by MitamaOS.");
         break;
     }
     case 0x5A:
@@ -254,6 +257,15 @@ static inline Found identify(const Io& io, uint8_t a, const bool* seen) {
             if (v == 0x58) set(seen[0x44] ? "ENV pressure sensor" : seen[0x68] ? "IMU Pro Mini barometer" : "Unit Mini BPS", "Air pressure (BMP280).", D_BMP280);
             else if (v == 0x61) set("Unit ENV Pro", "Temperature, humidity, pressure, gas (BME688).");
             else if (a == 0x76 && (io.reg8(a, 0x0D) & 0x0F) == 0x01) set("Unit DoF10 barometer", "Air pressure (SPA06).");
+            else {
+                // A PaHub set to this address took those register bytes as its
+                // channel mask and reads the last one back. Close it again.
+                uint8_t last = a == 0x76 ? 0x0D : 0xD0, r = 0;
+                if (io.raw(a, &r, 1) && r == last) {
+                    uint8_t z = 0; io.cmd(a, &z, 1);
+                    set("Unit PaHub", "I2C hub. MitamaOS looks behind each channel.");
+                }
+            }
             break;
         }
         if (a == 0x70 && seen[0x44]) {
@@ -264,6 +276,8 @@ static inline Found identify(const Io& io, uint8_t a, const bool* seen) {
         set("Unit PaHub", "I2C hub. MitamaOS looks behind each channel.");
         break;
     default:
+        // ADS1100/1110 (0x48-0x4F) take any written byte as their config.
+        if (a >= 0x48 && a <= 0x4F) break;
         if (io.m5unit(a)) set("M5 Unit", "An M5Stack Unit MitamaOS doesn't know yet. Left alone.", D_M5FW);
         break;
     }
@@ -282,7 +296,7 @@ public:
 
     // The Grove pin a GPS Unit was found on and saved for the GPS, or -1.
     static int gpsPin() {
-        Preferences p; p.begin("tsukumo", true); int g = p.getUChar("gpspin", 0);   // 0 = none p.end();
+        Preferences p; p.begin("tsukumo", true); int g = p.getUChar("gpspin", 0); p.end();   // 0 = none
         return g == G_SDA || g == G_SCL ? g : -1;
     }
     bool gpsOnGrove() { return gpsPin() >= 0; }
@@ -294,8 +308,7 @@ public:
 
     void scan() {
         if (monsterLinked) {         // the board is in use: keep its row, touch nothing
-            Found m = _r.dev[0];
-            _r = Result(); _r.scanned = true; _r.monster = true; _add(m);
+            _r = Result(); _r.scanned = true; _r.monster = true; _add(_monsterRow());
             _r.capLora = m5::In_I2C.scanID(0x43, 400000);
             _scanCap();
             return;
@@ -309,9 +322,7 @@ public:
             // before any I2C, so the scan never pulls against it.
             if (_g1Driven && pingMonster()) {
                 _r.monster = true;
-                _add({ UART_ADDR, B_GROVE, 0, 0, D_MONSTER, "M5MonsterC5",
-                       "ESP32-C5 board with 5 GHz Wi-Fi. MitamaOS uses only its listening commands: "
-                       "5 GHz scans for Scry and its deauth detector. Never its attacks." });
+                _add(_monsterRow());
             } else _scanGrove();
         }
         _scanCap();
@@ -391,6 +402,12 @@ private:
         _r.lineLow = !up;
         _r.linesHigh = driven;
         return up;
+    }
+
+    static Found _monsterRow() {
+        return { UART_ADDR, B_GROVE, 0, 0, D_MONSTER, "M5MonsterC5",
+                 "ESP32-C5 board with 5 GHz Wi-Fi. MitamaOS uses only its listening commands: "
+                 "5 GHz scans for Scry and its deauth detector. Never its attacks." };
     }
 
     void _add(const Found& f) { if (_r.n < MAX_FOUND) _r.dev[_r.n++] = f; }

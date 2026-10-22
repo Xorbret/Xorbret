@@ -54,7 +54,7 @@ public:
             Serial1.updateBaudRate(_baud());
             _sinceSwitch = now;
         }
-        if (_fix.valid && _fix.year >= 2024 && now - _clockSetMs > 600000UL) _setClock();
+        if (_fix.valid && _fix.year >= 2024 && (!_clockSetMs || now - _clockSetMs > 600000UL)) _setClock();
         MUI::gpsState = !present() ? 0 : hasFix() ? 2 : 1;
     }
 

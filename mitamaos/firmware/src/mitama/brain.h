@@ -37,10 +37,13 @@ public:
         // queued until there's room, and wait while a threat line is fresh.
         bool spoke = false;
         // New sightings: anything first seen since the last check.
+        // (recent is ordered by last seen, not first seen, so every row is
+        // checked against where the last check left off.)
+        const uint32_t prevSight = _lastSightMs;
         for (int i = st.recentN - 1; i >= 0; i--) {
             const auto& r = st.recent[i];
-            if (r.firstMs <= _lastSightMs) continue;
-            _lastSightMs = r.firstMs;
+            if (r.firstMs <= prevSight) continue;
+            if (r.firstMs > _lastSightMs) _lastSightMs = r.firstMs;
             uint8_t race = Sig::raceOf(r.type);
             { struct tm t; if (MUI::localNow(t) && t.tm_hour >= 1 && t.tm_hour < 5) Forms::get().setFlag(Forms::FL_NIGHT); }
             if (_sameDemon(r) ) continue;         // same demon within 60s: no repeat flavor

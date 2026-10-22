@@ -62,10 +62,13 @@ public:
         }
         _checkFlood(now);
         // A quiet board is normal (nothing to report); check it's still there.
-        if (now - _heardMs > 60000 && now - _pingMs > 60000) { _pingMs = now; _send(C_PING); _pings++; }
-        if (_pings >= 3) {                  // unplugged
-            _state = OFF; Serial2.end(); Tsukumo::monsterLinked = false;
-            pinMode(Tsukumo::G_SDA, INPUT); pinMode(Tsukumo::G_SCL, INPUT);
+        if (now - _heardMs > 60000 && now - _pingMs > 60000) {
+            if (_pings >= 3) {              // three pings went unanswered: unplugged
+                _state = OFF; Serial2.end(); Tsukumo::monsterLinked = false;
+                pinMode(Tsukumo::G_SDA, INPUT); pinMode(Tsukumo::G_SCL, INPUT);
+                return;
+            }
+            _pingMs = now; _send(C_PING); _pings++;
         }
     }
 

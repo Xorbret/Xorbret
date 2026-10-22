@@ -55,7 +55,7 @@ inline bool parseBeacon(const uint8_t* f, size_t n, uint8_t fallbackChannel, Ap&
     ap.ssid[0] = 0;
     ap.channel = fallbackChannel;
     bool privacy = f[34] & 0x10;
-    char rsn[20] = "", wpa[20] = "";
+    char rsn[32] = "", wpa[32] = "";
 
     size_t i = 36;
     while (i + 2 <= n) {

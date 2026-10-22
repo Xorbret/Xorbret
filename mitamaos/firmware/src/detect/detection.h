@@ -55,7 +55,7 @@ public:
         _lock = xSemaphoreCreateMutex();
         _q = xQueueCreate(24, sizeof(Event));
         Gps::get().begin();
-        xTaskCreatePinnedToCore(_taskTrampoline, "mitama-watch", 4096, this, 1, nullptr, 0);
+        xTaskCreatePinnedToCore(_taskTrampoline, "mitama-watch", 6144, this, 1, nullptr, 0);
     }
 
     // Called from the main loop with the active app's name. Apps that need
@@ -139,6 +139,50 @@ private:
         }
     };
 
+    // Evil twin: one network name beaconed open by one radio and locked by
+    // another, within five minutes. Meshes and multi-radio routers use the
+    // same lock on every radio, so they don't trip it. Beacons only, and
+    // only touched from the Wi-Fi callback.
+    struct Twins {
+        struct E { uint32_t h = 0; uint8_t open[6] = {}, lock[6] = {}; uint32_t openMs = 0, lockMs = 0; };
+        static constexpr int N = 24;
+        static constexpr uint32_t WINDOW = 5UL * 60 * 1000;
+        E e[N];
+        // True when `f` completes a twin; `out` gets the open radio's BSSID.
+        bool onBeacon(const uint8_t* f, int n, uint32_t now, uint8_t out[6]) {
+            if (n < 36 || ((f[0] >> 2) & 3) != 0 || (f[0] >> 4) != 8) return false;
+            bool locked = f[34] & 0x10;               // capability: privacy
+            uint32_t h = 2166136261u; bool named = false;
+            for (int i = 36; i + 2 <= n;) {
+                uint8_t id = f[i], l = f[i + 1];
+                if (i + 2 + l > n) break;
+                if (id == 0) {
+                    if (l > 32) return false;
+                    for (int j = 0; j < l; j++) { h = (h ^ f[i + 2 + j]) * 16777619u; named |= f[i + 2 + j] != 0; }
+                    break;
+                }
+                i += 2 + l;
+            }
+            if (!named) return false;                  // hidden networks
+            h |= 1;
+            int slot = -1, old = 0;
+            for (int i = 0; i < N; i++) {
+                if (e[i].h == h) { slot = i; break; }
+                uint32_t a = max(e[i].openMs, e[i].lockMs), b = max(e[old].openMs, e[old].lockMs);
+                if (!e[i].h || (e[old].h && now - a > now - b)) old = i;
+            }
+            if (slot < 0) { slot = old; e[slot] = E(); e[slot].h = h; }
+            E& x = e[slot];
+            if (locked) { memcpy(x.lock, f + 16, 6); x.lockMs = now | 1; }
+            else        { memcpy(x.open, f + 16, 6); x.openMs = now | 1; }
+            if (!x.openMs || !x.lockMs || now - x.openMs > WINDOW || now - x.lockMs > WINDOW) return false;
+            if (memcmp(x.open, x.lock, 6) == 0) return false;
+            memcpy(out, x.open, 6);
+            return true;
+        }
+    };
+    Twins             _twins;
+
     QueueHandle_t     _q = nullptr;
     SemaphoreHandle_t _lock = nullptr;
     Sighting          _store[MAX_SIGHT];
@@ -146,7 +190,7 @@ private:
     volatile bool     _wifiOn = false;
     volatile uint8_t  _ble = BLE_OFF;
     Recent            _wifiRecent, _bleRecent;
-    volatile uint32_t _deauthFrames = 0;
+    uint32_t          _deauthFrames = 0;     // atomic: the Wi-Fi task adds, the watcher takes
     uint8_t           _deauthSrc[6] = {0};
     int8_t            _deauthRssi = 0;
 
@@ -169,10 +213,16 @@ private:
         if (type == WIFI_PKT_MGMT) {
             ScryLogger::get().onWifi(p->payload, len, p->rx_ctrl.channel, p->rx_ctrl.rssi);
             AetherTally::get().onBeacon(p->payload, len, p->rx_ctrl.channel, p->rx_ctrl.rssi);
+            uint8_t twin[6];
+            uint32_t now = millis();
+            if (self._twins.onBeacon(p->payload, len, now, twin) && !self._wifiRecent.seen(twin, Sig::T_EVILTWIN, now)) {
+                Sig::Hit h; h.type = Sig::T_EVILTWIN; h.grade = Sig::G_MED; h.detail = "same name, open and locked";
+                self._post(h, 0, twin, p->rx_ctrl.rssi);
+            }
         }
         Sig::WifiResult r = Sig::matchWifi(p->payload, len);
         if (r.kind == Sig::W_DEAUTH) {
-            self._deauthFrames++;
+            __atomic_fetch_add(&self._deauthFrames, 1, __ATOMIC_RELAXED);
             memcpy(self._deauthSrc, r.src, 6);
             self._deauthRssi = p->rx_ctrl.rssi;
             return;
@@ -212,8 +262,7 @@ private:
     }
 
     void _checkDeauth() {
-        uint32_t n = _deauthFrames;
-        _deauthFrames = 0;
+        uint32_t n = __atomic_exchange_n(&_deauthFrames, 0, __ATOMIC_RELAXED);
         if (n < (uint32_t)DEAUTH_LIMIT) return;
         Sig::Hit h; h.type = Sig::T_DEAUTH; h.grade = Sig::G_HIGH; h.detail = "deauth flood";
         _post(h, 0, _deauthSrc, _deauthRssi);
