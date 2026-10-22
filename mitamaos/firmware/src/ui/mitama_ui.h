@@ -270,13 +270,15 @@ namespace MUI {
     inline void sigil(LGFX_Sprite& c, Sigil id, int cx, int cy, int size, uint16_t col) {
         _Pen p{ c, (float)cx, (float)cy, size / 24.0f, col };
         switch (id) {
-        case SIG_COMPENDIUM: { // transmutation circle: the seal that keeps the spirits bound
-            p.ring(12, 12, 10.4f); p.ring(12, 12, 8.2f);
-            float t[] = { 12, 3.8f, 19.1f, 16.1f, 4.9f, 16.1f };
+        case SIG_COMPENDIUM: { // seal of the seven metals: the planets on one ring, around the earth triangle
+            p.ring(12, 12, 9.2f);
+            for (int k = 0; k < 7; k++) {
+                float a = (-90 + k * 360 / 7.0f) * (float)DEG_TO_RAD;
+                p.dot(12 + 9.2f * cosf(a), 12 + 9.2f * sinf(a), 1.1f);
+            }
+            float t[] = { 12, 17.2f, 16.85f, 8.8f, 7.15f, 8.8f };
             p.poly(t, 3);
-            for (int i = 0; i < 3; i++) p.ring(t[i * 2], t[i * 2 + 1], 1.2f);
-            float q[] = { 13.56f, 15.16f, 10.44f, 15.16f, 10.44f, 12.04f, 13.56f, 12.04f };
-            p.poly(q, 4);
+            p.line(9.2f, 11.6f, 14.8f, 11.6f);
             break; }
         case SIG_PROXIMA: { // core + dashed orbit + cardinal ticks
             p.dot(12, 12, 3);
@@ -372,7 +374,7 @@ namespace MUI {
             break; }
         case SIG_MOLT: { // the spirit rising out of its cracked husk: a hollow magatama arched like an "n"
             // husk centre, radius, half-width; arc runs 180..360 deg (head lower left, tail lower right)
-            const float hx = 12, hy = 17.33f, hR = 4.0f, hT = 1.55f;
+            const float hx = 12, hy = 19.1f, hR = 4.0f, hT = 1.55f;   // low, so the spirit floats clear
             auto husk = [&](float u0, float u1, bool head) {
                 const int N = 16;
                 float pts[(N + 1) * 4 + 4 + 15 * 2]; int n = 0;
@@ -409,8 +411,8 @@ namespace MUI {
                 }
                 p.poly(t, 3);
             };
-            shard(6.4f, 13.53f, 0.56f, 200); shard(17.6f, 12.93f, 0.53f, -20); shard(8.2f, 9.93f, 0.42f, 60);
-            MitamaLogo::_magatama(c, p.X(12.8f), p.Y(9.33f), 2.6f * p.s, 1.9f * p.s, -60, 185, 0.82f, col);
+            shard(6.4f, 15.3f, 0.56f, 200); shard(17.6f, 14.7f, 0.53f, -20); shard(7.8f, 12.9f, 0.42f, 60);
+            MitamaLogo::_magatama(c, p.X(12.8f), p.Y(7.85f), 2.6f * p.s, 1.9f * p.s, -60, 185, 0.82f, col);
             break; }
         case SIG_KIZUNA: // bonds: two spirits sharing one ring
             p.ring(12, 12, 10.2f);
