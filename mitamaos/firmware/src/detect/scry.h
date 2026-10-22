@@ -83,6 +83,15 @@ public:
         xQueueSend(_q, &r, 0);
     }
 
+    // An access point heard by another radio (the M5MonsterC5's 5 GHz scan).
+    void onAp(const Scry::Ap& ap, int8_t rssi) {
+        if (!_rec || !_fixOk) return;
+        if (_seenProbe(ap.bssid, 0)) return;
+        Rec r;
+        r.ap = ap; r.ble = false; r.rssi = rssi;
+        xQueueSend(_q, &r, 0);
+    }
+
     void onBle(const uint8_t mac[6], const uint8_t* adv, size_t len, int8_t rssi) {
         if (!_rec || !_fixOk) return;
         if (_seenProbe(mac, 1)) return;

@@ -37,6 +37,7 @@
 #include "apps/notes/notes.h"
 #include "apps/sysinfo/sysinfo.h"
 #include "apps/tsukumo/tsukumo_app.h"
+#include "net/monster.h"
 #include "apps/calc/calc.h"
 #include "apps/clock/clock_app.h"
 #include "apps/games/games.h"
@@ -223,6 +224,7 @@ void setup() {
     // Name whatever is plugged into the Grove port or a Cap (read-only
     // probing; see system/tsukumo.h). Before the GPS service claims pins.
     Tsukumo::Scanner::get().scan();
+    Monster::get().begin();     // only if an M5MonsterC5 answered
 
     // WiFi
     WiFiManager::get().loadFromPrefs();
@@ -334,5 +336,6 @@ void loop() {
     AppManager::get().tick();
     SdSettings::tick();
     Kotodama::get().tick();
+    Monster::get().tick();
     delay(TICK_MS);
 }

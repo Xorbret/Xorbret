@@ -104,6 +104,11 @@ public:
         return s;
     }
 
+    // A sighting from another radio (the M5MonsterC5); `via` 2.
+    void postExternal(const Sig::Hit& h, const uint8_t mac[6], int8_t rssi) {
+        if (_q && h.ok()) _post(h, 2, mac, rssi);
+    }
+
 private:
     static constexpr int      MAX_SIGHT = 48;
     static constexpr uint32_t ACTIVE_MS = 10UL * 60 * 1000;

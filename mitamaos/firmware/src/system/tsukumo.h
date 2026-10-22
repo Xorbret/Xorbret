@@ -28,6 +28,8 @@ namespace Tsukumo {
 // Wire and M5's Ex_I2C share I2C controller 0, so the scanner stops Wire
 // first and Lua starts it again on its next i2c call.
 inline volatile bool luaWire = false;
+// True while net/monster.h holds the Grove serial link to an M5MonsterC5.
+inline volatile bool monsterLinked = false;
 
 // Live-reading support for the detail page (see TsukumoApp).
 enum Drv : uint8_t {
@@ -291,6 +293,13 @@ public:
     }
 
     void scan() {
+        if (monsterLinked) {         // the board is in use: keep its row, touch nothing
+            Found m = _r.dev[0];
+            _r = Result(); _r.scanned = true; _r.monster = true; _add(m);
+            _r.capLora = m5::In_I2C.scanID(0x43, 400000);
+            _scanCap();
+            return;
+        }
         _r = Result();
         _r.scanned = true;
         _r.capLora = m5::In_I2C.scanID(0x43, 400000);
@@ -301,8 +310,8 @@ public:
             if (_g1Driven && pingMonster()) {
                 _r.monster = true;
                 _add({ UART_ADDR, B_GROVE, 0, 0, D_MONSTER, "M5MonsterC5",
-                       "ESP32-C5 board with 5 GHz Wi-Fi, talking over the Grove port. MitamaOS only pings it, "
-                       "and never sends it attack commands." });
+                       "ESP32-C5 board with 5 GHz Wi-Fi. MitamaOS uses only its listening commands: "
+                       "5 GHz scans for Scry and its deauth detector. Never its attacks." });
             } else _scanGrove();
         }
         _scanCap();

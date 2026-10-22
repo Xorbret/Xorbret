@@ -11,6 +11,7 @@
 #include "../../config.h"
 #include "../../ui/mitama_ui.h"
 #include "../../system/tsukumo.h"
+#include "../../net/monster.h"
 
 class TsukumoApp : public App {
 public:
@@ -253,12 +254,18 @@ private:
             break;
         }
         case Tsukumo::D_MONSTER: {
-            uint32_t ms = 0;
-            bool up = Tsukumo::Scanner::get().pingMonster(&ms);
-            if (up) L(0, "Answering ping  %lu ms", (unsigned long)ms);
-            else L(0, "Not answering ping.");
-            L(1, "Its own screen app runs it;");
-            L(2, "MitamaOS just says hello.");
+            auto& m = Monster::get();
+            if (m.active()) {
+                bool scan = m.state() == Monster::SCAN5;
+                L(0, scan ? "Scanning 5 GHz for Scry" : m.state() == Monster::DEAUTH ? "Watching for deauth attacks" : "Switching jobs...");
+                L(1, "5 GHz networks heard  %lu", (unsigned long)m.seen5());
+                L(2, "Deauth frames seen    %lu", (unsigned long)m.deauthFrames());
+            } else {
+                uint32_t ms = 0;
+                bool up = Tsukumo::Scanner::get().pingMonster(&ms);
+                if (up) L(0, "Answering ping  %lu ms", (unsigned long)ms);
+                else L(0, "Not answering. Restart with it plugged in.");
+            }
             break;
         }
         default:
