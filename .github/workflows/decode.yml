@@ -1,0 +1,53 @@
+name: crash-decode
+
+# Turns the addresses on MitamaOS's red crash screen into function names and
+# source lines. Edit mitamaos/tools/crash-decode.txt (line 1: the build hash
+# shown on the screen, line 2: the addresses) and push; the answer is in this
+# run's log.
+
+on:
+  push:
+    branches: [ "claude/cardputer-adv-os-firmware-okqopr" ]
+    paths: [ "mitamaos/tools/crash-decode.txt" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  decode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Find the build's firmware.elf
+        id: find
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          short=$(sed -n 1p mitamaos/tools/crash-decode.txt | tr -d '[:space:]')
+          full=$(git rev-parse "$short")
+          echo "sha=$full" >> "$GITHUB_OUTPUT"
+          run=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$full&per_page=20" \
+                -q '[.workflow_runs[] | select(.name=="firmware" and .conclusion=="success")][0].id')
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "build $short = $full, firmware run $run"
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware-elf-${{ steps.find.outputs.sha }}
+          run-id: ${{ steps.find.outputs.run }}
+          github-token: ${{ github.token }}
+          path: elf
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Decode
+        run: |
+          pip install -q platformio
+          pio pkg install -g -t "platformio/toolchain-xtensa-esp32s3" > /dev/null
+          A2L=$(find ~/.platformio/packages -name 'xtensa-esp32s3-elf-addr2line' | head -1)
+          addrs=$(sed -n 2p mitamaos/tools/crash-decode.txt)
+          echo "=== decoded ==="
+          for a in $addrs; do
+            echo "--- $a"
+            "$A2L" -pfiaC -e elf/firmware.elf "$a"
+          done
