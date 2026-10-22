@@ -72,6 +72,7 @@ bool boot() {
         s_last.crumb[sizeof(s_last.crumb) - 1] = 0;
     }
     if (SD.cardType() != CARD_NONE) {
+        if (!SD.exists("/MitamaOS")) SD.mkdir("/MitamaOS");   // mkdir makes one level only
         if (!SD.exists("/MitamaOS/logs")) SD.mkdir("/MitamaOS/logs");
         File f = SD.open("/MitamaOS/logs/crash.txt", FILE_APPEND);
         if (f) {
@@ -98,7 +99,7 @@ void show() {
     d.setFont(&fonts::Font0);
     d.setTextColor(TFT_RED, TFT_BLACK);
     d.setCursor(4, 4);
-    d.printf("MitamaOS restarted: %s\n", _resetName(s_reason));
+    d.printf("Restarted: %s\n", _resetName(s_reason));
     d.setTextColor(TFT_WHITE, TFT_BLACK);
     d.setCursor(4, 18);
     d.printf("build %s\n", MITAMA_BUILD);

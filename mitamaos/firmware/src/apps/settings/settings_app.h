@@ -93,6 +93,7 @@ public:
                     return;
                 }
                 _section = _menuSel + 1;
+                if (_section == 1) _tzScroll = constrain(_tzSel - TZ_VISIBLE / 2, 0, max(0, PaperClock::ZONE_COUNT - TZ_VISIBLE));
                 _draw();
             }
         }
@@ -113,7 +114,7 @@ public:
             }
             if (st.enter) {
                 OsUI::waitRelease();
-                PaperClock::saveOffset(PaperClock::ZONES[_tzSel].offset);
+                PaperClock::saveZone(_tzSel);
                 OsUI::showToast(_canvas, "Timezone saved!", COL_OK);
                 _canvas.pushSprite(0, 0);
                 delay(900);
@@ -177,14 +178,17 @@ public:
             if (st.enter) {
                 OsUI::waitRelease();
                 String s = _scanAndPickSSID();
-                if (s == "") {
+                bool manual = s == "";
+                if (manual) {
                     // scan failed, found nothing, or user cancelled the list -
                     // fall back to the old manual-entry flow so this screen
                     // never becomes a dead end
                     s = OsUI::inputText(_canvas, "SSID:");
                 }
-                if (s != "") {
-                    String p = _lastPickedOpen ? "" : OsUI::inputText(_canvas, "Password:");
+                if (manual) _lastPickedOpen = false;
+                String p = (s != "" && !_lastPickedOpen) ? OsUI::inputText(_canvas, "Password:") : "";
+                // An empty password on a locked network is a cancel: keep what was saved.
+                if (s != "" && (_lastPickedOpen || manual || p != "")) {
                     wm.saveSlot(_netSel, s, p);
                     wm.connectSlot(_netSel);
                     // Phone hotspots can take several seconds to accept;
@@ -324,13 +328,7 @@ private:
     static const char* _menuItems[];
     static const int   _menuCount;
 
-    int _findCurrentTZ() {
-        int off = PaperClock::loadOffset();
-        for (int i = 0; i < PaperClock::ZONE_COUNT; i++) {
-            if (PaperClock::ZONES[i].offset == off) return i;
-        }
-        return 12; // UTC+0
-    }
+    int _findCurrentTZ() { return PaperClock::loadZone(); }
 
     int _loadBrightness() {
         Preferences p;
@@ -386,12 +384,8 @@ private:
             _canvas.setTextSize(1);
 
             // Current offset
-            char curBuf[20];
-            snprintf(curBuf, sizeof(curBuf), "Now: %s",
-                PaperClock::ZONES[_tzSel].offset >= 0
-                    ? (String("UTC+") + PaperClock::ZONES[_tzSel].offset).c_str()
-                    : (String("UTC")  + PaperClock::ZONES[_tzSel].offset).c_str()
-            );
+            char curBuf[24];
+            snprintf(curBuf, sizeof(curBuf), "Now: %s", PaperClock::isSynced() ? PaperClock::getShortTime().c_str() : "clock not set");
             _canvas.setTextColor(COL_ACCENT, COL_BG);
             _canvas.setCursor(6, CONTENT_Y + 2);
             _canvas.print(curBuf);

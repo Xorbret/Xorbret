@@ -212,6 +212,7 @@ void setup() {
     ScryLogger::ensureDirs();
     Compendium::get().load();   // before the watcher starts noting sightings
     SdSettings::boot();         // restore settings an install wiped, before anything reads them
+    PaperClock::applyTz();      // local time rules, before anything shows a time
 
     // Brightness
     {
@@ -282,7 +283,8 @@ void setup() {
     }
 
     DetectionEngine::get().begin();
-    Kotodama::get().boot();     // LoRa chat keeps listening in the background if left on
+    Kotodama::get().boot();
+    AppManager::get().beforeStart = _radiosFor;     // LoRa chat keeps listening in the background if left on
 
     if (bootTo == BOOT_GAMES) {
         AppManager::get().launch("Games");
@@ -313,6 +315,11 @@ static void _checkGoButton() {
 
 // Tell the detection watcher when the foreground app changes, so it can
 // step aside for the apps that need the RAM or the radio.
+static void _radiosFor(const char* name) {
+    DetectionEngine::get().appChanged(name);
+    Kotodama::get().appChanged(name);
+}
+
 static void _watchActiveApp() {
     static App* last = nullptr;
     App* a = AppManager::get().getActive();
@@ -337,5 +344,13 @@ void loop() {
     SdSettings::tick();
     Kotodama::get().tick();
     Monster::get().tick();
+    // Wi-Fi reconnect and the first clock sync, whichever app is open (boot
+    // lands on Proxima, and a join can finish after boot moved on).
+    static uint32_t lastNet = 0; static bool ntp = false;
+    if (millis() - lastNet >= 10000) {
+        lastNet = millis();
+        WiFiManager::get().ensureConnected();
+        if (!ntp && WiFiManager::get().isConnected()) { PaperClock::syncTime(); ntp = true; }
+    }
     delay(TICK_MS);
 }

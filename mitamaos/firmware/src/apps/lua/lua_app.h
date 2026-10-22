@@ -6,6 +6,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Wire.h>
+#include "../../system/sd_settings.h"
 #include "../../system/tsukumo.h"
 #include <Preferences.h>
 #include <AudioFileSourceSD.h>
@@ -408,7 +409,7 @@ static int lb_os_luamem(lua_State* L)    { lua_pushinteger(L,(lua_Integer)g_lua_
                                             lua_pushinteger(L,LUA_HEAP_LIMIT_BYTES);
                                             return 2; }
 static int lb_os_psram(lua_State* L)     { lua_pushinteger(L,ESP.getFreePsram()); return 1; }
-static int lb_os_reset(lua_State* L)     { ESP.restart(); return 0; }
+static int lb_os_reset(lua_State* L)     { SdSettings::flush(); ESP.restart(); return 0; }
 static int lb_os_bright(lua_State* L)    { M5Cardputer.Display.setBrightness(constrain(luaL_checkinteger(L,1),0,100)*255/100); return 0; }
 static int lb_os_millis(lua_State* L)    { lua_pushinteger(L,millis()); return 1; }
 static int lb_os_micros(lua_State* L)    { lua_pushinteger(L,micros()); return 1; }

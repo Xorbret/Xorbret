@@ -5,6 +5,7 @@
 #include <Preferences.h>
 #include <vector>
 #include "esp_ota_ops.h"
+#include "../../system/sd_settings.h"
 #include "../../os/app.h"
 #include "../../os/app_manager.h"
 #include "../../os/os_ui.h"
@@ -508,7 +509,7 @@ private:
             esp_ota_set_boot_partition(ota1);
             _saveBootTo(FM_BOOT_GAMES);
             _showToast("Loading ROM...");
-            ESP.restart();
+            SdSettings::flush(); ESP.restart();
             return;
         }
 
@@ -529,7 +530,7 @@ private:
         Preferences p; p.begin("app", false); p.putString("OtaApp", "emu"); p.end();
         _saveBootTo(FM_BOOT_GAMES);
         _showToast("OK! Rebooting...");
-        ESP.restart();
+        SdSettings::flush(); ESP.restart();
     }
 
     void _launchArduboy(const String& path) {
@@ -539,7 +540,7 @@ private:
         { Preferences p; p.begin("app", false); p.putString("OtaApp", "ard"); p.end(); }
         _saveBootTo(FM_BOOT_GAMES);
         _showToast("OK! Rebooting...");
-        ESP.restart();
+        SdSettings::flush(); ESP.restart();
     }
 
     // Music app only scans its own /music folder - if the file lives

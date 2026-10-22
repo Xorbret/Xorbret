@@ -1,6 +1,7 @@
 #pragma once
 #include <M5Cardputer.h>
 #include <WiFi.h>
+#include "../../system/sd_settings.h"
 #include "../../os/app.h"
 #include "../../os/app_manager.h"
 #include "../../os/os_ui.h"
@@ -36,7 +37,7 @@ public:
         M5Cardputer.update();
         auto& kb = M5Cardputer.Keyboard;
         if (kb.isKeyPressed('`')) { OsUI::waitRelease(); AppManager::get().goHome(); return; }
-        if (kb.isKeyPressed('r') && _state == S_READY) { OsUI::waitRelease(); ESP.restart(); }
+        if (kb.isKeyPressed('r') && _state == S_READY) { OsUI::waitRelease(); SdSettings::flush(); ESP.restart(); }
         if (kb.keysState().enter) {
             OsUI::waitRelease();
             if (_state == S_IDLE || _state == S_CURRENT) _check();

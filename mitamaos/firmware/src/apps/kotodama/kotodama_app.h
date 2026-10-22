@@ -101,10 +101,10 @@ private:
                 return true;
             }
             if (c == ';') _crewSel = max(0, _crewSel - 1);
-            if (c == '.') _crewSel = min(_crewN - 1, _crewSel + 1);
-            if ((c == 'f' || c == 'F') && _crewSel < _crewN) _toggleFriend(_crew[_crewSel]);
+            if (c == '.') _crewSel = max(0, min(_crewN - 1, _crewSel + 1));   // stays 0 on an empty list
+            if ((c == 'f' || c == 'F') && _crewSel >= 0 && _crewSel < _crewN) _toggleFriend(_crew[_crewSel]);
         }
-        if (st.enter && _crewSel < _crewN) { _cardNum = _crew[_crewSel].num; _note = ""; }
+        if (st.enter && _crewSel >= 0 && _crewSel < _crewN) { _cardNum = _crew[_crewSel].num; _note = ""; }
         return true;
     }
 
@@ -219,7 +219,11 @@ private:
                 if (first) k.setOn(true);    // first setup turns it on; later changes keep fn+R's choice
                 if (_crewOnly) _openCrew();
             }
-            if (c == '`') { OsUI::waitRelease(); AppManager::get().goHome(); return false; }
+            if (c == '`') {
+                // Changing the region from the chat: back to the chat. First setup: leave.
+                if (Kotodama::get().region() != Mesh::REG_UNSET) { _picking = false; return true; }
+                OsUI::waitRelease(); AppManager::get().goHome(); return false;
+            }
         }
         return true;
     }
@@ -235,7 +239,7 @@ private:
                 if (c == 'r' || c == 'R') { k.setOn(!k.wantOn()); _note = ""; }
                 if (c == 'n' || c == 'N') { _naming = true; _input = k.longName(); }
                 if (c == 'g' || c == 'G') _picking = true;
-                if (c == 'c' || c == 'C') _openCrew();
+                if (c == 'c' || c == 'C') { if (_naming) { _naming = false; _input = ""; } _openCrew(); }
             }
             return true;
         }
@@ -243,7 +247,8 @@ private:
         if (st.del) { if (_input.length()) _input.remove(_input.length() - 1); return true; }
         if (st.enter) { _submit(); return true; }
         for (char c : st.word) {
-            if (c == '`' && !_input.length() && !_naming) { OsUI::waitRelease(); AppManager::get().goHome(); return false; }
+            if (c == '`' && _naming) { _naming = false; _input = ""; _note = ""; return true; }   // cancel naming
+            if (c == '`' && !_input.length()) { OsUI::waitRelease(); AppManager::get().goHome(); return false; }
             size_t cap = _naming ? 24 : Mesh::MAX_TEXT;
             if (_input.length() < cap) _input += c;
         }

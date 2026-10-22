@@ -4,6 +4,7 @@
 #include <Update.h>
 #include <Preferences.h>
 #include "esp_ota_ops.h"
+#include "../../system/sd_settings.h"
 #include "../../system/ota_tools.h"
 #include "../../os/app.h"
 #include "../../os/app_manager.h"
@@ -197,7 +198,7 @@ private:
         _saveBootTo(BOOT_GAMES);
 
         _showMsg("OK!  Rebooting...", COL_OK, 600);
-        ESP.restart();
+        SdSettings::flush(); ESP.restart();
     }
 
     void _flashNES_GB(const String& romPath) {
@@ -212,7 +213,7 @@ private:
             esp_ota_set_boot_partition(ota1);
             _saveBootTo(BOOT_GAMES);
             _showMsg("Loading ROM...", COL_OK, 400);
-            ESP.restart();
+            SdSettings::flush(); ESP.restart();
         } else {
             // Flash the emulator
             // Look for the emulator: PaperEMU -> legacy MiniEMU -> GameStation
@@ -264,7 +265,7 @@ private:
 
             _saveBootTo(BOOT_GAMES);
             _showMsg("OK!  Rebooting...", COL_OK, 600);
-            ESP.restart();
+            SdSettings::flush(); ESP.restart();
         }
     }
 

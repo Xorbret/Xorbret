@@ -72,6 +72,7 @@ private:
     Nmea::Parser _parser;
     Nmea::Fix    _fix;
     uint32_t     _lastMs = 0, _sinceSwitch = 0, _clockSetMs = 0;
+    bool         _tzSet = false;
     uint8_t      _baudIdx = 0;
     int          _rx = RX_PIN;
     bool         _configured = false;
@@ -95,10 +96,7 @@ private:
                  + _fix.hour * 3600 + _fix.min * 60 + _fix.sec;
         timeval tv = { t, 0 };
         settimeofday(&tv, nullptr);
-        // Apply the saved timezone (NTP's configTime does this when online).
-        char tz[16];
-        snprintf(tz, sizeof(tz), "UTC%+d", -PaperClock::loadOffset());   // POSIX sign is inverted
-        setenv("TZ", tz, 1);
-        tzset();
+        // Apply the saved timezone once (NTP's configTzTime does this when online).
+        if (!_tzSet) { _tzSet = true; PaperClock::applyTz(); }
     }
 };

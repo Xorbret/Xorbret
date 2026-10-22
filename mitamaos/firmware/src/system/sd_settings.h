@@ -34,6 +34,7 @@ static const Key _SCHEMA[] = {
     { "wifi-config", "p",      K_STR, MAX_WIFI_SLOTS },
     { "display",     "bright", K_INT, 0 },
     { "timecfg",     "tz_offset", K_INT, 0 },
+    { "timecfg",     "tz_zone", K_U8,  0 },
     { "mitama",      "sass",   K_U8,  0 },
     { "mitama",      "form",   K_U8,  0 },
     { "forms",       "flags",  K_INT, 0 },
@@ -266,6 +267,13 @@ inline void changed() {
 // Main loop: writes the file once settings have been quiet for 2 s.
 inline void tick() {
     if (!_dirty || millis() - _dirtyMs < 2000) return;
+    _dirty = false;
+    _write(_nvsGen());
+}
+
+// Before a restart: writes now if a change is still waiting.
+inline void flush() {
+    if (!_dirty) return;
     _dirty = false;
     _write(_nvsGen());
 }

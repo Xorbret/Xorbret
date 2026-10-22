@@ -159,6 +159,7 @@ public:
             _radio->sleep();
             _rfSwitch(false);
         }
+        if (_txPending) _txFailed = true;  // tell the chat it never went out
         _txPending = false;              // don't send a stale message next time
         _state = ST_OFF;
         _stopping = false;
@@ -295,6 +296,9 @@ public:
     // usually arrived too (see cardOf).
     bool takeArrival(Arrival& out) {
         portENTER_CRITICAL(&_mux);
+        // Arrivals nobody announced in time (chatter off) are old news.
+        while (_nArrivals > 0 && millis() - _arrivals[0].ms > 120000)
+            memmove(_arrivals, _arrivals + 1, sizeof(Arrival) * --_nArrivals);
         bool had = _nArrivals > 0 && millis() - _arrivals[0].ms > 4000;
         if (had) { out = _arrivals[0]; memmove(_arrivals, _arrivals + 1, sizeof(Arrival) * --_nArrivals); }
         portEXIT_CRITICAL(&_mux);
@@ -512,11 +516,14 @@ private:
         if (port == Mesh::PORT_NODEINFO && pl) {
             Node n; n.num = h.from;
             Mesh::decodeUser(pl, plen, n.longName, sizeof(n.longName), n.shortName, sizeof(n.shortName));
+            // Names from the air go into friends.txt and the log one per line.
+            for (char* c = n.longName; *c; c++) if ((uint8_t)*c < 0x20) *c = ' ';
+            for (char* c = n.shortName; *c; c++) if ((uint8_t)*c < 0x20) *c = ' ';
             _rememberNode(n);
             // Another Mitama just arrived and asked who's around: answer with
             // our name on the Mitama channel, after a random pause so several
             // replies don't collide, and at most once a minute.
-            if (wantResp && ch == Mesh::CH_MITAMA && !_replyAt && millis() - _lastReply > 60000)
+            if (wantResp && ch == Mesh::CH_MITAMA && !_replyAt && (!_lastReply || millis() - _lastReply > 60000))
                 _replyAt = millis() + 1000 + esp_random() % 4000;
         } else if (port == Mesh::PORT_CARD && pl && ch == Mesh::CH_MITAMA) {
             Card c;
@@ -556,10 +563,15 @@ private:
     Node* _slot(uint32_t num) {
         Node* n = _find(num);
         if (n) return n;
-        Node* best = &_nodes[0];
+        // Busy LongFast meshes have more nodes than slots: give up strangers
+        // first, so crew don't drop out and "arrive" again.
+        uint32_t now = millis();
+        auto keep = [&](const Node& x) { return x.crew && x.heardMs && now - x.heardMs < CREW_AWAY_MS; };
+        Node* best = nullptr;
         for (auto& x : _nodes) {
             if (!x.num) { best = &x; break; }
-            if ((int32_t)(x.heardMs - best->heardMs) < 0) best = &x;
+            if (best && keep(x) && !keep(*best)) continue;
+            if (!best || (keep(*best) && !keep(x)) || (int32_t)(x.heardMs - best->heardMs) < 0) best = &x;
         }
         *best = Node();
         best->num = num;
@@ -575,7 +587,10 @@ private:
         if (ch == Mesh::CH_MITAMA) {
             bool arriving = !n->crew || now - n->heardMs > CREW_AWAY_MS;
             n->crew = true;
-            if (arriving && _nArrivals < 4) _arrivals[_nArrivals++] = { from, _friendIdx(from) >= 0, now };
+            if (arriving) {
+                if (_nArrivals == 4) memmove(_arrivals, _arrivals + 1, sizeof(Arrival) * --_nArrivals);   // full: drop the oldest
+                _arrivals[_nArrivals++] = { from, _friendIdx(from) >= 0, now };
+            }
         }
         n->heardMs = now; n->rssi = rssi;
         portEXIT_CRITICAL(&_mux);
@@ -665,8 +680,16 @@ private:
     // it meanwhile (it may well be for us).
     void _waitClear() {
         for (int i = 0; i < 5; i++) {
-            int st = _radio->scanChannel();
+            // scanChannel() waits on the IRQ pin with no time limit; this
+            // gives up after 100 ms and treats the air as clear.
+            _rxFlag = false;
+            if (_radio->startChannelScan() != RADIOLIB_ERR_NONE) return;
+            uint32_t t0 = millis();
+            while (!_rxFlag && millis() - t0 < 100) delay(1);
+            bool done = _rxFlag;
             _rxFlag = false;                       // that was the scan's own interrupt
+            int st = done ? _radio->getChannelScanResult() : RADIOLIB_CHANNEL_FREE;
+            if (!done) _radio->standby();
             if (st != RADIOLIB_LORA_DETECTED) return;
             _radio->startReceive();                // the scan left it idle
             _listen(200 + esp_random() % 600);

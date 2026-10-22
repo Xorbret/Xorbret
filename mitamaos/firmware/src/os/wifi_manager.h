@@ -37,7 +37,9 @@ public:
         // drive our own slower, throttled retry via ensureConnected()
         // instead (see launcher.h), so this stays off.
         WiFi.setAutoReconnect(false);
-        WiFi.persistent(true);
+        // Saved networks live in "wifi-config"; persistent mode would also
+        // write each join attempt to flash, every 15 s while out of range.
+        WiFi.persistent(false);
         // Remember why the last join failed, for the Settings message.
         static bool hooked = false;
         if (!hooked) {
@@ -97,9 +99,10 @@ public:
         // without this a retry would cut off a slow handshake (phone
         // hotspots, WPA3) every time and it would never finish.
         if (joining()) return;
+        // (IDLE can also mean "associated, DHCP stalled", so past the join
+        // window it's retried like any other failure.)
         wl_status_t st = WiFi.status();
-        if (st == WL_IDLE_STATUS) return;  // already connecting
-        if (st == WL_DISCONNECTED || st == WL_CONNECTION_LOST
+        if (st == WL_IDLE_STATUS || st == WL_DISCONNECTED || st == WL_CONNECTION_LOST
             || st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) {
             _beginNext();
         }

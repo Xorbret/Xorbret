@@ -44,6 +44,7 @@ public:
         }
         _active = _apps[idx];
         _activeIdx = idx;
+        if (beforeStart) beforeStart(_active->getName());   // radios step aside before a heavy app allocates
         _active->onStart();
         MemGuard::poll();
         return true;
@@ -51,6 +52,9 @@ public:
 
     // Only call from core0.
     void goHome() { launchByIndex(0); }
+
+    // Set by main: told the next app's name just before its onStart().
+    void (*beforeStart)(const char* name) = nullptr;
 
     // Safe to call from ANY core/task: just records a request. core0's
     // tick() performs the actual switch on its next iteration.

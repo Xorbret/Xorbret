@@ -6,6 +6,7 @@
 #include "../../os/app_manager.h"
 #include "../../os/os_ui.h"
 #include "../../config.h"
+#include "../../system/paper_clock.h"
 
 //  ClockApp - clock / timer / stopwatch
 //  Modes: CLOCK (NTP time or uptime), TIMER (countdown),
@@ -35,7 +36,7 @@ public:
 
         // Try NTP sync if WiFi is available
         if (WiFi.status() == WL_CONNECTED && !_ntpDone) {
-            configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+            PaperClock::syncTime();   // keeps the saved timezone (configTime(0, ...) reset it to UTC)
             _ntpDone = true;
         }
 
@@ -202,7 +203,7 @@ private:
 
     void _drawClock(int cy) {
         struct tm ti;
-        bool hasTime = getLocalTime(&ti);
+        bool hasTime = PaperClock::_now(ti);   // getLocalTime() would block 5 s per frame with no clock
 
         if (hasTime) {
             char timebuf[10];
