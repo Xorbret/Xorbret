@@ -81,6 +81,7 @@ private:
     static inline uint8_t _openAt = Sig::T_COUNT;
 
     bool     _formsView = false;
+    uint32_t _fnoteMs = 0;
     uint8_t  _fsel = 0;
     int      _fscroll = 0;
     String   _fnote;                     // one-line result for the code prompt
@@ -98,8 +99,8 @@ private:
         if (st.fn && kb.isKeyPressed('k')) {      // the creator's code
             String code = OsUI::inputText(_canvas, "Code:");
             if (code.length()) {
-                if (Forms::get().tryCode(code)) { _fsel = MUI::F_KYUBI; _fScrollTo(); _fnote = "Welcome back, creator."; }
-                else _fnote = "That's not it.";
+                if (Forms::get().tryCode(code)) { _fsel = MUI::F_KYUBI; _fScrollTo(); _fnote = "Welcome back, creator."; _fnoteMs = 0; }
+                else { _fnote = "That's not it."; _fnoteMs = 0; }
             }
             _draw();
             return;
@@ -111,7 +112,7 @@ private:
             return;
         }
         if (moved) { _fScrollTo(); _draw(); delay(KEY_REPEAT_MS); }
-        else if (millis() - _lastDraw > 1000) _draw();
+        else if (millis() - _lastDraw > 100) _draw();     // ~10 fps: forms animate
     }
 
     void _fScrollTo() {
@@ -349,7 +350,11 @@ private:
             _drawForms();
             char n[12];
             snprintf(n, sizeof(n), "%d/%d", Forms::get().unlockedCount(), (int)MUI::F_PUBLIC);
-            if (_fnote.length()) { MUI::footer(_canvas, _fnote.c_str(), MUI::YELLOW, n); _fnote = ""; }
+            if (_fnote.length()) {                    // a note stays up for 3 s
+                if (!_fnoteMs) _fnoteMs = millis();
+                MUI::footer(_canvas, _fnote.c_str(), MUI::YELLOW, n);
+                if (millis() - _fnoteMs > 3000) { _fnote = ""; _fnoteMs = 0; }
+            }
             else MUI::footer(_canvas, Forms::get().isUnlocked(_fsel) ? "ENT wear   F demons" : "F demons",
                              MUI::DIM, n);
             { DispLock _lk; _canvas.pushSprite(0, 0); }

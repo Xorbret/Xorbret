@@ -51,7 +51,7 @@ public:
             if (!(_picking ? _pickKeys(st) : _crew ? _crewKeys(st) : _handleKeys(st))) return;   // left the app
             _draw();
         }
-        if (k.serial() != _seenSerial || millis() - _lastDraw > 1000) _draw();
+        if (k.serial() != _seenSerial || millis() - _lastDraw > (_cardNum ? 100u : 1000u)) _draw();   // a card's form animates
     }
 
 private:

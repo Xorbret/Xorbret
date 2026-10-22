@@ -66,17 +66,34 @@ struct _FormPen {
     }
 };
 
+// Animation clock for forms: everything that moves keys off this, so a
+// screen that redraws often (Proxima, ~10 fps) animates and one that
+// doesn't just shows a frame.
+inline float _formT() { return millis() / 1000.0f; }
+inline uint32_t _formHash(uint32_t x) { x ^= x >> 16; x *= 0x7feb352d; x ^= x >> 15; x *= 0x846ca68b; x ^= x >> 16; return x; }
+
 // Slices of whatever is drawn, shoved sideways, plus stray scanlines.
-inline void _formGlitch(const _FormPen& p) {
+// Animated: a new pattern every ~90 ms, mostly a light flicker with
+// short heavy bursts. `hard` (the creator's form) bursts more often.
+inline void _formGlitch(const _FormPen& p, bool hard = false) {
     const float cx = p.cx, cy = p.cy, s = p.s, f = p.f;
-    const float DY[] = { -30, 4, 20 }, DX[] = { 6, -5, 4 };
+    uint32_t ms = millis(), fr = ms / 90;
+    uint32_t cycle = hard ? 1700 : 2600;
+    bool burst = ms % cycle < (hard ? 420 : 300);
+    uint32_t h0 = _formHash(fr);
+    int slices = burst ? 4 : (h0 & 3) == 0 ? 0 : 2;     // now and then, a calm frame
     int x0 = lroundf(cx - 96 * s), x1 = lroundf(cx + 98 * s);
     int w = x1 - x0;
     if (w > 0 && w <= 240) {
         uint16_t row[240];
-        for (int j = 0; j < 3; j++) {
-            int y0 = (int)(cy + DY[j] * s), dx = lroundf(DX[j] * f);
-            for (int y = y0; y < y0 + max(2, (int)lroundf(3 * f)); y++) {
+        for (int j = 0; j < slices; j++) {
+            uint32_t h = _formHash(fr * 7 + j + 1);
+            float dyU = (float)(h % 150) - 75;
+            int maxDx = burst ? 12 : 6;
+            int dx = lroundf(((int)((h >> 8) % (2 * maxDx + 1)) - maxDx) * f);
+            if (!dx) dx = (h & 0x100000) ? 1 : -1;
+            int y0 = (int)(cy + dyU * s), th = max(2, (int)lroundf(((h >> 16) % (burst ? 5 : 3) + 1) * f));
+            for (int y = y0; y < y0 + th; y++) {
                 for (int i = 0; i < w; i++) row[i] = p.c.readPixel(x0 + i, y);
                 for (int i = 0; i < w; i++) {
                     int src = i - dx;
@@ -85,8 +102,12 @@ inline void _formGlitch(const _FormPen& p) {
             }
         }
     }
-    p.rect(cx - 30 * s, cy + 42 * s, 8 * f, 1, CYAN);
-    p.rect(cx + 8 * s, cy - 48 * s, 6 * f, 1, MAGENTA);
+    int lines = burst ? 4 : 2;
+    for (int j = 0; j < lines; j++) {
+        uint32_t h = _formHash(fr * 13 + j + 101);
+        float xu = (float)(h % 140) - 70, yu = (float)((h >> 8) % 120) - 60;
+        p.rect(cx + xu * s, cy + yu * s, (4 + (h >> 20) % 8) * f, 1, (j & 1) ? MAGENTA : CYAN);
+    }
 }
 
 inline void _formBehind(const _FormPen& p, Form form) {
@@ -102,12 +123,15 @@ inline void _formBehind(const _FormPen& p, Form form) {
 inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
     using namespace _FormCol;
     const float cx = p.cx, cy = p.cy, s = p.s, f = p.f;
+    const float T = _formT();
     switch (form) {
     case F_HITODAMA: // two spirit flames
         for (float a : { 200.0f, -20.0f }) {
-            float x = p.px(a, 80), y = p.py(a, 80), r = 3.4f * f;
+            float ph = a * 0.05f;
+            float x = p.px(a, 80), y = p.py(a, 80) + 3 * f * sinf(T * 2.2f + ph), r = 3.4f * f;
+            float tip = 2.3f + 0.6f * sinf(T * 9 + ph * 3) + 0.3f * sinf(T * 23 + ph);   // the flame licks
             p.disc(x, y, r, CYAN);
-            p.tri(x - r, y, x + r * 0.3f, y - r * 2.6f, x + r, y, CYAN);
+            p.tri(x - r, y, x + r * (0.3f + 0.4f * sinf(T * 6 + ph)), y - r * tip, x + r, y, CYAN);
             p.disc(x, y, 1.4f * f, WHITE);
         }
         break;
@@ -119,14 +143,15 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         for (int side = -1; side <= 1; side += 2)
             p.rect(cx + side * 62 * s - (side < 0 ? 3 : 1) * f, cy - 10 * s, 5 * f, 12 * f, CYAN);
         p.line(cx + 60 * s, cy + 12 * s, cx + 30 * s, cy + 40 * s, CYAN);
-        p.disc(cx + 30 * s, cy + 40 * s, 1.6f * f, MAGENTA);
+        if (fmodf(T, 1.2f) < 0.7f) p.disc(cx + 30 * s, cy + 40 * s, 1.6f * f, MAGENTA);   // live mic
         break;
     case F_TENGU: // feathered wings
         for (int side = -1; side <= 1; side += 2) {
             const float LN[] = { 58, 52, 44 }, AN[] = { -35, -15, 5 };
+            float flap = 9 * sinf(T * 2.4f);    // a slow wingbeat
             for (int k = 0; k < 3; k++) {
                 float bx = cx + side * 54 * s, by = cy + (-14 + k * 14) * s;
-                float a = AN[k] * (float)DEG_TO_RAD;
+                float a = (AN[k] - flap * (1 - k * 0.3f)) * (float)DEG_TO_RAD;
                 float tx = bx + side * LN[k] * s * cosf(a), ty = by + LN[k] * s * sinf(a) - 14 * s;
                 float nx = -(ty - by), ny = tx - bx, L = sqrtf(nx * nx + ny * ny);
                 nx = nx / L * 4 * f; ny = ny / L * 4 * f;
@@ -139,7 +164,7 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         float x0 = 0, y0 = 0, hx = 0, hy = 0;
         for (int k = 0; k < N; k++) {
             float t = (-60 + 300 * k / (float)(N - 1)) * (float)DEG_TO_RAD;
-            float r = 68 + 6 * sinf(5 * t);
+            float r = 68 + 6 * sinf(5 * t - T * 3);   // the coils ripple along
             float x = cx + r * s * cosf(t), y = cy + r * s * sinf(t);
             if (k == 0) { hx = x; hy = y; }
             else p.line(x0, y0, x, y, CYAN, (2.6f * (1 - k / (float)N) + 0.8f) * f);
@@ -156,11 +181,17 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         break; }
     case F_HYAKKI: { // a little night parade of magatama
         const float A[] = { 140, 175, 210 }; const uint16_t C[] = { MAGENTA, CYAN, GREEN };
-        for (int k = 0; k < 3; k++) p.mag(p.px(A[k], 82), p.py(A[k], 82), 3.0f, 2.3f, -60, 185, C[k]);
+        float walk = fmodf(T * 12, 360);       // the parade marches round the ring
+        for (int k = 0; k < 3; k++) {
+            float a = A[k] + walk, r = 82 + 3 * sinf(T * 4 + k * 2);
+            p.mag(p.px(a, r), p.py(a, r), 3.0f, 2.3f, -60 + walk, 185 + walk, C[k]);
+        }
         break; }
     case F_SHIKIGAMI: { // a paper cut-out familiar, tilted, at the upper right
         float x0 = cx + 70 * s, y0 = cy - 46 * s, k = 1.2f * s;
-        float ct = cosf(14 * (float)DEG_TO_RAD), st = sinf(14 * (float)DEG_TO_RAD);
+        y0 += 2 * f * sinf(T * 1.7f);
+        float tilt = 14 + 5 * sinf(T * 2.3f);    // paper flutters
+        float ct = cosf(tilt * (float)DEG_TO_RAD), st = sinf(tilt * (float)DEG_TO_RAD);
         auto T = [&](const float* in, int n, float* out) {
             for (int i = 0; i < n; i++) {
                 float u = in[i*2], v = in[i*2+1];
@@ -196,23 +227,32 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         }
         break; }
     case F_BRAINDANCE: // slices of the soul shoved sideways
-        _formGlitch(p);
+        _formGlitch(p, false);
         break;
-    case F_KYUBI: // the creator: hollow neon ears, green foxfire, a doubled crest, glitching
-        MitamaLogo::_magatama(p.c, cx - 2 * f, cy + 6 * s, 19 * s, 14 * s, -60, 185, 0.82f, MAGENTA);
-        MitamaLogo::_magatama(p.c, cx + 1 * f, cy + 6 * s, 19 * s, 14 * s, -60, 185, 0.82f, CYAN);
+    case F_KYUBI: { // the creator: hollow neon ears, green foxfire, a doubled crest, glitching
+        // the colour split jitters, and pulls wide during a glitch burst
+        uint32_t fr = millis() / 90;
+        bool burst = millis() % 1700 < 420;
+        float split = burst ? 3.0f + (_formHash(fr) % 4) : 1.5f + 0.5f * sinf(T * 5);
+        float jy = burst ? (float)((int)(_formHash(fr + 9) % 5) - 2) : 0;
+        MitamaLogo::_magatama(p.c, cx - split * f, cy + 6 * s + jy, 19 * s, 14 * s, -60, 185, 0.82f, MAGENTA);
+        MitamaLogo::_magatama(p.c, cx + split * 0.6f * f, cy + 6 * s - jy, 19 * s, 14 * s, -60, 185, 0.82f, CYAN);
         for (int side = -1; side <= 1; side += 2) {
             p.tri(p.px(-90 + side * 18, 57), p.py(-90 + side * 18, 57), cx + side * 40 * s, cy - 100 * s,
                   p.px(-90 + side * 56, 57), p.py(-90 + side * 56, 57), MAGENTA);
             p.tri(p.px(-90 + side * 31, 62), p.py(-90 + side * 31, 62), cx + side * 38 * s, cy - 80 * s,
                   p.px(-90 + side * 44, 62), p.py(-90 + side * 44, 62), PANEL);
         }
-        {
+        {   // foxfire drifts and flickers
             const float A[] = { 205, -25, 155 }, R[] = { 78, 80, 84 };
-            for (int k = 0; k < 3; k++) p.mag(p.px(A[k], R[k]), p.py(A[k], R[k]), 3.2f, 2.4f, -120, 125, GREEN);
+            for (int k = 0; k < 3; k++) {
+                float a = A[k] + 6 * sinf(T * 1.3f + k * 2.1f), r = R[k] + 4 * sinf(T * 2.1f + k);
+                if (burst && (_formHash(fr * 3 + k) & 3) == 0) continue;     // blinks out mid-glitch
+                p.mag(p.px(a, r), p.py(a, r), 3.2f, 2.4f, -120, 125, GREEN);
+            }
         }
-        _formGlitch(p);
-        break;
+        _formGlitch(p, true);
+        break; }
     case F_KITSUNE: // fox ears and foxfire
         for (int side = -1; side <= 1; side += 2) {
             p.tri(p.px(-90 + side * 18, 57), p.py(-90 + side * 18, 57), cx + side * 40 * s, cy - 100 * s,
@@ -222,7 +262,10 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         }
         {
             const float A[] = { 205, -25, 155 }, R[] = { 78, 80, 84 };
-            for (int k = 0; k < 3; k++) p.mag(p.px(A[k], R[k]), p.py(A[k], R[k]), 3.2f, 2.4f, -120, 125, CYAN);
+            for (int k = 0; k < 3; k++) {
+                float a = A[k] + 6 * sinf(T * 1.3f + k * 2.1f), r = R[k] + 4 * sinf(T * 2.1f + k);
+                p.mag(p.px(a, r), p.py(a, r), 3.2f, 2.4f, -120, 125, CYAN);
+            }
         }
         break;
     case F_ONI: // two soft horns
@@ -242,7 +285,7 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         }
         break;
     case F_OMAMORI: { // a charm hanging on a cord
-        float ax = p.px(40, 58), ay = p.py(40, 58), x = cx + 62 * s, y = cy + 62 * s;
+        float ax = p.px(40, 58), ay = p.py(40, 58), x = cx + (62 + 5 * sinf(T * 1.8f)) * s, y = cy + 62 * s;   // swings on its cord
         p.line(ax, ay, x, y - 12 * s, accent);
         p.disc(x, y - 12 * s, 2.2f * f, accent);
         float bag[] = { x - 12 * s, y - 8 * s, x + 12 * s, y - 8 * s, x + 14 * s, y + 28 * s, x - 14 * s, y + 28 * s };
@@ -266,46 +309,53 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         p.poly(t1, 4, BONES); p.poly(t2, 4, BONES);
         break; }
     case F_SUZU: { // a bell hanging below
-        p.line(cx, cy + 58 * s, cx, cy + 72 * s, MAGENTA);
-        float bx = cx, by = cy + 80 * s;
+        float sw = 6 * sinf(T * 3.2f);          // the bell swings
+        p.line(cx, cy + 58 * s, cx + sw * 0.6f * s, cy + 72 * s, MAGENTA);
+        float bx = cx + sw * s, by = cy + 80 * s;
         p.disc(bx, by, 6 * f, GOLD);
         p.rect(bx - 6 * f, by, 13 * f, 1, BROWN);
         p.rect(bx - 1 * f, by + 1, 2 * f, 4 * f, BROWN);
         p.disc(bx, by - 1 * f, 1 * f, WHITE);
         break; }
     case F_HOSHI: { // a glowing pearl floating beside the Mitama
-        float x = p.px(-48, 84), y = p.py(-48, 84), r = 4 * f;
+        float x = p.px(-48, 84), y = p.py(-48, 84) + 3 * f * sinf(T * 1.6f), r = 4 * f;
         p.c.drawCircle(lroundf(x), lroundf(y), lroundf(r + 2.2f * f), CYAN);
         p.disc(x, y, r, WHITE);
         p.disc(x - r * 0.35f, y - r * 0.35f, max(1.0f, r * 0.35f), 0xBF7F);   // highlight
-        p.disc(x - 9 * f, y + 6 * f, 1 * f, CYAN);
-        p.disc(x + 7 * f, y - 8 * f, 1 * f, WHITE);
+        if (fmodf(T, 1.4f) < 0.9f) p.disc(x - 9 * f, y + 6 * f, 1 * f, CYAN);     // twinkles, out of step
+        if (fmodf(T + 0.6f, 1.1f) < 0.6f) p.disc(x + 7 * f, y - 8 * f, 1 * f, WHITE);
         break; }
     case F_YUREI: // the white forehead triangle of a ghost
         p.tri(cx - 10 * s, cy - 56 * s, cx + 10 * s, cy - 56 * s, cx, cy - 74 * s, WHITE);
         break;
     case F_KEKKAI: { // a barrier hexagon
         float hx[6], hy[6];
-        for (int k = 0; k < 6; k++) { hx[k] = p.px(30 + 60 * k, 80); hy[k] = p.py(30 + 60 * k, 80); }
+        float rot = fmodf(T * 8, 60);            // the barrier turns slowly
+        for (int k = 0; k < 6; k++) { hx[k] = p.px(30 + 60 * k + rot, 80); hy[k] = p.py(30 + 60 * k + rot, 80); }
         for (int k = 0; k < 6; k++) p.line(hx[k], hy[k], hx[(k + 1) % 6], hy[(k + 1) % 6], CYAN);
-        for (int k = 0; k < 6; k++) p.disc(hx[k], hy[k], 1.4f * f, CYAN);
+        int lit = (int)(T * 4) % 6;               // and a light runs round its corners
+        for (int k = 0; k < 6; k++) p.disc(hx[k], hy[k], (k == lit ? 2.2f : 1.4f) * f, k == lit ? WHITE : CYAN);
         break; }
     case F_CHOCHIN: { // a paper lantern on a pole
         p.line(cx - 70 * s, cy + 70 * s, cx - 70 * s, cy - 60 * s, BROWN, 2 * f);
         p.line(cx - 70 * s, cy - 60 * s, cx - 46 * s, cy - 82 * s, BROWN, 2 * f);
-        float lx = cx - 46 * s, ly = cy - 60 * s;
+        float lx = cx - 46 * s + 2 * f * sinf(T * 1.5f), ly = cy - 60 * s;
         p.line(lx, ly - 22 * s, lx, ly - 14 * s, BROWN);
         float lan[] = { lx - 8 * s, ly - 14 * s, lx + 8 * s, ly - 14 * s, lx + 12 * s, ly,
                         lx + 8 * s, ly + 14 * s, lx - 8 * s, ly + 14 * s, lx - 12 * s, ly };
         p.poly(lan, 6, BONES);
         p.rect(lx - 8 * s, ly - 15 * s, 16 * s, 2 * f, GOLD);
         p.rect(lx - 8 * s, ly + 13 * s, 16 * s, 2 * f, GOLD);
-        p.rect(lx - 11 * s, ly, 22 * s, 1, PINK);
+        if (sinf(T * 11) + sinf(T * 17) > -1.2f) p.rect(lx - 11 * s, ly, 22 * s, 1, PINK);   // candle flicker
         break; }
     case F_KOTODAMA: { // words floating off
         float x = cx + 56 * s, y = cy - 62 * s;
-        const float W[] = { 26, 18, 22 }, DY[] = { 0, 10, 20 };
-        for (int k = 0; k < 3; k++) p.rect(x, y + DY[k] * s, W[k] * s, 2 * f, MAGENTA);
+        const float W[] = { 26, 18, 22 };
+        for (int k = 0; k < 3; k++) {             // words rise and fade, one after another
+            float u = fmodf(T * 0.35f + k / 3.0f, 1.0f);
+            float wy = y + (24 - 30 * u) * s;
+            p.rect(x + 3 * sinf(T + k) * s, wy, W[k] * s * (u < 0.8f ? 1 : (1 - u) * 5), 2 * f, u < 0.85f ? MAGENTA : PURPLE);
+        }
         p.disc(x - 6 * s, y + 20 * s + 1, 1.2f * f, MAGENTA);
         p.disc(x - 12 * s, y + 28 * s, 0.9f * f, MAGENTA);
         break; }
@@ -313,8 +363,10 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         for (int k = 0; k < 3; k++) {
             const float A[] = { -60, 150, 20 }, R[] = { 80, 84, 90 };
             float x = p.px(A[k], R[k]), y = p.py(A[k], R[k]);
-            p.rect(x - 2 * f, y, 5 * f, 1, WHITE);
-            p.rect(x, y - 2 * f, 1, 5 * f, WHITE);
+            float tw = 0.5f + 0.5f * sinf(T * 3 + k * 2.1f);     // each sparkle swells and shrinks
+            int arm = lroundf((1 + 2 * tw) * f);
+            p.rect(x - arm, y, 2 * arm + 1, 1, tw > 0.7f ? WHITE : GOLD);
+            p.rect(x, y - arm, 1, 2 * arm + 1, tw > 0.7f ? WHITE : GOLD);
         }
         break;
     default: break;
@@ -327,7 +379,8 @@ inline void soulForm(LGFX_Sprite& c, int cx, int cy, int size, uint16_t accent, 
                      float spin, Form form) {
     uint16_t bones = BONES;
     if (form == F_GILDED) { accent = _FormCol::GOLD; bones = _FormCol::GOLD; }
-    if (form == F_YUREI)  { accent = _FormCol::PALE; bones = _FormCol::GHOST; cy += max(1, size / 30); }
+    if (form == F_YUREI)  { accent = _FormCol::PALE; bones = _FormCol::GHOST;
+                            cy += max(1, size / 30) + lroundf(size / 46.0f * sinf(_formT() * 1.4f)); }   // drifts up and down
     if (form == F_KYUBI)  { accent = CYAN; bones = MAGENTA; }
     _FormPen p{ c, (float)cx, (float)cy, size / 200.0f, size / 92.0f };
     _formBehind(p, form);
