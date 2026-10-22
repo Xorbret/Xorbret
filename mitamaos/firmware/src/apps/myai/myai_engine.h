@@ -109,6 +109,7 @@ static void kv_read(int layer, int pos, int kv_idx, float *out) {
 // Weights come from the flash copy when it's mapped (fast), else the SD
 // card. g_cur is the read position in the mapped copy.
 static const uint8_t* g_map = nullptr;
+static volatile bool     _stop_requested = false;  // cooperative stop flag for a clean deinit()
 static uint32_t       g_cur = 0;
 
 static inline void mseek(File &f, uint32_t off) { if (g_map) g_cur = off; else f.seek(off); }
@@ -193,13 +194,38 @@ static bool model_init() {
         if (f) f.close();
         return false;
     }
+    // Each tensor must be the size its shape says and lie inside the file:
+    // a cut-off model.bin would otherwise send reads past the end (in
+    // flash, past the mapping: a crash on every open).
+    const uint32_t total = g_map ? ModelFlash::mapSize() : (uint32_t)f.size();
+    auto expect = [&](int i) -> uint32_t {
+        const uint32_t E = g_embd;
+        if (i == 0) return VOCAB * E;
+        if (i == 1) return CTX_LEN * E;
+        if (i == g_ntensors - 1) return VOCAB * E;
+        if (i >= g_ntensors - 3) return E;
+        switch ((i - 2) % 10) {
+            case 2: case 5: return E * E;
+            case 3: case 4: return HEAD_DIM * E;
+            case 8: case 9: return (uint32_t)g_ff * E;
+            default:        return E;
+        }
+    };
     uint32_t pos = 24;
     for (int i = 0; i < g_ntensors; i++) {
+        if (pos + 4 > total) { ok = false; break; }
         uint32_t sz; safe_read(f, &sz, 4);
         pos += 4;
+        if (sz < expect(i) || sz > total - pos) { ok = false; break; }
         g_off[i] = pos;
         pos += sz;
         mseek(f, pos);
+    }
+    if (ok && pos + 4u * g_ntensors > total) ok = false;
+    if (!ok) {
+        Serial.println("model.bin is cut short or damaged");
+        if (f) f.close();
+        return false;
     }
     for (int i = 0; i < g_ntensors; i++) safe_read(f, &g_sc[i], 4);
     if (f) f.close();
@@ -223,6 +249,7 @@ static void model_forward(File &mf, int tok, int pos) {
     for (int i = 0; i < g_embd; i++) x_buf[i] += res_buf[i];
 
     for (int l = 0; l < g_layers; l++) {
+        if (_stop_requested) return;   // leaving MiTalk: don't finish a ~4 s pass from SD
         mseek(mf, g_off[ti]); stream_vec(mf, ln_w, g_embd, g_sc[ti]); ti++;
         mseek(mf, g_off[ti]); stream_vec(mf, ln_b, g_embd, g_sc[ti]); ti++;
         layernorm(ln_out, x_buf, ln_w, ln_b);
@@ -404,7 +431,6 @@ static bool              _started    = false;
 static volatile uint32_t _busy_since = 0;  // millis() when generation started, 0 = idle
 static volatile int      _cur_pos   = 0;   // current position (prompt+generation)
 static volatile int      _cur_phase = 0;   // 0=idle 1=encoding prompt 2=generating
-static volatile bool     _stop_requested = false;  // cooperative stop flag for a clean deinit()
 
 // streaming token buffer — one char at a time
 static char              _stream_char = 0;
@@ -559,11 +585,12 @@ inline void deinit() {
         // task's stack.
         _stop_requested = true;
         uint32_t t0 = millis();
-        while (_busy && millis() - t0 < 6000) { delay(20); }
+        while (_busy && millis() - t0 < 10000) { delay(20); }
         _stop_requested = false;
         vTaskDelete(_task_handle);
         _task_handle = nullptr;
     }
+    esp_task_wdt_init(5, false);   // back to the system default init() raised
     kv_ram_free();
     ModelFlash::unmap(); g_map = nullptr;
     g_model_ok = false; _started = false;

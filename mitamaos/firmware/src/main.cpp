@@ -283,8 +283,9 @@ void setup() {
     }
 
     DetectionEngine::get().begin();
-    Kotodama::get().boot();
-    AppManager::get().beforeStart = _radiosFor;     // LoRa chat keeps listening in the background if left on
+    Kotodama::get().boot();     // LoRa chat keeps listening in the background if left on
+    // Radios step aside before a heavy app's onStart() allocates.
+    AppManager::get().beforeStart = [](const char* n) { DetectionEngine::get().appChanged(n); Kotodama::get().appChanged(n); };
 
     if (bootTo == BOOT_GAMES) {
         AppManager::get().launch("Games");
@@ -315,11 +316,6 @@ static void _checkGoButton() {
 
 // Tell the detection watcher when the foreground app changes, so it can
 // step aside for the apps that need the RAM or the radio.
-static void _radiosFor(const char* name) {
-    DetectionEngine::get().appChanged(name);
-    Kotodama::get().appChanged(name);
-}
-
 static void _watchActiveApp() {
     static App* last = nullptr;
     App* a = AppManager::get().getActive();

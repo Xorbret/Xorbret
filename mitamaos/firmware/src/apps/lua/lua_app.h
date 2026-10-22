@@ -216,6 +216,11 @@ static void _lua_timers_clear(lua_State* L) {
 }
 
 static void _lua_timers_tick(lua_State* L) {
+    // A callback that calls sleep() would tick again from inside itself,
+    // and re-run the same (still due) timer until the stack ran out.
+    static bool inTick = false;
+    if (inTick) return;
+    inTick = true;
     uint32_t now = millis();
     // Iterate by index (not range-for) because a timer callback can itself
     // call timer.every()/timer.after() which push_back() onto g_timers —
@@ -225,14 +230,17 @@ static void _lua_timers_tick(lua_State* L) {
     // that existed at tick-start; newly added ones are picked up next tick.
     int n = (int)g_timers.size();
     for (int i = 0; i < n; i++) {
-        if (!g_timers[i].alive || now < g_timers[i].next) continue;
+        if (!g_timers[i].alive || (int32_t)(now - g_timers[i].next) < 0) continue;
         lua_rawgeti(L, LUA_REGISTRYINDEX, g_timers[i].ref);
-        if (lua_pcall(L, 0, 0, 0) != LUA_OK) lua_pop(L, 1); // one bad timer shouldn't kill the whole loop
+        int pr = lua_pcall(L, 0, 0, 0);
+        if (pr != LUA_OK) lua_pop(L, 1); // one bad timer shouldn't kill the whole loop
         // re-read g_timers[i] after pcall — vector may have reallocated if
         // the callback called timer.every()/after(), but the INDEX is stable
         if (g_timers[i].repeat) g_timers[i].next = millis() + g_timers[i].interval;
         else { luaL_unref(L, LUA_REGISTRYINDEX, g_timers[i].ref); g_timers[i].alive = false; }
+        if (g_exec.interrupt || g_exec.quit) break;   // Ctrl+C: stop here, the caller raises it
     }
+    inTick = false;
 }
 
 // store.* — small persistent key/value scratchpad for scripts (Preferences/NVS).
@@ -249,6 +257,21 @@ static File _fsOpen(const char* path, const char* mode = "r") {
         return SD.open(p, mode);
     }
     return LittleFS.open(path, mode);
+}
+
+// Opens and compiles a script, leaving the chunk (or the error message) on
+// the stack. The source is freed before returning, so no C++ object is
+// alive when a later Lua error jumps out (errors skip destructors).
+static int _loadScript(lua_State* L, const char* path) {
+    File f = _fsOpen(path);
+    if (!f) { lua_pushfstring(L, "cannot open '%s'", path); return LUA_ERRFILE; }
+    size_t n = f.size();
+    char* buf = (char*)malloc(n ? n : 1);
+    if (!buf) { f.close(); lua_pushfstring(L, "'%s' is too big to load", path); return LUA_ERRMEM; }
+    n = f.read((uint8_t*)buf, n); f.close();
+    int r = luaL_loadbuffer(L, buf, n, path);
+    free(buf);
+    return r;
 }
 static bool _fsExists(const char* p) { return (strncmp(p,"/sd",3)==0||strncmp(p,"/SD",3)==0) ? SD.exists(p+3) : LittleFS.exists(p); }
 static bool _fsRemove(const char* p) { return (strncmp(p,"/sd",3)==0||strncmp(p,"/SD",3)==0) ? SD.remove(p+3) : LittleFS.remove(p); }
@@ -271,11 +294,12 @@ static String _luaValToStr(lua_State* L, int idx) {
     return r;
 }
 
+// The flags stay set until the next command starts (or loop() returns),
+// so a script that catches "interrupted" with pcall and carries on is
+// stopped again at its next instruction, and leaving the app always ends it.
 static void lua_interrupt_hook(lua_State* L, lua_Debug*) {
-    if (g_exec.interrupt) {
-        g_exec.interrupt = false;
-        luaL_error(L, "interrupted");
-    }
+    if (g_exec.quit) luaL_error(L, "quit");
+    if (g_exec.interrupt) luaL_error(L, "interrupted");
 }
 
 
@@ -301,7 +325,7 @@ static int lb_sleep(lua_State* L) {
     long remaining = luaL_optinteger(L, 1, 0);
     const long CHUNK_MS = 20;
     while (remaining > 0) {
-        if (g_exec.interrupt) { g_exec.interrupt = false; luaL_error(L, "interrupted"); }
+        if (g_exec.interrupt) luaL_error(L, "interrupted");
         long d = (remaining < CHUNK_MS) ? remaining : CHUNK_MS;
         vTaskDelay(pdMS_TO_TICKS(d));
         _lua_timers_tick(L);
@@ -474,15 +498,20 @@ static int lb_fs_ls(lua_State* L) {
     g_lt.push(cnt?out:"(empty)",COL_DIM); return 0;
 }
 static int lb_fs_read(lua_State* L) {
-    File f=_fsOpen(luaL_checkstring(L,1)); if(!f){lua_pushnil(L);lua_pushstring(L,"not found");return 2;}
-    int maxb=luaL_optinteger(L,2,8192); String out; int n=0;
-    while(f.available()&&n<maxb){out+=(char)f.read();n++;} f.close();
-    lua_pushstring(L,out.c_str()); return 1;
+    // Arguments are checked before the file is open: a Lua error jumps
+    // past the close and would leak the handle.
+    const char* path=luaL_checkstring(L,1); int maxb=luaL_optinteger(L,2,8192);
+    if(maxb<0) maxb=0; if(maxb>32768) maxb=32768;
+    File f=_fsOpen(path); if(!f){lua_pushnil(L);lua_pushstring(L,"not found");return 2;}
+    luaL_Buffer b; char* p=luaL_buffinitsize(L,&b,maxb);   // counted against the Lua memory cap
+    int n=f.read((uint8_t*)p,maxb); f.close();
+    luaL_pushresultsize(&b,n>0?n:0); return 1;
 }
 static int lb_fs_write(lua_State* L) {
-    File f=_fsOpen(luaL_checkstring(L,1),lua_toboolean(L,3)?FILE_APPEND:FILE_WRITE);
+    const char* path=luaL_checkstring(L,1); size_t len; const char* data=luaL_checklstring(L,2,&len);
+    File f=_fsOpen(path,lua_toboolean(L,3)?FILE_APPEND:FILE_WRITE);   // opening truncates: only once the data is valid
     if(!f){lua_pushboolean(L,false);lua_pushstring(L,"open failed");return 2;}
-    size_t w=f.print(luaL_checkstring(L,2)); f.close();
+    size_t w=f.write((const uint8_t*)data,len); f.close();
     lua_pushboolean(L,true); lua_pushinteger(L,w); return 2;
 }
 static int lb_fs_rm(lua_State* L)    { lua_pushboolean(L,_fsRemove(luaL_checkstring(L,1))); return 1; }
@@ -491,9 +520,10 @@ static int lb_fs_exists(lua_State* L){ lua_pushboolean(L,_fsExists(luaL_checkstr
 static int lb_fs_size(lua_State* L)  { File f=_fsOpen(luaL_checkstring(L,1)); if(!f){lua_pushinteger(L,-1);return 1;} size_t s=f.size();f.close();lua_pushinteger(L,s);return 1; }
 static int lb_fs_rename(lua_State* L){ lua_pushboolean(L,_fsRename(luaL_checkstring(L,1),luaL_checkstring(L,2))); return 1; }
 static int lb_fs_copy(lua_State* L) {
-    File in=_fsOpen(luaL_checkstring(L,1),"r");
+    const char* src=luaL_checkstring(L,1); const char* dst=luaL_checkstring(L,2);
+    File in=_fsOpen(src,"r");
     if(!in){lua_pushboolean(L,false);lua_pushstring(L,"cannot open source");return 2;}
-    File out=_fsOpen(luaL_checkstring(L,2),FILE_WRITE);
+    File out=_fsOpen(dst,FILE_WRITE);
     if(!out){in.close();lua_pushboolean(L,false);lua_pushstring(L,"cannot open dest");return 2;}
     uint8_t buf[256]; size_t n; bool ok=true;
     while((n=in.read(buf,sizeof(buf)))>0){
@@ -548,7 +578,7 @@ static int lb_net_scan(lua_State* L) {
         int st=WiFi.scanComplete();
         if(st==WIFI_SCAN_FAILED){g_lt.push("Scan failed",COL_ERR);if(asList){lua_newtable(L);return 1;}return 0;}
         if(st>=0) break; // scan done, st = number of networks found
-        if(g_exec.interrupt){g_exec.interrupt=false;WiFi.scanDelete();luaL_error(L,"interrupted");}
+        if(g_exec.interrupt){WiFi.scanDelete();luaL_error(L,"interrupted");}
         vTaskDelay(pdMS_TO_TICKS(200)); waited+=200;
     }
     int n=WiFi.scanComplete();
@@ -563,7 +593,7 @@ static int lb_net_connect(lua_State* L) {
     WiFi.begin(luaL_checkstring(L,1),luaL_optstring(L,2,""));
     int t=0;
     while(WiFi.status()!=WL_CONNECTED&&t<20){
-        if (g_exec.interrupt) { g_exec.interrupt=false; luaL_error(L,"interrupted"); }
+        if (g_exec.interrupt) luaL_error(L,"interrupted");
         vTaskDelay(pdMS_TO_TICKS(500));t++;
     }
     lua_pushboolean(L,WiFi.status()==WL_CONNECTED);
@@ -607,34 +637,48 @@ static bool _lua_http_begin(HTTPClient& http, WiFiClientSecure& secureClient, Wi
                               // on https:// while http:// kept working fine
     return http.begin(client, url);
 }
-static int lb_net_get(lua_State* L) {
-    if (g_exec.interrupt) { g_exec.interrupt=false; luaL_error(L,"interrupted"); }
-    _lua_net_ensure_wifi();
-    if(WiFi.status()!=WL_CONNECTED){lua_pushnil(L);lua_pushstring(L,"not connected");return 2;}
-    String url = luaL_checkstring(L,1);
+// The request runs with no Lua calls in between, so a Lua error can't jump
+// past the TLS client and leak its socket and memory.
+static bool _lua_http(bool post, const String& url, const char* body, const char* ctype, int& code, String& out) {
     WiFiClientSecure secureClient; WiFiClient plainClient;
     HTTPClient http; http.setTimeout(8000);
     String beginErr;
-    if (!_lua_http_begin(http, secureClient, plainClient, url, beginErr)) { lua_pushnil(L); lua_pushstring(L,beginErr.length()?beginErr.c_str():"begin failed"); return 2; }
-    int code=http.GET();
-    if(code>0){lua_pushinteger(L,code);lua_pushstring(L,http.getString().c_str());}
-    else{lua_pushnil(L);lua_pushstring(L,http.errorToString(code).c_str());}
-    http.end(); return 2;
+    if (!_lua_http_begin(http, secureClient, plainClient, url, beginErr)) { out = beginErr.length() ? beginErr : "begin failed"; return false; }
+    if (post) http.addHeader("Content-Type", ctype);
+    code = post ? http.POST(body) : http.GET();
+    out = code > 0 ? http.getString() : http.errorToString(code);
+    http.end();
+    return code > 0;
+}
+static int _lua_http_result(lua_State* L, bool ok, int code, String& out) {
+    if (ok) lua_pushinteger(L, code); else lua_pushnil(L);
+    // Copy into Lua, then free ours before anything can raise.
+    luaL_Buffer b; luaL_buffinit(L, &b);
+    size_t n = out.length();
+    luaL_addlstring(&b, out.c_str(), n);
+    out = String();
+    luaL_pushresult(&b);
+    return 2;
+}
+static int lb_net_get(lua_State* L) {
+    if (g_exec.interrupt) luaL_error(L,"interrupted");
+    const char* url = luaL_checkstring(L,1);
+    _lua_net_ensure_wifi();
+    if(WiFi.status()!=WL_CONNECTED){lua_pushnil(L);lua_pushstring(L,"not connected");return 2;}
+    int code = 0; String out;
+    bool ok = _lua_http(false, String(url), nullptr, nullptr, code, out);
+    return _lua_http_result(L, ok, code, out);
 }
 static int lb_net_post(lua_State* L) {
-    if (g_exec.interrupt) { g_exec.interrupt=false; luaL_error(L,"interrupted"); }
+    if (g_exec.interrupt) luaL_error(L,"interrupted");
+    const char* url = luaL_checkstring(L,1);
+    const char* body = luaL_optstring(L,2,"");
+    const char* ctype = luaL_optstring(L,3,"application/json");
     _lua_net_ensure_wifi();
     if(WiFi.status()!=WL_CONNECTED){lua_pushnil(L);lua_pushstring(L,"not connected");return 2;}
-    String url = luaL_checkstring(L,1);
-    WiFiClientSecure secureClient; WiFiClient plainClient;
-    HTTPClient http; http.setTimeout(8000);
-    String beginErr;
-    if (!_lua_http_begin(http, secureClient, plainClient, url, beginErr)) { lua_pushnil(L); lua_pushstring(L,beginErr.length()?beginErr.c_str():"begin failed"); return 2; }
-    http.addHeader("Content-Type",luaL_optstring(L,3,"application/json"));
-    int code=http.POST(luaL_optstring(L,2,""));
-    if(code>0){lua_pushinteger(L,code);lua_pushstring(L,http.getString().c_str());}
-    else{lua_pushnil(L);lua_pushstring(L,http.errorToString(code).c_str());}
-    http.end(); return 2;
+    int code = 0; String out;
+    bool ok = _lua_http(true, String(url), body, ctype, code, out);
+    return _lua_http_result(L, ok, code, out);
 }
 
 // gpio.*
@@ -668,7 +712,12 @@ static int lb_gpio_write(lua_State* L) {
     digitalWrite(p,luaL_checkinteger(L,2)); return 0;
 }
 static int lb_gpio_read(lua_State* L)  { lua_pushinteger(L,digitalRead(luaL_checkinteger(L,1))); return 1; }
-static int lb_gpio_aread(lua_State* L) { lua_pushinteger(L,analogRead(luaL_checkinteger(L,1))); return 1; }
+static int lb_gpio_aread(lua_State* L) {
+    int p=luaL_checkinteger(L,1);
+    // analogRead switches the pin to analog mode, which would cut off SD/LoRa/keyboard.
+    if (_gpioReserved(p)) return luaL_error(L, "gpio %d is reserved by the system - use a free GPIO", p);
+    lua_pushinteger(L,analogRead(p)); return 1;
+}
 static int lb_gpio_awrite(lua_State* L){
     int p=luaL_checkinteger(L,1);
     if (_gpioReserved(p)) return luaL_error(L, "gpio %d is reserved by the system - use a free GPIO", p);
@@ -1045,7 +1094,13 @@ static void _json_escape(const char* s, String& out) {
     out += '"';
 }
 static void _json_encode_value(lua_State* L, int idx, String& out);
+// Nesting limit both ways: deep (or self-containing) tables would overrun
+// the Lua stack or the task's 16 KB C stack. Too deep encodes as null.
+static const int JSON_MAX_DEPTH = 32;
+static int g_jsonDepth = 0;
 static void _json_encode_table(lua_State* L, int idx, String& out) {
+    if (g_jsonDepth >= JSON_MAX_DEPTH || !lua_checkstack(L, 4)) { out += "null"; return; }
+    struct D { D() { g_jsonDepth++; } ~D() { g_jsonDepth--; } } depth;
     int absIdx = lua_absindex(L, idx);
     lua_len(L, absIdx);
     lua_Integer n = lua_tointeger(L, -1);
@@ -1101,12 +1156,13 @@ static void _json_encode_value(lua_State* L, int idx, String& out) {
 }
 static int lb_json_encode(lua_State* L) {
     String out;
+    g_jsonDepth = 0;
     _json_encode_value(L, 1, out);
     lua_pushstring(L, out.c_str());
     return 1;
 }
 struct _JsonParser {
-    const char* s; int pos;
+    const char* s; int pos; int depth = 0;
     void skipWs() { while (s[pos]==' '||s[pos]=='\t'||s[pos]=='\n'||s[pos]=='\r') pos++; }
     bool parseString(String& out) {
         if (s[pos] != '"') return false;
@@ -1134,8 +1190,13 @@ struct _JsonParser {
         skipWs();
         char c = s[pos];
         if (c == '"') { String str; if (!parseString(str)) return false; lua_pushstring(L, str.c_str()); return true; }
-        if (c == '{') return parseObject(L);
-        if (c == '[') return parseArray(L);
+        if (c == '{' || c == '[') {
+            if (depth >= JSON_MAX_DEPTH || !lua_checkstack(L, 4)) return false;
+            depth++;
+            bool ok = c == '{' ? parseObject(L) : parseArray(L);
+            depth--;
+            return ok;
+        }
         if (!strncmp(s+pos,"true",4))  { lua_pushboolean(L,1); pos+=4; return true; }
         if (!strncmp(s+pos,"false",5)) { lua_pushboolean(L,0); pos+=5; return true; }
         if (!strncmp(s+pos,"null",4))  { lua_pushnil(L);       pos+=4; return true; }
@@ -1147,9 +1208,9 @@ struct _JsonParser {
         if (s[pos]=='.') { isFloat=true; pos++; while (isdigit((unsigned char)s[pos])) pos++; }
         if (s[pos]=='e'||s[pos]=='E') { isFloat=true; pos++; if (s[pos]=='+'||s[pos]=='-') pos++; while (isdigit((unsigned char)s[pos])) pos++; }
         if (pos == start) return false;
-        String numStr = String(s).substring(start, pos);
-        if (isFloat) lua_pushnumber(L, numStr.toFloat());
-        else lua_pushinteger(L, numStr.toInt());
+        // (Copying the whole input per number made big arrays crawl.)
+        if (isFloat) lua_pushnumber(L, (lua_Number)strtod(s + start, nullptr));
+        else lua_pushinteger(L, (lua_Integer)strtoll(s + start, nullptr, 10));
         return true;
     }
     bool parseArray(lua_State* L) {
@@ -1270,37 +1331,30 @@ static int lb_require(lua_State* L) {
     lua_pushboolean(L, 0);
     lua_setfield(L, cacheIdx, m); // cache[m] = false
 
-    String paths[] = {
-        String("/sd/lua/") + m + ".lua",
-        String("/sd/")     + m + ".lua",
-        String("/")        + m + ".lua",
-        String("/sd/lib/") + m + ".lua",
-    };
-    File f; String foundPath;
-    for (auto& p : paths) {
-        f = _fsOpen(p.c_str());
-        if (f) { foundPath = p; break; }
+    // Find and compile the module with no C++ objects left alive, since
+    // the luaL_error() calls below jump past destructors.
+    static const char* const DIRS[] = { "/sd/lua/", "/sd/", "/", "/sd/lib/" };
+    int lr = LUA_ERRFILE;
+    for (auto d : DIRS) {
+        lua_pushfstring(L, "%s%s.lua", d, m);              // stack: [cache, path]
+        const char* path = lua_tostring(L, -1);
+        if (_fsExists(path)) { lr = _loadScript(L, path); lua_remove(L, -2); break; }
+        lua_pop(L, 1);
     }
-    if (!f) {
+    if (lr == LUA_ERRFILE && lua_gettop(L) == cacheIdx) {
         lua_pushnil(L); lua_setfield(L, cacheIdx, m); // clear "loading" marker so a later require() can retry (e.g. after the user copies the file onto the SD card)
         lua_pop(L, 1); // pop cache
         return luaL_error(L, "module '%s' not found (checked /sd/lua, /sd, /, /sd/lib)", m);
     }
-
-    String code; code.reserve(f.size()+1); while (f.available()) code += (char)f.read(); f.close();
-
-    if (luaL_loadbuffer(L, code.c_str(), code.length(), foundPath.c_str()) != LUA_OK) {
-        String err = lua_tostring(L, -1); lua_pop(L, 1);
+    if (lr != LUA_OK) {                                    // stack: [cache, msg]
         lua_pushnil(L); lua_setfield(L, cacheIdx, m);
-        lua_pop(L, 1);
-        return luaL_error(L, "error loading module '%s': %s", m, err.c_str());
+        lua_pushfstring(L, "error loading module '%s': %s", m, lua_tostring(L, -1));
+        return lua_error(L);
     }
-
     if (lua_pcall(L, 0, 1, 0) != LUA_OK) {
-        String err = lua_tostring(L, -1); lua_pop(L, 1);
         lua_pushnil(L); lua_setfield(L, cacheIdx, m);
-        lua_pop(L, 1);
-        return luaL_error(L, "error running module '%s': %s", m, err.c_str());
+        lua_pushfstring(L, "error running module '%s': %s", m, lua_tostring(L, -1));
+        return lua_error(L);
     }
     // stack: [cache, result]
 
@@ -1335,20 +1389,17 @@ static void lua_register_all(lua_State* L) {
 
     // run(path)
     lua_pushcfunction(L,[](lua_State* L2)->int{
-        const char* path=luaL_checkstring(L2,1); File f=_fsOpen(path);
-        if(!f){g_lt.push(String("run: not found: ")+path,COL_ERR);return 0;}
-        String code;code.reserve(f.size()+1);while(f.available())code+=(char)f.read();f.close();
-        if(luaL_loadbuffer(L2,code.c_str(),code.length(),path)!=LUA_OK||lua_pcall(L2,0,LUA_MULTRET,0)!=LUA_OK){g_lt.push(String("ERR: ")+lua_tostring(L2,-1),COL_ERR);lua_pop(L2,1);}
+        const char* path=luaL_checkstring(L2,1);
+        if(_loadScript(L2,path)!=LUA_OK||lua_pcall(L2,0,LUA_MULTRET,0)!=LUA_OK){g_lt.push(String("ERR: ")+lua_tostring(L2,-1),COL_ERR);lua_pop(L2,1);}
         return 0;
     }); lua_setglobal(L,"run");
 
     // dofile(path)
     lua_pushcfunction(L,[](lua_State* L2)->int{
-        const char* path=luaL_checkstring(L2,1); File f=_fsOpen(path);
-        if(!f) return luaL_error(L2,"cannot open '%s'",path);
-        String code;code.reserve(f.size()+1);while(f.available())code+=(char)f.read();f.close();
-        if(luaL_loadbuffer(L2,code.c_str(),code.length(),path)!=LUA_OK) return lua_error(L2);
-        lua_call(L2,0,LUA_MULTRET); return lua_gettop(L2);
+        const char* path=luaL_checkstring(L2,1);
+        int base=lua_gettop(L2);
+        if(_loadScript(L2,path)!=LUA_OK) return lua_error(L2);
+        lua_call(L2,0,LUA_MULTRET); return lua_gettop(L2)-base;
     }); lua_setglobal(L,"dofile");
 
     // require(modname) — now a real, working global (see lb_require above)
@@ -1409,13 +1460,19 @@ static void lua_register_all(lua_State* L) {
     // this just exposes whatever g_lt currently still has).
     lua_newtable(L);
     lua_pushcfunction(L, [](lua_State* L2)->int{
-        g_lt.lock();
+        // Copy each line out under the lock and push it after: a push that
+        // runs out of memory raises, and would leave the lock held forever.
         lua_newtable(L2);
-        for (int i = 0; i < g_lt.count; i++) {
-            lua_pushstring(L2, g_lt.lines[i].c_str());
+        for (int i = 0; ; i++) {
+            String line; bool have;
+            g_lt.lock();
+            have = i < g_lt.count;
+            if (have) line = g_lt.lines[i];
+            g_lt.unlock();
+            if (!have) break;
+            lua_pushstring(L2, line.c_str());
             lua_rawseti(L2, -2, i+1);
         }
-        g_lt.unlock();
         return 1;
     });
     lua_setfield(L,-2,"dump");
@@ -1780,6 +1837,8 @@ static void lua_core1_task(void* param) {
         // cursor, looking exactly like a hang.
         g_lua_gfx_active   = false;
         g_lua_force_redraw = true;
+        // disp.clip()/disp.text(size) change the canvas every app shares.
+        if (g_lcanvas) { DispLock _lk; g_lcanvas->clearClipRect(); g_lcanvas->setTextSize(1); }
         g_exec.running = false;
     }
 
@@ -1850,12 +1909,13 @@ public:
         g_exec.running   = false;
         g_exec.interrupt = false;
 
-        // spawn Lua on core 1, 16KB stack
-        xTaskCreatePinnedToCore(
-            lua_core1_task, "LuaREPL",
-            16384, nullptr, 1,
-            &_taskHandle, 1
-        );
+        // spawn Lua on core 1, 16KB stack. Marked alive before it starts, so
+        // leaving and re-entering quickly can't start a second one.
+        g_luaTaskAlive = true;
+        if (xTaskCreatePinnedToCore(lua_core1_task, "LuaREPL", 16384, nullptr, 1, &_taskHandle, 1) != pdPASS) {
+            g_luaTaskAlive = false; _taskHandle = nullptr;
+            g_lt.push("ERR: not enough memory to start Lua", COL_ERR);
+        }
 
         _draw();
     }
@@ -1871,6 +1931,7 @@ public:
         // own background reconnect loop (see wifi_manager.h) takes it from
         // there, same as after any other app that had briefly dropped WiFi.
         if (_wifiWasOn) { WiFi.mode(WIFI_STA); WiFiManager::get().connectFirst(0); }
+        _canvas.clearClipRect(); _canvas.setTextSize(1);   // whatever a script left set
     }
 
     void update() override {

@@ -22,7 +22,7 @@
 #define AI_LINES      ((SCREEN_H - HEADER_H - FOOTER_H - 2) / AI_LINE_H)
 #define AI_INP_Y       (SCREEN_H - FOOTER_H + 3)
 #define AI_CHARS      39   // chars per line at 6px
-#define AI_MAX_INPUT  80
+#define AI_MAX_INPUT  48    // the model sees 96 characters in all: "Q: " + question + "\nA:" + answer
 
 // Message roles
 #define MSG_USER  0
@@ -111,7 +111,9 @@ public:
         }
 
         if (MyAI::hasDone()) {
-            MyAI::getResponse();  // clears _done flag
+            String resp = MyAI::getResponse();  // clears _done flag
+            // Nothing streamed: the engine's message is an error (e.g. model.bin missing).
+            if (!_stream_buf.length() && resp.length()) _pushWrapped(resp, MSG_SYS, "");
             _streaming = false;
             _stream_buf = "";
             _draw();

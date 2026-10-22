@@ -64,6 +64,8 @@ inline Header _fingerprint(File& f, uint8_t* buf) {
 
 inline bool _copy(const esp_partition_t* p, File& f, uint8_t* buf, void (*progress)(int), const char** why);
 
+static uint32_t _mapSize = 0;
+
 inline void unmap() {
     if (_handle) spi_flash_munmap(_handle);
     _handle = 0; _map = nullptr;
@@ -110,8 +112,10 @@ inline bool _copy(const esp_partition_t* p, File& f, uint8_t* buf, void (*progre
         }
         uint32_t from = off < DATA_OFF ? DATA_OFF : off;
         for (uint32_t w = from; w < off + CHUNK && w < DATA_OFF + want.size; w += BUF) {
-            size_t n = f.read(buf, BUF);
-            if (n == 0) { *why = "SD read failed"; return false; }
+            size_t want_n = min((uint32_t)BUF, DATA_OFF + want.size - w);
+            size_t n = f.read(buf, want_n);
+            // A short read would shift everything after it, so it's a failure too.
+            if (n != want_n) { *why = "SD read failed"; return false; }
             if (esp_partition_write(p, _base + w, buf, n) != ESP_OK) { *why = "flash write failed"; return false; }
         }
         if (progress) progress((int)((off + CHUNK) * 100ULL / total));
@@ -131,7 +135,11 @@ inline const uint8_t* map() {
     const void* ptr = nullptr;
     if (esp_partition_mmap(p, _base, DATA_OFF + h.size, SPI_FLASH_MMAP_DATA, &ptr, &_handle) != ESP_OK) return nullptr;
     _map = (const uint8_t*)ptr + DATA_OFF;
+    _mapSize = h.size;
     return _map;
 }
+
+// Bytes of model behind map().
+inline uint32_t mapSize() { return _map ? _mapSize : 0; }
 
 } // namespace ModelFlash
