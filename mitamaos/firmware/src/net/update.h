@@ -27,16 +27,29 @@ static constexpr const char* DIR = "/MitamaOS/update";
 inline const char* current() { return MITAMA_BUILD; }
 
 // Sends a GET and reads the headers. Returns the body length (-1 if the
-// server didn't say), or -2 on failure with `msg` set.
-inline long _get(WiFiClientSecure& c, const String& path, String& msg) {
+// server didn't say), or -2 on failure with `msg` set. A silent or
+// dropped connection is tried again up to three times (GitHub's servers
+// can be slow to start sending a file right after a new build lands).
+inline long _get1(WiFiClientSecure& c, const String& path, String& msg, bool& retry) {
+    retry = false;
     c.setCACertBundle(CA_BUNDLE);
-    c.setTimeout(15);
-    if (!c.connect(HOST, 443)) { msg = "Can't reach the update site"; return -2; }
+    c.setTimeout(20);
+    if (!c.connect(HOST, 443)) {
+        char err[48] = ""; c.lastError(err, sizeof(err));
+        msg = String("Can't reach the update site") + (err[0] ? String(": ") + err : "");
+        retry = true; return -2;
+    }
     c.print(String("GET ") + path + " HTTP/1.1\r\nHost: " + HOST +
             "\r\nUser-Agent: MitamaOS\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n");
     String status = c.readStringUntil('\n');
+    status.trim();
+    if (!status.length()) {
+        char err[48] = ""; c.lastError(err, sizeof(err));
+        msg = String("No answer from the update site") + (err[0] ? String(": ") + err : "")
+            + " (" + String(ESP.getMaxAllocHeap() / 1024) + "K free)";
+        c.stop(); retry = true; return -2;
+    }
     if (status.indexOf(" 200") < 0) {
-        status.trim();
         msg = "Update site said: " + status.substring(status.indexOf(' ') + 1);
         c.stop(); return -2;
     }
@@ -48,6 +61,17 @@ inline long _get(WiFiClientSecure& c, const String& path, String& msg) {
         if (h.substring(0, 15).equalsIgnoreCase("Content-Length:")) len = h.substring(15).toInt();
     }
     return len;
+}
+
+inline long _get(WiFiClientSecure& c, const String& path, String& msg) {
+    for (int attempt = 0; attempt < 3; attempt++) {
+        if (attempt) delay(1500 * attempt);
+        bool retry;
+        long len = _get1(c, path, msg, retry);
+        if (len != -2 || !retry) return len;
+        c.stop();
+    }
+    return -2;
 }
 
 // Newest build id, or "" with `msg` set.

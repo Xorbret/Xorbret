@@ -132,9 +132,22 @@ private:
             MUI::text(_canvas, MUI::small(), ("update/" + f).c_str(), x, y, MUI::CYAN);
             y += 13;
         }
-        _canvas.setClipRect(x, y, SCREEN_W - 3 - x, 26);
-        MUI::text(_canvas, MUI::small(), _msg.c_str(), x, y, _msgCol);
-        _canvas.clearClipRect();
+        // Word-wrapped: error reasons can be long.
+        {
+            const int w = SCREEN_W - 3 - x;
+            String rest = _msg, line;
+            for (int row = 0; row < 5 && rest.length(); row++) {
+                int cut = rest.length();
+                while (cut > 0 && MUI::width(_canvas, MUI::small(), rest.substring(0, cut).c_str()) > w) {
+                    int sp = rest.lastIndexOf(' ', cut - 1);
+                    cut = sp > 0 ? sp : cut - 1;
+                }
+                if (cut <= 0) cut = 1;
+                MUI::text(_canvas, MUI::small(), rest.substring(0, cut).c_str(), x, y, _msgCol);
+                rest = rest.substring(cut); rest.trim();
+                y += 11;
+            }
+        }
 
         const char* foot = _state == S_NEWER ? "ENT download" : _state == S_READY ? "R restart" : "ENT check";
         MUI::footer(_canvas, foot, MUI::DIM, nullptr, MUI::GREEN);
