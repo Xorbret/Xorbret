@@ -238,17 +238,25 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
         MitamaLogo::_magatama(p.c, cx - split * f, cy + 6 * s + jy, 19 * s, 14 * s, -60, 185, 0.82f, MAGENTA);
         MitamaLogo::_magatama(p.c, cx + split * 0.6f * f, cy + 6 * s - jy, 19 * s, 14 * s, -60, 185, 0.82f, CYAN);
         for (int side = -1; side <= 1; side += 2) {
-            p.tri(p.px(-90 + side * 18, 57), p.py(-90 + side * 18, 57), cx + side * 40 * s, cy - 100 * s,
+            // Now and then one ear flicks: its tip snaps out and down, then
+            // settles back (left about every 3.1 s, right every 4.3 s).
+            float per = side < 0 ? 3.1f : 4.3f, ph = fmodf(T + (side < 0 ? 0 : 1.7f), per);
+            float tw = ph < 0.32f ? sinf(ph / 0.32f * (float)M_PI) : 0;
+            if (ph < 0.32f && ph > 0.16f) tw = sinf(ph / 0.32f * (float)M_PI) * (0.6f + 0.4f * sinf(ph * 60));  // a double flick
+            float tx = side * (40 + 9 * tw) * s, ty = (-100 + 10 * tw) * s;
+            float ix = side * (38 + 7 * tw) * s, iy = (-80 + 8 * tw) * s;
+            p.tri(p.px(-90 + side * 18, 57), p.py(-90 + side * 18, 57), cx + tx, cy + ty,
                   p.px(-90 + side * 56, 57), p.py(-90 + side * 56, 57), MAGENTA);
-            p.tri(p.px(-90 + side * 31, 62), p.py(-90 + side * 31, 62), cx + side * 38 * s, cy - 80 * s,
+            p.tri(p.px(-90 + side * 31, 62), p.py(-90 + side * 31, 62), cx + ix, cy + iy,
                   p.px(-90 + side * 44, 62), p.py(-90 + side * 44, 62), PANEL);
         }
-        {   // foxfire drifts and flickers
+        {   // foxfire floats: each flame rises and sinks on its own slow breath
             const float A[] = { 205, -25, 155 }, R[] = { 78, 80, 84 };
             for (int k = 0; k < 3; k++) {
-                float a = A[k] + 6 * sinf(T * 1.3f + k * 2.1f), r = R[k] + 4 * sinf(T * 2.1f + k);
+                float a = A[k] + 4 * sinf(T * 0.9f + k * 2.1f);
+                float lift = 9 * sinf(T * 1.5f + k * 2.0f) * s;
                 if (burst && (_formHash(fr * 3 + k) & 3) == 0) continue;     // blinks out mid-glitch
-                p.mag(p.px(a, r), p.py(a, r), 3.2f, 2.4f, -120, 125, GREEN);
+                p.mag(p.px(a, R[k]), p.py(a, R[k]) - lift, 3.2f, 2.4f, -120 + 10 * sinf(T * 2 + k), 125, GREEN);
             }
         }
         _formGlitch(p, true);
