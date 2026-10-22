@@ -189,6 +189,7 @@ private:
     volatile bool     _wantPause = false, _heavyApp = false, _hold = false;
     volatile bool     _wifiOn = false;
     volatile uint8_t  _ble = BLE_OFF;
+    bool              _bleQuiet = false;   // scan paused for a Wi-Fi join, stack still up
     Recent            _wifiRecent, _bleRecent;
     uint32_t          _deauthFrames = 0;     // atomic: the Wi-Fi task adds, the watcher takes
     uint8_t           _deauthSrc[6] = {0};
@@ -301,6 +302,7 @@ private:
 
     void _bleStop() {
         if (_ble != BLE_ON) return;
+        _bleQuiet = false;
         NimBLEDevice::getScan()->stop();
         NimBLEDevice::deinit(true);
         _ble = BLE_PAUSED;
@@ -364,13 +366,20 @@ private:
             if (now - lastKeep >= 1000) {
                 lastKeep = now;
                 _wifiKeepAlive();
-                // BLE shares the antenna: give a Wi-Fi join all of it.
-                if (_wantPause || WiFiManager::get().joining()) _bleStop();
+                // BLE shares the antenna: give a Wi-Fi join all of it. Only the
+                // scan pauses for a join; the stack is shut down only when a
+                // heavy app needs its memory. (Shutting it down for every join
+                // meant a NimBLE deinit/init every ~20 s while out of range,
+                // and a crash in the FreeRTOS timer task, build 0171986.)
+                bool joining = WiFiManager::get().joining();
+                if (_wantPause) _bleStop();
+                else if (joining) { if (_ble == BLE_ON && !_bleQuiet) { NimBLEDevice::getScan()->stop(); _bleQuiet = true; } }
+                else if (_bleQuiet) { NimBLEDevice::getScan()->start(0, nullptr, false); _bleQuiet = false; lastBle = now; }
                 else if (_ble != BLE_ON && now - lastBle >= 5000) { lastBle = now; _bleStart(); }
             }
             if (now - lastDeauth >= 2000) { lastDeauth = now; _checkDeauth(); }
             if (now - lastHop >= HOP_MS) { lastHop = now; _hop(); }
-            if (_ble == BLE_ON && now - lastBle >= BLE_RESTART_MS) { lastBle = now; _bleRestart(); }
+            if (_ble == BLE_ON && !_bleQuiet && now - lastBle >= BLE_RESTART_MS) { lastBle = now; _bleRestart(); }
         }
     }
 };
