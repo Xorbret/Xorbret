@@ -130,6 +130,28 @@ public:
         }
     }
 
+    // Typing for text fields: one character per key press (only keys that
+    // just went down), repeating once a key is held for half a second. A
+    // plain timer types a held key twice and drops quick double letters.
+    struct Typing {
+        String prevDown; bool prevDel = true, prevEnt = true; uint32_t t = 0;
+        // Fills `added` with new characters; `del`/`ent` say a press happened.
+        void poll(const Keyboard_Class::KeysState& s, String& added, bool& del, bool& ent) {
+            uint32_t now = millis();
+            String down;
+            for (auto c : s.word) down += c;
+            added = "";
+            for (size_t i = 0; i < down.length(); i++) if (prevDown.indexOf(down[i]) < 0) added += down[i];
+            del = s.del && !prevDel; ent = s.enter && !prevEnt;
+            if (added.length() || del) t = now + 500;
+            else if ((down.length() || s.del) && (int32_t)(now - t) >= 0) {
+                t = now + 70;
+                if (s.del) del = true; else added = down.substring(down.length() - 1);
+            }
+            prevDown = down; prevDel = s.del; prevEnt = s.enter;
+        }
+    };
+
     static String inputText(LGFX_Sprite& canvas, const char* prompt) {
         waitRelease();
         String text = "";

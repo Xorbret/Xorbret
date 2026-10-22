@@ -90,7 +90,7 @@ private:
             if (_sel < NOTES_MAX - 1) { _sel++; redraw = true; } delay(KEY_REPEAT_MS);
         }
         if (st.enter) {
-            _editBuf = _bodies[_sel]; _mode = MODE_EDIT;
+            _editBuf = _bodies[_sel]; _mode = MODE_EDIT; _typing = OsUI::Typing();
             _keyTimer = millis(); OsUI::waitRelease(); redraw = true;
         }
         if (st.del) {
@@ -102,24 +102,15 @@ private:
     }
 
     void _updateEdit() {
-        auto st = M5Cardputer.Keyboard.keysState();
-
-        // Enter = new line (indent)
-        if (st.enter && millis() - _keyTimer > 160) {
-            if (_editBuf.length() < 200) _editBuf += '\n';
-            _keyTimer = millis(); _draw(); return;
-        }
-        if (st.word.size() > 0 && millis() - _keyTimer > 160) {
-            for (auto c : st.word) {
-                if (_editBuf.length() < 200) _editBuf += c;
-            }
-            _keyTimer = millis(); _draw();
-        }
-        if (st.del && millis() - _keyTimer > 120) {
-            if (_editBuf.length() > 0) _editBuf.remove(_editBuf.length() - 1);
-            _keyTimer = millis(); _draw();
-        }
+        String added; bool del, ent;
+        _typing.poll(M5Cardputer.Keyboard.keysState(), added, del, ent);
+        bool redraw = false;
+        if (ent && _editBuf.length() < 200) { _editBuf += '\n'; redraw = true; }   // Enter = new line
+        for (size_t i = 0; i < added.length() && _editBuf.length() < 200; i++) { _editBuf += added[i]; redraw = true; }
+        if (del && _editBuf.length() > 0) { _editBuf.remove(_editBuf.length() - 1); redraw = true; }
+        if (redraw) _draw();
     }
+    OsUI::Typing _typing;
 
     void _draw() {
         _canvas.startWrite();

@@ -10,6 +10,7 @@
 #include "../../os/os_ui.h"
 #include "../../os/wifi_manager.h"
 #include "../../config.h"
+#include "../../net/ca_bundle.h"
 
 // Store - native app-store for /sd/lua scripts, fetched over HTTPS from a
 // GitHub repo (raw.githubusercontent.com).
@@ -128,7 +129,9 @@ private:
             e.version = _field(obj, "version");
             e.desc    = _field(obj, "desc");
             e.file    = _field(obj, "file");
-            if (e.name.length() && e.file.length()) _apps[n++] = e;
+            // The file name becomes an SD path: no folders, no climbing out of /lua.
+            bool safe = e.file.endsWith(".lua") && e.file.indexOf('/') < 0 && e.file.indexOf('\\') < 0 && e.file.indexOf("..") < 0;
+            if (e.name.length() && safe) _apps[n++] = e;
             i = objEnd + 1;
         }
         return n;
@@ -143,7 +146,7 @@ private:
             // usually has more headroom since the Lua VM isn't loaded, but
             // it's not guaranteed, so fail clean instead of a bare timeout.
             if (ESP.getFreeHeap() < 45000) return false;
-            sec.setInsecure();
+            sec.setCACertBundle(CA_BUNDLE);   // scripts from here run as Lua: check who sent them
         }
         WiFiClient& c = isHttps ? static_cast<WiFiClient&>(sec) : plain;
         c.setTimeout(8000); // ms -- was "8" (8ms), killed https TLS handshake every time
@@ -170,7 +173,9 @@ private:
         int code = http.GET();
         if (code != 200) { http.end(); return false; }
 
-        File f = SD.open(destPath.c_str(), FILE_WRITE);
+        // Download beside the real file and swap it in only when complete.
+        String tmp = destPath + ".part";
+        File f = SD.open(tmp.c_str(), FILE_WRITE);
         if (!f) { http.end(); return false; }
 
         WiFiClient* stream = http.getStreamPtr();
@@ -185,7 +190,7 @@ private:
             size_t avail = stream->available();
             if (avail) {
                 size_t n = stream->readBytes(buf, min(avail, sizeof(buf)));
-                f.write(buf, n);
+                if (f.write(buf, n) != n) break;   // card full
                 written += n;
                 lastData = millis();
                 uint32_t now = millis();
@@ -201,8 +206,11 @@ private:
         f.close();
         http.end();
         outBytes = written;
-        if (written > 0) _showProgress(label, written, total > 0 ? total : (int)written);
-        return written > 0;
+        bool ok = written > 0 && (total < 0 || (int)written == total);
+        if (ok) { SD.remove(destPath.c_str()); ok = SD.rename(tmp.c_str(), destPath.c_str()); }
+        if (!ok) { SD.remove(tmp.c_str()); return false; }
+        _showProgress(label, written, total > 0 ? total : (int)written);
+        return true;
     }
 
     // Draws a proper fill-bar with a percentage (or a raw byte count when

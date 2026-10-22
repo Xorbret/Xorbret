@@ -42,14 +42,14 @@ public:
         auto st = M5Cardputer.Keyboard.keysState();
         bool redraw = false;
 
+        String added; bool del, ent;
+        _typing.poll(st, added, del, ent);
+
         // Del - backspace
-        if (st.del && millis() - _keyTimer > 120) {
-            if (_expr.length() > 0) {
-                _expr.remove(_expr.length() - 1);
-                _error = false;
-                redraw = true;
-            }
-            _keyTimer = millis();
+        if (del && _expr.length() > 0) {
+            _expr.remove(_expr.length() - 1);
+            _error = false;
+            redraw = true;
         }
 
         // Enter - evaluate
@@ -77,8 +77,8 @@ public:
         }
 
         // Expression characters
-        if (st.word.size() > 0 && millis() - _keyTimer > 130) {
-            for (auto ch : st.word) {
+        if (added.length()) {
+            for (size_t ai = 0; ai < added.length(); ai++) { char ch = added[ai];
                 bool valid = (ch >= '0' && ch <= '9') ||
                              ch == '+' || ch == '-' ||
                              ch == '*' || ch == '/' ||
@@ -89,11 +89,11 @@ public:
                     redraw = true;
                 }
             }
-            _keyTimer = millis();
         }
 
         if (redraw) _draw();
     }
+    OsUI::Typing _typing;
 
 private:
     static const int HIST_MAX = 5;

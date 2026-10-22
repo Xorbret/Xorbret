@@ -67,7 +67,7 @@ inline FileTypeInfo fmClassify(const String& lowName) {
         {".sms", FK_ROM, "G"}, {".gg", FK_ROM, "G"}, {".pce", FK_ROM, "G"},
         {".ngp", FK_ROM, "G"}, {".ngc", FK_ROM, "G"}, {".ws", FK_ROM, "G"},
         {".wsc", FK_ROM, "G"}, {".sfc", FK_ROM, "G"}, {".smc", FK_ROM, "G"},
-        {".md", FK_ROM, "G"}, {".a26", FK_ROM, "G"}, {".a78", FK_ROM, "G"},
+        {".a26", FK_ROM, "G"}, {".a78", FK_ROM, "G"},
         {".col", FK_ROM, "G"}, {".lnx", FK_ROM, "G"}, {".cpr", FK_ROM, "G"},
         {".ard", FK_ARDUBOY, "G"},
         // 3D models - only .obj actually loads (Editor3D), rest identified only
@@ -300,6 +300,10 @@ private:
     LGFX_Sprite& _canvas;
     String  _path;
     char    _names[FM_MAX_FILES][36];
+    // Names longer than 35 characters are shown cut short; for those the
+    // real name is looked up again by position in the folder.
+    bool    _long[FM_MAX_FILES];
+    uint16_t _ord[FM_MAX_FILES];
     bool    _isDir[FM_MAX_FILES];
     uint32_t _sizes[FM_MAX_FILES];
     int     _count  = 0;
@@ -324,6 +328,15 @@ private:
     String _fullPath(int idx) {
         if (_isParentEntry(idx)) return _path;
         String dir = _path.endsWith("/") ? _path : _path + "/";
+        if (_long[idx]) {
+            File root = SD.open(_path.c_str());
+            File f = root ? root.openNextFile() : File();
+            for (int i = 0; f && i < _ord[idx]; i++) f = root.openNextFile();
+            if (f) {
+                const char* n = f.name(); const char* base = strrchr(n, '/');
+                return dir + String(base ? base + 1 : n);
+            }
+        }
         return dir + String(_names[idx]);
     }
 
@@ -334,6 +347,7 @@ private:
             strncpy(_names[_count], "..", 35);
             _isDir[_count] = true;
             _sizes[_count] = 0;
+            _long[_count] = false;
             _count++;
         }
         if (SD.cardType() == CARD_NONE) return;
@@ -341,55 +355,76 @@ private:
         if (!root || !root.isDirectory()) return;
 
         // Two passes: folders, then files
-        struct Entry { char name[36]; bool isDir; uint32_t size; };
+        struct Entry { char name[36]; bool isDir, isLong; uint16_t ord; uint32_t size; };
         // Heap-allocated to avoid blowing the stack
-        Entry* dirs  = new Entry[FM_MAX_FILES];
-        Entry* files = new Entry[FM_MAX_FILES];
+        Entry* dirs  = new (std::nothrow) Entry[FM_MAX_FILES];
+        Entry* files = new (std::nothrow) Entry[FM_MAX_FILES];
+        if (!dirs || !files) { delete[] dirs; delete[] files; root.close(); return; }
         int dc = 0, fc = 0;
 
         File f = root.openNextFile();
-        while (f && (dc + fc) < FM_MAX_FILES) {
+        uint16_t ord = 0;
+        for (; f && (dc + fc) < FM_MAX_FILES; f = root.openNextFile(), ord++) {
             const char* n = f.name();
-            // Skip hidden system files
-            if (n[0] == '.') { f = root.openNextFile(); continue; }
             // Name: SD.open() may return a full path or just the name
             const char* base = strrchr(n, '/');
             base = base ? base + 1 : n;
-            if (f.isDirectory()) {
-                strncpy(dirs[dc].name, base, 35); dirs[dc].name[35] = 0;
-                dirs[dc].isDir = true; dirs[dc].size = 0; dc++;
-            } else {
-                strncpy(files[fc].name, base, 35); files[fc].name[35] = 0;
-                files[fc].isDir = false; files[fc].size = f.size(); fc++;
-            }
-            f = root.openNextFile();
+            // Skip hidden system files
+            if (base[0] == '.') continue;
+            Entry& e = f.isDirectory() ? dirs[dc++] : files[fc++];
+            strncpy(e.name, base, 35); e.name[35] = 0;
+            e.isLong = strlen(base) > 35; e.ord = ord;
+            e.isDir = f.isDirectory(); e.size = e.isDir ? 0 : f.size();
         }
         root.close();
 
         for (int i = 0; i < dc && _count < FM_MAX_FILES; i++) {
             strncpy(_names[_count], dirs[i].name, 35);
+            _long[_count] = dirs[i].isLong; _ord[_count] = dirs[i].ord;
             _isDir[_count] = true; _sizes[_count] = 0; _count++;
         }
         for (int i = 0; i < fc && _count < FM_MAX_FILES; i++) {
             strncpy(_names[_count], files[i].name, 35);
+            _long[_count] = files[i].isLong; _ord[_count] = files[i].ord;
             _isDir[_count] = false; _sizes[_count] = files[i].size; _count++;
         }
         delete[] dirs;
         delete[] files;
     }
 
-    void _deleteDir(const String& path) {
-        File dir = SD.open(path.c_str());
-        if (!dir) return;
-        File f = dir.openNextFile();
-        while (f) {
-            String fp = path + "/" + String(f.name());
-            if (f.isDirectory()) _deleteDir(fp);
-            else SD.remove(fp.c_str());
-            f = dir.openNextFile();
+    // Only a few files can be open at once, so each folder's names are
+    // gathered and its handle closed before going deeper.
+    bool _deleteDir(const String& path, int depth = 0) {
+        if (depth > 16) return false;
+        std::vector<String> subs;
+        bool ok = true;
+        while (true) {
+            File dir = SD.open(path.c_str());
+            if (!dir) return false;
+            std::vector<String> files;
+            for (File f = dir.openNextFile(); f && files.size() < 32; f = dir.openNextFile()) {
+                const char* n = f.name(); const char* b = strrchr(n, '/');
+                String fp = path + "/" + String(b ? b + 1 : n);
+                bool d = f.isDirectory();
+                f.close();
+                if (d) { bool known = false; for (auto& s : subs) known |= s == fp; if (!known) subs.push_back(fp); }
+                else files.push_back(fp);
+            }
+            dir.close();
+            if (files.empty()) break;
+            size_t gone = 0;
+            for (auto& fp : files) gone += SD.remove(fp.c_str());
+            if (!gone) { ok = false; break; }   // nothing would delete: stop instead of looping
         }
-        dir.close();
-        SD.rmdir(path.c_str());
+        for (auto& s : subs) ok &= _deleteDir(s, depth + 1);
+        return SD.rmdir(path.c_str()) && ok;
+    }
+
+    static bool _isDirPath(const String& p) {
+        File f = SD.open(p.c_str());
+        bool d = f && f.isDirectory();
+        f.close();
+        return d;
     }
 
     bool _copyFile(const String& src, const String& dst) {
@@ -397,13 +432,14 @@ private:
         if (!s) return false;
         File d = SD.open(dst.c_str(), FILE_WRITE);
         if (!d) { s.close(); return false; }
-        uint8_t* buf = new uint8_t[512];
+        uint8_t* buf = new (std::nothrow) uint8_t[512];
         if (!buf) { s.close(); d.close(); return false; }
-        size_t r;
-        while ((r = s.read(buf, 512)) > 0) d.write(buf, r);
+        size_t r; bool ok = true;
+        while (ok && (r = s.read(buf, 512)) > 0) ok = d.write(buf, r) == r;   // short write: card full
         delete[] buf;
         s.close(); d.close();
-        return true;
+        if (!ok) SD.remove(dst.c_str());
+        return ok;
     }
 
     // Compatible with the Games app (games.h): same OTA scheme (ota_1
@@ -500,6 +536,7 @@ private:
         if (!OsUI::confirmExit(_canvas, "Play this Arduboy game?")) return;
         size_t sz;
         if (!_flashBinToOtaSlot(path, sz)) return;
+        { Preferences p; p.begin("app", false); p.putString("OtaApp", "ard"); p.end(); }
         _saveBootTo(FM_BOOT_GAMES);
         _showToast("OK! Rebooting...");
         ESP.restart();
@@ -535,8 +572,8 @@ private:
         String full = _fullPath(_sel);
         const char* msg = _isDir[_sel] ? "Delete folder?" : "Delete file?";
         if (OsUI::confirmExit(_canvas, msg)) {
-            if (_isDir[_sel]) _deleteDir(full);
-            else SD.remove(full.c_str());
+            bool ok = _isDir[_sel] ? _deleteDir(full) : SD.remove(full.c_str());
+            if (!ok) { OsUI::showToast(_canvas, "Couldn't delete it all", COL_ERR); { DispLock _lk; _canvas.pushSprite(0, 0); } delay(900); }
             if (_sel >= _count - 1 && _sel > 0) _sel--;
             _loadDir();
         }
@@ -583,10 +620,21 @@ private:
         bool ok = false;
         if (!SD.exists(_clipPath.c_str()) || _clipPath == dest) {
             OsUI::showToast(_canvas, "Skip: same/missing", COL_WARN);
+        } else if (_isDirPath(_clipPath)) {
+            // Moving a folder on the same card is a rename; copying one isn't supported.
+            ok = _clipMove && !SD.exists(dest.c_str()) && SD.rename(_clipPath.c_str(), dest.c_str());
+            if (ok) _clipPath = "";
+            OsUI::showToast(_canvas, ok ? "Moved!" : _clipMove ? "Move failed" : "Folders can only be cut", ok ? COL_OK : COL_ERR);
+        } else if (SD.exists(dest.c_str()) && !OsUI::confirmExit(_canvas, "Replace the file here?")) {
+            OsUI::showToast(_canvas, "Not pasted", COL_WARN);
         } else {
-            ok = _copyFile(_clipPath, dest);
-            if (ok && _clipMove) { SD.remove(_clipPath.c_str()); _clipPath = ""; }
-            OsUI::showToast(_canvas, ok ? "Pasted!" : "Paste failed", ok ? COL_OK : COL_ERR);
+            if (_clipMove && !SD.exists(dest.c_str())) ok = SD.rename(_clipPath.c_str(), dest.c_str());
+            if (!ok) {
+                ok = _copyFile(_clipPath, dest);
+                if (ok && _clipMove) SD.remove(_clipPath.c_str());
+            }
+            if (ok && _clipMove) _clipPath = "";
+            OsUI::showToast(_canvas, ok ? "Pasted!" : "Paste failed (card full?)", ok ? COL_OK : COL_ERR);
         }
         { DispLock _lk; _canvas.pushSprite(0, 0); } delay(700);
         _loadDir();
@@ -826,20 +874,22 @@ private:
         if (!f) return;
 
         // Allocate the line array on the heap - NOT the stack
-        String* lines = new String[FM_VIEW_LINES];
+        String* lines = new (std::nothrow) String[FM_VIEW_LINES];
         if (!lines) { f.close(); return; }
         int lc = 0;
 
+        // Read in 38-character pieces, so one huge line can't eat the heap.
+        char piece[39]; int pn = 0; bool lastCR = false;
         while (f.available() && lc < FM_VIEW_LINES) {
-            String l = f.readStringUntil('\n');
-            l.replace("\r", "");
-            // Wrap long lines
-            while (l.length() > 38 && lc < FM_VIEW_LINES - 1) {
-                lines[lc++] = l.substring(0, 38);
-                l = l.substring(38);
-            }
-            if (lc < FM_VIEW_LINES) lines[lc++] = l;
+            int c = f.read();
+            if (c < 0) break;
+            if (c == '\n' && lastCR) { lastCR = false; continue; }   // CRLF
+            lastCR = c == '\r';
+            if (c == '\r' || c == '\n') { piece[pn] = 0; lines[lc++] = piece; pn = 0; continue; }
+            piece[pn++] = (char)c;
+            if (pn == 38) { piece[pn] = 0; lines[lc++] = piece; pn = 0; }
         }
+        if (pn && lc < FM_VIEW_LINES) { piece[pn] = 0; lines[lc++] = piece; }
         f.close();
 
         int scroll  = 0;
@@ -974,12 +1024,12 @@ private:
         int32_t h  = *(int32_t*)(hdr + 22);
         uint16_t bpp = *(uint16_t*)(hdr + 28);
         uint32_t offset = *(uint32_t*)(hdr + 10);
-        if (bpp != 24 || w <= 0 || h <= 0) { f.close(); return; }
+        if (bpp != 24 || w <= 0 || h <= 0 || w > 4096 || h > 4096) { f.close(); return; }
 
         int dstW = (int)(w * zoom); if (dstW < 1) dstW = 1;
         int dstH = (int)(h * zoom); if (dstH < 1) dstH = 1;
         int rowSize = ((w * 3 + 3) & ~3);
-        uint8_t* row = new uint8_t[rowSize];
+        uint8_t* row = new (std::nothrow) uint8_t[rowSize];
         if (!row) { f.close(); return; }
 
         int lastSrcY = -1;
