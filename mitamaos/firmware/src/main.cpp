@@ -41,7 +41,9 @@
 #include "apps/calc/calc.h"
 #include "apps/clock/clock_app.h"
 #include "apps/games/games.h"
+#if PAPEROS_ENABLE_STORE
 #include "apps/store/store.h"
+#endif
 #if PAPEROS_ENABLE_MUSIC
 #include "apps/music/music.h"
 #endif
@@ -96,7 +98,9 @@ Notes         notesApp(canvas);
 Calc          calcApp(canvas);
 ClockApp      clockApp(canvas);
 Games         gamesApp(canvas);
+#if PAPEROS_ENABLE_STORE
 Store         storeApp(canvas);
+#endif
 #if PAPEROS_ENABLE_MUSIC
 MusicPlayer   musicApp(canvas);
 #endif
@@ -254,7 +258,9 @@ void setup() {
 #if PAPEROS_ENABLE_BROWSER
     AppManager::get().registerApp(&browserApp);
 #endif
+#if PAPEROS_ENABLE_STORE
     AppManager::get().registerApp(&storeApp);
+#endif
 #if PAPEROS_ENABLE_PIANO
     AppManager::get().registerApp(&pianoApp);
 #endif
