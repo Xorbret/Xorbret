@@ -72,6 +72,7 @@ public:
     // a TLS upload). Wait for paused() before relying on the memory.
     void hold(bool on) { _hold = on; _wantPause = _heavyApp || _hold; }
     bool paused() const { return !_wifiOn && _ble != BLE_ON; }
+    bool heavyApp() const { return _heavyApp; }   // an app that runs Wi-Fi its own way (or off)
 
     Stats stats() {
         Stats s;
@@ -149,7 +150,9 @@ private:
         static constexpr uint32_t WINDOW = 5UL * 60 * 1000;
         E e[N];
         // True when `f` completes a twin; `out` gets the open radio's BSSID.
-        bool onBeacon(const uint8_t* f, int n, uint32_t now, uint8_t out[6]) {
+        // `ssid` gets the network name's hash (0 if hidden), for Wi-Fi rejoin.
+        bool onBeacon(const uint8_t* f, int n, uint32_t now, uint8_t out[6], uint32_t& ssid) {
+            ssid = 0;
             if (n < 36 || ((f[0] >> 2) & 3) != 0 || (f[0] >> 4) != 8) return false;
             bool locked = f[34] & 0x10;               // capability: privacy
             uint32_t h = 2166136261u; bool named = false;
@@ -165,6 +168,7 @@ private:
             }
             if (!named) return false;                  // hidden networks
             h |= 1;
+            ssid = h;                                  // same as WiFiManager::ssidHash
             int slot = -1, old = 0;
             for (int i = 0; i < N; i++) {
                 if (e[i].h == h) { slot = i; break; }
@@ -216,7 +220,10 @@ private:
             AetherTally::get().onBeacon(p->payload, len, p->rx_ctrl.channel, p->rx_ctrl.rssi);
             uint8_t twin[6];
             uint32_t now = millis();
-            if (self._twins.onBeacon(p->payload, len, now, twin) && !self._wifiRecent.seen(twin, Sig::T_EVILTWIN, now)) {
+            uint32_t ssid;
+            bool isTwin = self._twins.onBeacon(p->payload, len, now, twin, ssid);
+            if (ssid) WiFiManager::get().heardSsid(ssid);
+            if (isTwin && !self._wifiRecent.seen(twin, Sig::T_EVILTWIN, now)) {
                 Sig::Hit h; h.type = Sig::T_EVILTWIN; h.grade = Sig::G_MED; h.detail = "same name, open and locked";
                 self._post(h, 0, twin, p->rx_ctrl.rssi);
             }

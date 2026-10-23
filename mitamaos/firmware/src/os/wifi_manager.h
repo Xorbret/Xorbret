@@ -29,6 +29,7 @@ public:
             slots[i].pass = p.getString(("p" + String(i)).c_str(), "");
         }
         p.end();
+        _rehash();
         WiFi.mode(WIFI_STA);
         // ESP-IDF's own auto-reconnect retries very aggressively in the
         // background while disconnected (radio churn), which was the most
@@ -69,6 +70,40 @@ public:
         p.putString(("p" + String(idx)).c_str(), pass);
         p.end();
         SdSettings::changed();
+        _rehash();
+    }
+
+    // SSID fingerprint shared with the detection engine's beacon reader.
+    static uint32_t ssidHash(const uint8_t* s, size_t n) {
+        uint32_t h = 2166136261u;
+        for (size_t i = 0; i < n; i++) h = (h ^ s[i]) * 16777619u;
+        return h | 1;
+    }
+
+    // From the Wi-Fi task, for every beacon heard: notes a saved network
+    // coming into range, so rejoinHeard() can join it straight away.
+    void heardSsid(uint32_t h) {
+        for (int i = 0; i < MAX_WIFI_SLOTS; i++)
+            if (_slotHash[i] == h) { _heardSlot = i; _heardMs = millis(); return; }
+    }
+
+    // Main loop, about once a second: joins a saved network as soon as its
+    // beacon is heard, instead of waiting for the next blind retry. Every
+    // third try in a row starts the Wi-Fi driver fresh, which is what a
+    // reboot used to fix.
+    bool rejoinHeard() {
+        if (_heardSlot < 0 || isConnected() || joining()) return false;
+        int s = _heardSlot; _heardSlot = -1;
+        if (millis() - _heardMs > 10000) return false;
+        if (++_heardTries % 3 == 0) {
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+            delay(100);
+            WiFi.mode(WIFI_STA);
+            WiFi.setAutoReconnect(false);
+        }
+        _tryIdx = s;
+        return _beginNext();
     }
 
     // Connect to the slot that worked last (else the first saved one).
@@ -112,6 +147,7 @@ public:
     // tried first next time.
     bool noteResult() {
         if (WiFi.status() != WL_CONNECTED) return false;
+        _heardTries = 0;
         String ss = WiFi.SSID();
         for (int i = 0; i < MAX_WIFI_SLOTS; i++)
             if (slots[i].ssid.length() && slots[i].ssid == ss && i != _good) {
@@ -163,6 +199,15 @@ private:
     WiFiManager() = default;
 
     int _tryIdx = 0;          // next slot ensureConnected() will try
+    uint32_t _slotHash[MAX_WIFI_SLOTS] = {};
+    volatile int8_t _heardSlot = -1;
+    volatile uint32_t _heardMs = 0;
+    uint8_t _heardTries = 0;
+
+    void _rehash() {
+        for (int i = 0; i < MAX_WIFI_SLOTS; i++)
+            _slotHash[i] = slots[i].ssid.length() ? ssidHash((const uint8_t*)slots[i].ssid.c_str(), slots[i].ssid.length()) : 0;
+    }
     int _good = -1;           // slot that connected last (-1 = not loaded)
 
     int _goodSlot() {

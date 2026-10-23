@@ -342,13 +342,16 @@ void loop() {
     Monster::get().tick();
     // Wi-Fi reconnect and the first clock sync, whichever app is open (boot
     // lands on Proxima, and a join can finish after boot moved on).
-    // Out of range, retries back off to every 2 minutes: each join pauses
-    // the BLE scan, and Bluetooth sightings matter more than a dead network.
-    static uint32_t lastNet = 0, netGap = 10000; static bool ntp = false;
-    if (millis() - lastNet >= netGap) {
+    // A saved network's beacon coming into range starts a join at once.
+    // Blind retries are the fallback, backing off to once a minute: each
+    // join pauses the BLE scan.
+    static uint32_t lastNet = 0, netGap = 10000, lastHeard = 0; static bool ntp = false;
+    bool netOk = !DetectionEngine::get().heavyApp();   // Lua, MiTalk, Games turn Wi-Fi off for memory
+    if (netOk && millis() - lastHeard >= 1000) { lastHeard = millis(); if (WiFiManager::get().rejoinHeard()) lastNet = millis(); }
+    if (netOk && millis() - lastNet >= netGap) {
         lastNet = millis();
         bool up = WiFiManager::get().isConnected();
-        netGap = up ? 10000 : min(netGap * 2, (uint32_t)120000);
+        netGap = up ? 10000 : min(netGap * 2, (uint32_t)60000);
         if (!up) WiFiManager::get().ensureConnected();
         if (!ntp && up) { PaperClock::syncTime(); ntp = true; }
     }
