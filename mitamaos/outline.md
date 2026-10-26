@@ -1414,9 +1414,31 @@ IAforIA/cardputerADV-CSI-Human-detector build.
 - **RAM:** a full 320×240 16-bit frame is 150 KB — impossible with no PSRAM.
   Draw to it with small sprites / strips (buddy sprite + text rows), never a
   full-frame canvas.
-- **Conflicts with the LoRa Cap** (§7): both use the EXT header and both use
-  G5 as CS and G3/G6. One or the other at a time; a stacked setup would need
-  a splitter and a different CS for one of them.
+- **Conflicts with the LoRa Cap** (§7) as designed: both use the EXT header
+  and both use G5 as CS and G3/G6. See "LoRa stack wiring" below.
+
+**LoRa stack wiring (variant, proposed 2026-10-26).** Robert wants the LoRa
+cap stacked on top of the screen cap. The Cap LoRa-1262 uses every EXT signal
+(SPI G40/G14/G39 + CS G5, RST G3, BUSY G6, IRQ G4, GPS UART G13/G15, I2C 8/9),
+so the screen moves to pins the cap leaves alone:
+
+| Screen | Stack wiring | Why |
+|---|---|---|
+| SCL | G40 (tapped from the pass-through) | SPI clock is shared by design |
+| SDA | G14 (tapped from the pass-through) | SPI data is shared by design |
+| CS | **G1** (Grove, white) | only free GPIO left |
+| DC | **G2** (Grove, yellow) | only free GPIO left |
+| RES | tied to 3.3V | firmware uses the ILI9341/ST7789 software reset |
+| VCC/BLK, GND | step-down from EXT 5VOUT / GND | unchanged |
+
+Costs: the SPI bus then carries three devices (SD, LoRa, screen), all with
+separate CS, all behind the same bus lock; Kotodama's receive task must take
+that lock too. The Grove port is consumed, so no Grove Units (Tsukumo) or Grove
+GPS while the screen is in stack mode. Mechanically it needs a 2×7 2.54 mm
+**stacking header** (long-leg female) in place of the plain pin header, plus
+a remixed S1/C1 so the LoRa cap clears the screen case, and a short
+Grove-to-screen lead. Firmware gets a Settings choice for the pin set
+("Cap TFT" vs "LoRa stack").
 - **Main-screen payoff:** with the second screen on, the Mitama + ticker move
   there and the 14 px status bar is given back to apps (the §3 "render to a
   surface" rule is what makes this a routing change).
