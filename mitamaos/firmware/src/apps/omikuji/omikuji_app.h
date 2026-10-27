@@ -7,6 +7,7 @@
 #include "../../os/disp_lock.h"
 #include "../../config.h"
 #include "../../ui/mitama_ui.h"
+#include "../../mitama/ki.h"
 
 // Omikuji - draw the day's shrine fortune, or cast an I Ching hexagram,
 // and let the Mitama read it for you.
@@ -127,6 +128,7 @@ private:
             day = (uint32_t)((t.tm_year + 1900) * 10000 + (t.tm_mon + 1) * 100 + t.tm_mday);
             seed = day * 2654435761u ^ (uint32_t)mac ^ (uint32_t)(mac >> 32);
             if (!seed) seed = 1;
+            Ki::get().add(Ki::S_OMIKUJI);   // the day's slip; the daily limit pays it once
         } else seed = esp_random() | 1;
         for (int i = 0; i < 4; i++) _rng(seed);
         int total = 0;

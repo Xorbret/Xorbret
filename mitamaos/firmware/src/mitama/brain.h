@@ -19,6 +19,7 @@
 #include "../system/gps.h"
 #include "../ui/mitama_ui.h"
 #include "forms.h"
+#include "ki.h"
 
 class MitamaBrain {
 public:
@@ -29,7 +30,7 @@ public:
     // Call about once a second with fresh detection stats.
     void update(const DetectionEngine::Stats& st) {
         uint32_t now = millis();
-        if (!_started) { _started = true; _sass = _loadSass(); Forms::get().begin(); _say(Lines::EV_BOOT, nullptr, false, M_CALM, now); }
+        if (!_started) { _started = true; _sass = _loadSass(); Forms::get().begin(); Ki::get().begin(); _say(Lines::EV_BOOT, nullptr, false, M_CALM, now); }
 
         // ── events, most important first ──
         // One event line per check: a later event only speaks if nothing
@@ -119,6 +120,17 @@ public:
             _formLineMs = now;
             spoke = true;
         }
+        // A level gained: one line (a rank's own line when it starts one).
+        Ki::get().tick();
+        if (!spoke && !threatFresh && now - _formLineMs > 20000) {
+            int lvl; bool rankUp;
+            if (Ki::get().takeLevelUp(lvl, rankUp) && _sass > 0) {
+                _level = lvl;
+                _say(rankUp ? Lines::EV_RANK : Lines::EV_LEVEL, nullptr, false, M_SMUG, now);
+                _formLineMs = now;
+                spoke = true;
+            }
+        }
         // A Unit found at boot gets one line, once things settle.
         if (!_modSaid && now > 8000 && !spoke && _sass > 0) {
             _modSaid = true;
@@ -198,9 +210,11 @@ private:
             if (size > 1 && comp.raceMet(r) == size) c.races |= 1 << r;
         }
         for (uint8_t t = 0; t < Sig::T_COUNT; t++) if (Compendium::listed(t)) c.encounters += comp.entry(t).count;
+        c.level = Ki::get().level();
         Kotodama::get().setMyCard(c);
     }
     const char* _formName = "";
+    int _level = 1;
     const char* _modName = "";
     bool        _modSaid = false;
     // last few demons spoken about, for the 60s collapse rule
@@ -307,6 +321,8 @@ private:
             else if (strncmp(t, "{n}", 3) == 0) { snprintf(num, sizeof(num), "%d", n); sub = num; t += 3; }
             else if (strncmp(t, "{f}", 3) == 0) { sub = _formName; t += 3; }
             else if (strncmp(t, "{m}", 3) == 0) { sub = _modName; t += 3; }
+            else if (strncmp(t, "{l}", 3) == 0) { snprintf(num, sizeof(num), "%d", _level); sub = num; t += 3; }
+            else if (strncmp(t, "{k}", 3) == 0) { sub = Ki::rankName((_level - 1) / 5); t += 3; }
             else if (strncmp(t, "{r}", 3) == 0) { sub = r ? Sig::raceName(Sig::raceOf(r->type)) : "demon"; t += 3; }
             if (sub) { while (*sub && k < sizeof(_line) - 1) _line[k++] = *sub++; }
             else _line[k++] = *t++;

@@ -10,6 +10,7 @@
 #include "../../ui/mitama_ui.h"
 #include "../../system/gps.h"
 #include "../../detect/scry.h"
+#include "../../mitama/ki.h"
 #include "../../detect/detection.h"
 #include "../../net/wigle.h"
 
@@ -147,6 +148,7 @@ private:
             if (Wigle::upload(path.c_str(), acct, msg)) {
                 SD.rename(path.c_str(), (upDir + "/" + nm).c_str());
                 ok++;
+                Ki::get().add(Ki::S_WIGLE);
             } else {
                 fail++; lastErr = msg;
                 if (msg.startsWith("WiGLE rejected")) break;   // same for every file

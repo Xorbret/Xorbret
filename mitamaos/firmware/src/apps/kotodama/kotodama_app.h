@@ -7,6 +7,7 @@
 #include "../../os/disp_lock.h"
 #include "../../config.h"
 #include "../../ui/mitama_ui.h"
+#include "../../mitama/ki.h"
 #include "../../net/kotodama.h"
 #include "../../mitama/forms.h"
 
@@ -113,8 +114,9 @@ private:
         if (!r) { _cardNum = 0; _drawCrew(); return; }
         uint8_t form = r->hasCard && r->card.form < MUI::F_COUNT ? r->card.form : MUI::F_SOUL;
         _canvas.setClipRect(0, HEADER_H + 1, 86, SCREEN_H - FOOTER_H - HEADER_H - 1);
+        int lvl = r->hasCard ? r->card.level : 0;
         MUI::soulForm(_canvas, 42, 68, 80, r->hasCard ? MUI::YELLOW : MUI::DIM,
-                      r->isFriend ? MUI::CYAN : MUI::MAGENTA, 0, (MUI::Form)form);
+                      r->isFriend ? MUI::CYAN : MUI::MAGENTA, 0, (MUI::Form)form, lvl ? (lvl - 1) / 5 : 0);
         _canvas.clearClipRect();
 
         const int x = 90;
@@ -141,9 +143,11 @@ private:
                 MUI::text(_canvas, MUI::small(), v, x + 44, y, col);
                 y += 11;
             };
-            row("Form", Forms::name(form), MUI::YELLOW);
-            snprintf(buf, sizeof(buf), "%u / %u", c.forms, (unsigned)MUI::F_PUBLIC);
-            row("Forms", buf, MUI::WHITE);
+            snprintf(buf, sizeof(buf), "%s  %u/%u", Forms::name(form), c.forms, (unsigned)MUI::F_PUBLIC);
+            row("Form", buf, MUI::YELLOW);
+            if (lvl) snprintf(buf, sizeof(buf), "%d %s", lvl, Ki::rankName((lvl - 1) / 5));
+            else snprintf(buf, sizeof(buf), "older build");
+            row("Level", buf, lvl ? MUI::CYAN : MUI::DIM);
             snprintf(buf, sizeof(buf), "%u / %u", c.species, c.speciesTotal);
             row("Pages", buf, MUI::WHITE);
             snprintf(buf, sizeof(buf), "%lu", (unsigned long)c.encounters);

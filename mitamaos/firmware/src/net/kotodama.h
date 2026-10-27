@@ -45,6 +45,7 @@ public:
         uint8_t  species = 0, speciesTotal = 0;  // Compendium pages filled / total
         uint8_t  races = 0;                      // bit per race (Sig::Race) completed
         uint32_t encounters = 0;
+        uint8_t  level = 0;                      // ki level (0 = sent by a build without ki)
     };
     struct Node {
         uint32_t num = 0; char shortName[5] = ""; char longName[25] = "";
@@ -187,6 +188,8 @@ public:
     }
     bool sending() const { return _txPending; }
     uint32_t sentCount() const { return _sentN; }   // messages queued since boot
+    uint32_t crewNewCount() const { return _crewNewN; }   // crew first heard since boot
+    int friendCount() const { return _friendsLoaded ? _nFriends : -1; }   // -1 until friends.txt is read
     // Set when the last queued message failed to go out; read once.
     bool takeSendFailed() { bool f = _txFailed; _txFailed = false; return f; }
 
@@ -396,22 +399,27 @@ private:
     struct Friend { uint32_t num; char name[25]; } _friends[MAX_FRIENDS] = {};
     int      _nFriends = 0;
     bool     _friendsLoaded = false, _friendsDirty = false;
+    uint32_t _crewNewN = 0;
     Arrival  _arrivals[4];
     int      _nArrivals = 0;
     uint32_t _crewAt = 0;
     Card     _myCard;
     bool     _hasMyCard = false;
-    static constexpr size_t CARD_LEN = 10;
+    // Version 1 is 10 bytes; byte 10 (the ki level) was added on the end,
+    // so older builds read the first 10 and ignore it.
+    static constexpr size_t CARD_LEN = 11, CARD_MIN = 10;
     static void _packCard(const Card& c, uint8_t* b) {
         b[0] = 1;   // card version
         b[1] = c.form; b[2] = c.forms; b[3] = c.species; b[4] = c.speciesTotal; b[5] = c.races;
         for (int i = 0; i < 4; i++) b[6 + i] = (c.encounters >> (8 * i)) & 0xFF;
+        b[10] = c.level;
     }
     static bool _unpackCard(const uint8_t* b, size_t n, Card& c) {
-        if (n < CARD_LEN || b[0] != 1) return false;    // newer versions keep these bytes first
+        if (n < CARD_MIN || b[0] != 1) return false;    // newer versions keep these bytes first
         c.form = b[1]; c.forms = b[2]; c.species = b[3]; c.speciesTotal = b[4]; c.races = b[5];
         c.encounters = 0;
         for (int i = 0; i < 4; i++) c.encounters |= (uint32_t)b[6 + i] << (8 * i);
+        c.level = n > 10 ? b[10] : 0;
         return true;
     }
     struct Seen { uint32_t from, id; } _seen[32] = {};
@@ -586,6 +594,7 @@ private:
         Node* n = _slot(from);
         if (ch == Mesh::CH_MITAMA) {
             bool arriving = !n->crew || now - n->heardMs > CREW_AWAY_MS;
+            if (!n->crew) _crewNewN++;
             n->crew = true;
             if (arriving) {
                 if (_nArrivals == 4) memmove(_arrivals, _arrivals + 1, sizeof(Arrival) * --_nArrivals);   // full: drop the oldest

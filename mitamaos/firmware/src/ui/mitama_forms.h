@@ -384,7 +384,7 @@ inline void _formFront(const _FormPen& p, Form form, uint16_t accent) {
 // The Mitama in a form: the Soul (aura still shows the mood) plus the
 // form's decorations. Gilded and Yurei recolour the Soul itself.
 inline void soulForm(LGFX_Sprite& c, int cx, int cy, int size, uint16_t accent, uint16_t aura,
-                     float spin, Form form) {
+                     float spin, Form form, int rank = 0) {
     uint16_t bones = BONES;
     if (form == F_GILDED) { accent = _FormCol::GOLD; bones = _FormCol::GOLD; }
     if (form == F_YUREI)  { accent = _FormCol::PALE; bones = _FormCol::GHOST;
@@ -392,7 +392,7 @@ inline void soulForm(LGFX_Sprite& c, int cx, int cy, int size, uint16_t accent, 
     if (form == F_KYUBI)  { accent = CYAN; bones = MAGENTA; }
     _FormPen p{ c, (float)cx, (float)cy, size / 200.0f, size / 92.0f };
     _formBehind(p, form);
-    soul(c, cx, cy, size, accent, aura, spin, bones);
+    soul(c, cx, cy, size, accent, aura, spin, bones, rank);
     _formFront(p, form, accent);
 }
 

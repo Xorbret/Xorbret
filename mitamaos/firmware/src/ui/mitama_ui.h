@@ -126,8 +126,25 @@ namespace MUI {
     // ring, the magatama sigil) inside an aura glow. `size` is the 200-unit
     // design box from docs/ui.html's soul(); (cx,cy) is the centre. `spin`
     // rotates the dashed bones ring (degrees) for the slow idle turn.
+    // `rank` (0-9, from ki) picks the rings' pattern: each rank adds detail.
+    struct RankRing { float on, off; bool inner, outer; float oOn, oOff; };
+    inline const RankRing& rankRing(int rank) {
+        static const RankRing R[10] = {
+            { 3,   6, false, false, 0, 0 },   // Kodama
+            { 1.5, 4, false, false, 0, 0 },   // Kakure
+            { 6,   4, false, false, 0, 0 },   // Hitodama
+            { 3,   6, true,  false, 0, 0 },   // Tsukumo
+            { 10,  3, true,  false, 0, 0 },   // Shikigami
+            { 3,   6, false, true,  2, 5 },   // Onmyoji
+            { 6,   4, false, true,  6, 6 },   // Kannushi
+            { 3,   3, true,  true,  2, 5 },   // Tengu
+            { 10,  3, true,  true,  8, 4 },   // Ryujin
+            { 14,  2, true,  true,  3, 3 },   // Kami
+        };
+        return R[constrain(rank, 0, 9)];
+    }
     inline void soul(LGFX_Sprite& c, int cx, int cy, int size, uint16_t accent, uint16_t aura,
-                     float spin = 0, uint16_t bones = BONES) {
+                     float spin = 0, uint16_t bones = BONES, int rank = 0) {
         float s = size / 200.0f;
         uint16_t sh[3]; _auraShades(aura, sh);
         int ay = cy + (int)(4 * s);
@@ -137,7 +154,10 @@ namespace MUI {
         c.fillCircle(cx, cy, (int)(58 * s), PANEL);
         int r = (int)(58 * s), w = max(1, (int)(3 * s + 0.5f));
         c.fillArc(cx, cy, r - w + 1, r, 0, 360, accent);
-        MitamaLogo::_dashRing(c, cx, cy, 50 * s, 1, 3, 6, bones, spin);
+        const RankRing& rr = rankRing(rank);
+        MitamaLogo::_dashRing(c, cx, cy, 50 * s, 1, rr.on, rr.off, bones, spin);
+        if (rr.inner) MitamaLogo::_dashRing(c, cx, cy, 43 * s, 1, 1, 3, bones, -spin * 0.5f);
+        if (rr.outer) MitamaLogo::_dashRing(c, cx, ay, 64 * s, 1, rr.oOn, rr.oOff, rank >= 9 ? accent : bones, -spin);
         MitamaLogo::_magatama(c, cx, cy + 6 * s, 19 * s, 14 * s, -60, 185, 0.82f, accent);
     }
 

@@ -12,6 +12,7 @@
 //        {n} how many of that race are active now, {r} race name,
 //        {f} a form's name.
 //        {m} a module's name (Tsukumo).
+//        {l} the Mitama's level, {k} its rank name (ki).
 #include <stdint.h>
 #include "../detect/signatures.h"
 
@@ -32,6 +33,8 @@ enum Event : uint8_t {
     EV_CREW_STRANGER,  // another Mitama we haven't befriended; {d} = its name
     EV_CREW_CREATOR,   // the creator's Mitama (Kyubi form) came into range; {d} = name
     EV_MODULE,         // a Unit is plugged in at boot; {m} = its name
+    EV_LEVEL,          // the Mitama gained a level; {l} = level
+    EV_RANK,           // ...and that level began a new rank; {k} = rank name
     EV_COUNT
 };
 
@@ -191,6 +194,19 @@ static const Line BANK[] = {
     { EV_FORM, T_ANY, "{f} form acquired. Fashion is a status effect. F to equip." },
     { EV_FORM, T_ANY, "Unlocked {f}. Every demon needs a wardrobe. Press F on Proxima." },
     { EV_FORM, T_ANY, "A new shape stirs: {f}. The Compendium lists the rest." },
+
+    // ── ki: levels and ranks ──
+    { EV_LEVEL, T_ANY, "Level {l}. I feel taller. Metaphysically." },
+    { EV_LEVEL, T_ANY, "Ki overflows. Level {l}. Stats up, attitude unchanged." },
+    { EV_LEVEL, T_ANY, "Level {l}. Somewhere a fanfare plays in a key only spirits hear." },
+    { EV_LEVEL, T_ANY, "Ding. Level {l}. Yes, I said ding. Don't make it weird." },
+    { EV_LEVEL, T_ANY, "Level {l}. Keep showing me the world and I keep growing." },
+    { EV_LEVEL, T_ANY, "Level {l}. The grind is real, and for once it's you doing it." },
+    { EV_RANK, T_ANY, "I am {k} now. Level {l}. Bow, or at least nod." },
+    { EV_RANK, T_ANY, "Rank up: {k}. The old shell sloughs off. New ring, same sarcasm." },
+    { EV_RANK, T_ANY, "{k}. The shrine registers have been amended. Level {l}." },
+    { EV_RANK, T_ANY, "A new rank stirs in me: {k}. You did this, mostly by walking around." },
+    { EV_RANK, T_ANY, "Level {l}, rank {k}. Promotion without a pay rise. Classic." },
 
     // ── crew: other Mitama in LoRa range ──
     { EV_CREW_FRIEND, T_ANY, "{d} is in range. Your party grows. Try not to embarrass me." },

@@ -124,9 +124,19 @@ private:
 
         MUI::header(_canvas, "PROXIMA", aura);
         // forms may reach past the soul: keep them off the header and the text column
-        _canvas.setClipRect(0, HEADER_H + 1, 82, SCREEN_H - FOOTER_H - HEADER_H - 1);
-        MUI::soulForm(_canvas, 40, 68, 92, MUI::YELLOW, aura, _spin, Forms::get().current());
+        auto& ki = Ki::get();
+        const int lvY = SCREEN_H - FOOTER_H - 12;   // level and ki bar, under the Mitama
+        _canvas.setClipRect(0, HEADER_H + 1, 82, lvY - HEADER_H - 1);
+        MUI::soulForm(_canvas, 40, 66, 92, MUI::YELLOW, aura, _spin, Forms::get().current(), ki.rank());
         _canvas.clearClipRect();
+        {
+            char lv[8]; snprintf(lv, sizeof(lv), "Lv%d", ki.level());
+            int lx = MUI::text(_canvas, MUI::small(), lv, 3, lvY, MUI::CYAN) + 4;
+            const int bx1 = 78, by = lvY + 5;
+            _canvas.drawRect(lx, by, bx1 - lx, 4, MUI::BONES_DIM);
+            int fill = (int)((bx1 - lx - 2) * ki.progress());
+            if (fill > 0) _canvas.fillRect(lx + 1, by + 1, fill, 2, MUI::CYAN);
+        }
 
         const int x = 84;
         int y = HEADER_H + 3;

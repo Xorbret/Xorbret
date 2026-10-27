@@ -11,6 +11,7 @@
 #include "../../ui/race_colors.h"
 #include "../../detect/compendium.h"
 #include "../../mitama/forms.h"
+#include "../../mitama/ki.h"
 
 // Compendium - the bestiary of every demon (device) the Mitama has met
 // (outline §5a, §15). Split view: a race-grouped list on the left, the
@@ -19,9 +20,10 @@
 // bones showing through and a name that won't hold still.
 //
 // F switches to the Mitama's forms: every form, how to unlock it, and
-// ENT to wear an unlocked one.
+// ENT to wear an unlocked one. L shows the Mitama's level: rank, ki,
+// streak, and where today's ki came from.
 //
-// Keys: ; . move, , / jump a race, F forms, ` back.
+// Keys: ; . move, , / jump a race, F forms, L level, ` back.
 class CompendiumApp : public App {
 public:
     CompendiumApp(LGFX_Sprite& canvas) : _canvas(canvas) {}
@@ -46,6 +48,16 @@ public:
         M5Cardputer.update();
         auto& kb = M5Cardputer.Keyboard;
         if (kb.isKeyPressed('`')) { OsUI::waitRelease(); AppManager::get().goHome(); return; }
+        if (kb.isKeyPressed('l')) {
+            OsUI::waitRelease();
+            _kiView = !_kiView;
+            _draw();
+            return;
+        }
+        if (_kiView) {
+            if (kb.isKeyPressed('f')) { OsUI::waitRelease(); _kiView = false; }
+            else { if (millis() - _lastDraw > 1000) _draw(); return; }
+        }
         if (kb.isKeyPressed('f')) {
             OsUI::waitRelease();
             _formsView = !_formsView;
@@ -80,7 +92,7 @@ private:
     uint32_t _lastDraw = 0;
     static inline uint8_t _openAt = Sig::T_COUNT;
 
-    bool     _formsView = false;
+    bool     _formsView = false, _kiView = false;
     uint32_t _fnoteMs = 0;
     uint8_t  _fsel = 0;
     int      _fscroll = 0;
@@ -141,7 +153,7 @@ private:
         bool on = fm.isUnlocked(_fsel);
         if (on) {
             _canvas.setClipRect(LIST_W + 1, HEADER_H + 1, SCREEN_W - LIST_W - 1, 70);
-            MUI::soulForm(_canvas, cx, cy, 62, MUI::YELLOW, MUI::YELLOW, 0, (MUI::Form)_fsel);
+            MUI::soulForm(_canvas, cx, cy, 62, MUI::YELLOW, MUI::YELLOW, 0, (MUI::Form)_fsel, Ki::get().rank());
             _canvas.clearClipRect();
         } else {
             _canvas.drawCircle(cx, cy, 20, MUI::DIM);
@@ -151,6 +163,51 @@ private:
                           on ? MUI::YELLOW : MUI::DIM, 1);
         if (_fsel == worn) MUI::text(_canvas, MUI::small(), "  worn", e, HEADER_H + 73, MUI::DIM);
         _wrap(Forms::hint(_fsel), x0, HEADER_H + 85, w, 2, on ? MUI::CREAM : MUI::DIM);
+    }
+
+    // ---- level view ----
+    void _drawKi() {
+        auto& ki = Ki::get();
+        const int L = 4, R = SCREEN_W - 4;
+        char buf[40];
+        int y = HEADER_H + 3;
+        MUI::text(_canvas, MUI::big(), Ki::rankName(ki.rank()), L, y, MUI::YELLOW);
+        snprintf(buf, sizeof(buf), "Lv %d", ki.level());
+        MUI::text(_canvas, MUI::big(), buf, R - MUI::width(_canvas, MUI::big(), buf), y, MUI::CYAN);
+        y += 19;
+        _canvas.drawRect(L, y, R - L, 6, MUI::BONES_DIM);
+        int fill = (int)((R - L - 2) * ki.progress());
+        if (fill > 0) _canvas.fillRect(L + 1, y + 1, fill, 4, MUI::CYAN);
+        y += 9;
+        if (ki.level() < Ki::MAX_LEVEL) snprintf(buf, sizeof(buf), "%lu ki, %lu to level %d", (unsigned long)ki.total(), (unsigned long)ki.toNext(), ki.level() + 1);
+        else snprintf(buf, sizeof(buf), "%lu ki. The top. Nothing left but godhood.", (unsigned long)ki.total());
+        MUI::text(_canvas, MUI::small(), buf, L, y, MUI::CREAM);
+        y += 12;
+        if (ki.streak()) snprintf(buf, sizeof(buf), "Streak: %u day%s", ki.streak(), ki.streak() == 1 ? "" : "s");
+        else snprintf(buf, sizeof(buf), "Streak starts once the clock is set");
+        MUI::text(_canvas, MUI::small(), buf, L, y, ki.streak() ? MUI::WHITE : MUI::DIM);
+        if (ki.rank() < 9) {
+            snprintf(buf, sizeof(buf), "%s at Lv %d", Ki::rankName(ki.rank() + 1), (ki.rank() + 1) * 5 + 1);
+            MUI::text(_canvas, MUI::small(), buf, R - MUI::width(_canvas, MUI::small(), buf), y, MUI::DIM);
+        }
+        y += 13;
+        _canvas.drawFastHLine(L, y, R - L, MUI::BONES_DIM);
+        y += 3;
+        snprintf(buf, sizeof(buf), "TODAY  %lu ki", (unsigned long)ki.todayTotal());
+        MUI::text(_canvas, MUI::small(), buf, L, y, MUI::DIM, 1);
+        y += 12;
+        // Today's sources with ki, in two columns.
+        int n = 0;
+        const int colW = (R - L) / 2, rows = (SCREEN_H - FOOTER_H - y) / 11;
+        for (uint8_t src = 0; src < Ki::S_COUNT && n < rows * 2; src++) {
+            if (!ki.today(src)) continue;
+            int cx = L + (n / rows) * colW, ry = y + (n % rows) * 11;
+            MUI::text(_canvas, MUI::small(), Ki::sourceName(src), cx, ry, MUI::LABEL);
+            snprintf(buf, sizeof(buf), "%u", ki.today(src));
+            MUI::text(_canvas, MUI::small(), buf, cx + colW - 8 - MUI::width(_canvas, MUI::small(), buf), ry, MUI::GREEN);
+            n++;
+        }
+        if (!n) MUI::text(_canvas, MUI::small(), "Nothing yet. Go meet some demons.", L, y, MUI::DIM);
     }
 
     static const char* _devName(uint8_t t) {
@@ -345,6 +402,13 @@ private:
     void _draw() {
         _lastDraw = millis();
         _canvas.fillSprite(MUI::BG);
+        if (_kiView) {
+            MUI::header(_canvas, "KI", MUI::YELLOW);
+            _drawKi();
+            MUI::footer(_canvas, "L demons   F forms", MUI::DIM);
+            { DispLock _lk; _canvas.pushSprite(0, 0); }
+            return;
+        }
         if (_formsView) {
             MUI::header(_canvas, "FORMS", MUI::YELLOW);
             _drawForms();
@@ -366,7 +430,7 @@ private:
         auto& comp = Compendium::get();
         char count[12];
         snprintf(count, sizeof(count), "%d/%d", comp.metCount(), Compendium::total());
-        if (comp.persistent()) MUI::footer(_canvas, "; . move  , / race  F forms", MUI::DIM, count);
+        if (comp.persistent()) MUI::footer(_canvas, "; . move  , / race  F forms  L ki", MUI::DIM, count);
         else MUI::footer(_canvas, "No SD card: forgets on reboot", MUI::YELLOW, count);
         { DispLock _lk; _canvas.pushSprite(0, 0); }
     }
