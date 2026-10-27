@@ -1434,7 +1434,9 @@ so the screen moves to pins the cap leaves alone:
 Costs: the SPI bus then carries three devices (SD, LoRa, screen), all with
 separate CS, all behind the same bus lock; Kotodama's receive task must take
 that lock too. The Grove port is consumed, so no Grove Units (Tsukumo) or Grove
-GPS while the screen is in stack mode. Mechanically it needs a 2×7 2.54 mm
+GPS while the screen is in stack mode. Cap TFT V2 is a clamshell: the screen is a lid hinged at the
+Cardputer's top edge, so the LoRa cap sits behind the open lid at the hinge.
+Mechanically it needs a 2×7 2.54 mm
 **stacking header** (long-leg female) in place of the plain pin header, plus
 a remixed S1/C1 so the LoRa cap clears the screen case, and a short
 Grove-to-screen lead. Firmware gets a Settings choice for the pin set
