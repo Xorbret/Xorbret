@@ -1454,6 +1454,11 @@ through the case.
 - Cap LoRa-1262: 84.0 W × 15.3 × 24.0 mm. It mounts on the **back** at the top
   edge: it overhangs the top edge by 9 mm and sticks out 15 mm past the back
   shell. Its 14-pin connector is on the back face near the top edge.
-- Prokyon's Cap TFT V2 files are login-only on MakerWorld; dimensions for the
-  lid still need the 3MF/STL from Robert.
+- Cap TFT V2 parts (from Robert's 3MF, 2026-10-27): lid D1 84 × 62 × 14.4;
+  side rails D2 5.8 × 3.6 × 50.8 and D3 8.4 × 3.6 × 50.8; header carrier S1
+  84 × 15.95 × 7.9; hinge arms L1 8.5 × 20 × 8 and R1 16 × 20 × 8; C1
+  59.3 × 10 × 4.9. Clamshell: the lid hinges at the top edge and closes over
+  the keyboard (closed stack about 34 mm thick).
+- Stacking consequence (estimate): a LoRa cap hung below S1 sits about 23 mm
+  under the back at the top edge, so the device rests tilted about 25°.
 
