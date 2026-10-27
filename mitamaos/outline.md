@@ -1445,3 +1445,15 @@ Grove-to-screen lead. Firmware gets a Settings choice for the pin set
   there and the 14 px status bar is given back to apps (the §3 "render to a
   surface" rule is what makes this a routing change).
 
+**Measured from M5Stack's official STLs** (github.com/m5stack/M5_Hardware,
+`Products/K132-Adv_Cardputer-Adv`, `Products/U214_Cap_LoRa-1262`; measured
+2026-10-27). Axes: width across the keyboard, height front-to-top edge, depth
+through the case.
+- Cardputer ADV: 84.0 W × 54.0 H × 19.7 D mm (front shell 10.7, back shell 9.0).
+  LCD module 24 × 18 mm in the top band; keyboard block 80.3 × 25.9 mm.
+- Cap LoRa-1262: 84.0 W × 15.3 × 24.0 mm. It mounts on the **back** at the top
+  edge: it overhangs the top edge by 9 mm and sticks out 15 mm past the back
+  shell. Its 14-pin connector is on the back face near the top edge.
+- Prokyon's Cap TFT V2 files are login-only on MakerWorld; dimensions for the
+  lid still need the 3MF/STL from Robert.
+
