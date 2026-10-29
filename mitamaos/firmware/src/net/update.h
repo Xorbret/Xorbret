@@ -5,7 +5,7 @@
 // runs, and Launcher keeps its own flash layout, so the last step stays
 // in Launcher.
 //
-// https://xorbret.github.io/Xorbret/firmware/version.txt holds the build
+// https://xorbret.github.io/MitamaOS/firmware/version.txt holds the build
 // id (short git hash) of the newest build; the image sits next to it.
 // TLS is checked against the Mozilla roots in ca_bundle.h.
 #include <Arduino.h>
@@ -20,7 +20,7 @@
 namespace OsUpdate {
 
 static constexpr const char* HOST = "xorbret.github.io";
-static constexpr const char* BASE = "/Xorbret/firmware/";
+static constexpr const char* BASE = "/MitamaOS/firmware/";
 static constexpr const char* IMAGE = "mitamaos-cardputer-adv-merged.bin";
 static constexpr const char* DIR = "/MitamaOS/update";
 
