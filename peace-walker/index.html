@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px;font-family:system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Peace Walker Endgame Checklist</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: field-manual dossier, single column, sticky progress strip, sections as numbered ops brackets */
+:root{
+  --bg:#e9ece4; --panel:#f6f7f2; --ink:#1e231c; --muted:#5d6656; --line:#c9cfbf;
+  --accent:#c98a0b; --accent-ink:#5a3d00; --olive:#4f5c3a; --done:#8a9480;
+  --f-display:"Saira Condensed","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#151912; --panel:#1d2219; --ink:#e3e7da; --muted:#9aa38f; --line:#323a2b;
+  --accent:#e5a52a; --accent-ink:#ffd889; --olive:#a9b98c; --done:#6c7563; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151912; --panel:#1d2219; --ink:#e3e7da; --muted:#9aa38f; --line:#323a2b;
+  --accent:#e5a52a; --accent-ink:#ffd889; --olive:#a9b98c; --done:#6c7563; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 60px}
+header h1{font:800 clamp(34px,8vw,52px)/0.95 var(--f-display);text-transform:uppercase;letter-spacing:.01em;margin:0;text-wrap:balance}
+header .eyebrow{font:500 12px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--olive);margin-bottom:8px}
+header p{color:var(--muted);max-width:62ch;margin:12px 0 0}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px;margin-top:18px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.track{flex:1 1 200px;height:8px;background:var(--line);position:relative}
+.fill{position:absolute;inset:0 auto 0 0;background:var(--accent);width:0;transition:width .3s}
+.count{font:500 13px var(--f-mono);font-variant-numeric:tabular-nums;min-width:9ch}
+.bar label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;cursor:pointer}
+section{margin-top:34px}
+section h2{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font:800 24px/1.1 var(--f-display);text-transform:uppercase;margin:0 0 4px}
+section h2 .sc{font:500 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+section .note{color:var(--muted);font-size:14px;margin:0 0 10px;max-width:65ch}
+ul{list-style:none;margin:0;padding:0;background:var(--panel);border:1px solid var(--line)}
+li{border-top:1px solid var(--line)}
+li:first-child{border-top:0}
+li label{display:grid;grid-template-columns:22px 3.6ch 1fr;gap:10px;padding:10px 12px;cursor:pointer;align-items:start}
+li input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--olive)}
+li .id{font:500 13px/1.6 var(--f-mono);color:var(--olive)}
+li .id:empty{visibility:hidden}
+li .t{min-width:0}
+li .name{font-weight:500}
+li .sub{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.tag{display:inline-block;font:500 11px/1 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;padding:4px 6px;margin:4px 6px 0 0;border:1px solid var(--accent);color:var(--accent-ink)}
+.tag.s{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+li.on .name{color:var(--done);text-decoration:line-through;text-decoration-thickness:1px}
+li.on .tag{opacity:.55}
+body.hide li.on{display:none}
+input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tips{margin-top:10px;padding:12px 14px;border-left:3px solid var(--accent);background:var(--panel);font-size:14px}
+.tips ul{background:none;border:0;list-style:disc;padding-left:18px}
+.tips li{border:0;padding:2px 0}
+footer{margin-top:40px;color:var(--muted);font-size:13px}
+footer a{color:var(--olive)}
+button{font:500 12px var(--f-mono);background:none;border:1px solid var(--line);color:var(--muted);padding:6px 10px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">MSF · Mother Base · Post–Date with Paz</div>
+  <h1>Peace Walker Endgame Checklist</h1>
+  <p>Every Extra Op unlock bracket from the Date with Paz onward, the final Main Op, the Monster Hunter quests, and the oddball weapons. Set the Mission Selector to <b>ALL</b> to see ops in unlock order. Your ticks are saved in this browser.</p>
+</header>
+<div class="bar">
+  <div class="track"><div class="fill" id="fill"></div></div>
+  <span class="count" id="count">0 / 0</span>
+  <label><input type="checkbox" id="hide"> Hide done</label>
+  <button id="reset" type="button">Reset</button>
+</div>
+<main id="main"></main>
+<footer>
+  Item tags: <b>Clear</b> = finish the op, <b>S Rank</b> = needs an S rank, <b>Doc</b> = specs are found on the map (a Channeler soldier shows them). Op order and unlocks follow the community <a href="https://r.datuan.dev/r/metalgearsolid/wiki/peacewalker" target="_blank" rel="noopener">Peace of Mind guide</a>; Monster Hunter drops from the <a href="https://metalgear.fandom.com/wiki/Peace_Walker_weapons_and_equipment" target="_blank" rel="noopener">Metal Gear Wiki</a>. Ops that don't list an unlock may still give minor ones. Skipped anything from earlier in the game? It'll still show in the ALL filter.
+</footer>
+</div>
+
+<script>
+const D=[
+{h:"Peace Walker Battle 3 bracket",n:"Opened before the first Zadornov Search Mission. Clear any 3–4 Extra Ops to unlock Zadornov Search Mission 1.",i:[
+["067","Date with Paz","",[],1],["014","Fulton Recovery"],["022","Eliminate Enemy Soldiers"],["103","Armored Vehicle Battle: LAV-Type G"],["032","Classified Document Retrieval"]]},
+{h:"Zadornov Search Mission 1",n:"Each Zadornov mission opens a new bracket. Clear 3–4 Extra Ops after it to unlock the next one. Finish every bracket, not just enough to move on.",i:[
+["","Zadornov Search Mission 1","Main Op"],["015","Fulton Recovery"],["008","Marksmanship Challenge"],["056","One Shot"],["090","Attack Chopper Battle: AH56A-Raider"],["076","Tank Battle: T72-U"],["042","POW Defense"]]},
+{h:"Zadornov Search Mission 2",i:[
+["","Zadornov Search Mission 2","Main Op"],["019","Target Demolition"],["095","Tank Battle: KPz 70"],["039","Base Defense"],["035","Hold Up","",[["Doc","Banana"]]],["106","Attack Chopper Battle: Mi-24D"],["112","AI Weapon Battle: Pupa Type II"]]},
+{h:"Zadornov Search Mission 3",i:[
+["","Zadornov Search Mission 3","Main Op"],["016","Fulton Recovery"],["033","Claymore Disarmament"],["071","Armored Vehicle Battle: BTR-60 PB"],["021","Cargo Truck Demolition"],["093","Tank Battle: T-72A"],["086","Attack Chopper Battle: Mi-24D"]]},
+{h:"Zadornov Search Mission 4",i:[
+["","Zadornov Search Mission 4","Main Op"],["063","Pooyan Mission"],["074","Armored Vehicle Battle: LAV-Type C"],["057","Paparazzi"],["059","Ghost Photography"],["084","Attack Chopper Battle: Mi-24A"],["040","Base Defense"],["082","Tank Battle: MBTk-70"],["114","AI Weapon Battle: Chrysalis Type II"]]},
+{h:"Zadornov Search Mission 5",i:[
+["","Zadornov Search Mission 5","Main Op"],["060","Dead Man's Treasure"],["078","Tank Battle: T-72A"],["036","Hold Up"],["108","Attack Chopper Battle: AH56A-Bomber"],["034","Claymore Disarmament","",[["Doc","M1911A1 Custom"]]],["099","Armored Vehicle Battle: BTR-60 PA"],["116","AI Weapon Battle: Cocoon Type II"]]},
+{h:"Zadornov Search Mission 6",i:[
+["","Zadornov Search Mission 6","Main Op"],["017","Fulton Recovery"],["101","Armored Vehicle Battle: BTR-60 PB"],["110","Attack Chopper Battle: AH56A-Raider"],["043","Defend Key Supplies"],["097","Tank Battle: MBTk-70"],["118","AI Weapon Battle: Peace Walker Type II"]]},
+{h:"Unlock the final Main Op",n:"After Zadornov 6, progress stalls until all of these are true at once.",i:[
+["","Finish building ZEKE","It's working once you can send it on Outer Ops"],
+["","Railgun equipped on ZEKE","Can drop from Chrysalis if you beat it without damaging its railgun"],
+["","Second Mother Base plant built","Construction starts when the Intel Team hits Level 40"],
+["","ZEKE parked at Mother Base","Not deployed or assigned to any Outer Ops squad"],
+["","Clear 3–4 more ops","Kaz calls to say Zadornov escaped"],
+["001","Find Zadornov","Enter Extra Op 001 and go up the stairs for a cutscene"],
+["","Clear the final Main Op","Main Op"]]},
+{h:"Remaining Extra Ops",n:"These open in order as you clear them. Do 064 first so you have Fulton Mines for the Custom vehicle battles.",i:[
+["023","Eliminate Enemy Soldiers","",[["Clear","Twin-barrel shotgun (non-lethal)"]]],["024","Eliminate Enemy Soldiers"],["105","Attack Chopper Battle: Mi-24A Custom"],["025","Eliminate Enemy Soldiers"],["070","Armored Vehicle Battle: BTR-60 PA Custom"],["026","Eliminate Enemy Soldiers","S-rank Medical POWs here"],["027","Eliminate Enemy Soldiers"],["094","Tank Battle: T-72A Custom"],["044","Defend Key Supplies"],["041","Base Defense"],["077","Tank Battle: T-72U Custom"],
+["020","Target Demolition","",[["S","C96 (Eva's pistol)"]]],["089","Attack Chopper Battle: AH56A-Bomber Custom"],["055","U.S. Soldier Rescue"],["079","Tank Battle: T-72A Custom","",[["S","EMW gun"]]],["009","Marksmanship Challenge"],["066","Missile Intercept Mission"],["073","Armored Vehicle Battle: LAV-Type G Custom"],["107","Attack Chopper Battle: Mi-24D Custom","",[["S","M202A1 rank 4 specs"]]],["058","Paparazzi"],["061","Dead Man's Treasure","",[["S","Stench camo"]]],["092","Tank Battle: T-72U Custom"],["062","Dead Man's Treasure","",[["Clear","SPAS-12"],["S","M202 quad rocket launcher"],["Codec","Neo Moss camo: call near bodies until The End answers"]]],
+["100","Armored Vehicle Battle: BTR-60 PA Custom"],["064","Pooyan Mission","",[["Clear","Fulton Mine"]]],["065","Pooyan Mission","",[["S","WA2000"]]],["087","Attack Chopper Battle: Mi-24D Custom"],["111","Attack Chopper Battle: AH56A-Raider Custom","",[["S","M47 (best launcher)"]]],
+["045","Perfect Stealth","",[["Clear","ADM63"]]],["046","Perfect Stealth","2nd soldier is an S-rank Mess Hall recruit"],["102","Armored Vehicle Battle: BTR-60 PB Custom"],["047","Perfect Stealth","",[["S","SUG"]]],["048","Perfect Stealth","",[["S","G11"]]],["091","Attack Chopper Battle: AH56A-Raider Custom"],["049","Perfect Stealth","",[["S","PTRS1941 semi-auto anti-tank rifle"]]],["075","Armored Vehicle Battle: LAV-Type C Custom","",[["S","M134 Gatling gun"]]],["050","Perfect Stealth","",[["S","Stealth camo"],["Doc","PTRD1941 anti-tank rifle"]]],
+["083","Tank Battle: MBTk-70 Custom","",[["S","EM Net (vehicle capture net)"]]],["037","Hold Up"],["098","Tank Battle: MBTk-70 Custom","",[["Clear","Fulton Launcher"]]],["104","Armored Vehicle Battle: LAV-Type G Custom"],["072","Armored Vehicle Battle: BTR-60 PB Custom"],["085","Attack Chopper Battle: Mi-24A Custom"],["109","Attack Chopper Battle: AH56A-Bomber Custom"],["096","Tank Battle: KPz 70 Custom"],["081","Tank Battle: KPz 70 Custom"]]},
+{h:"AI Weapon Customs and Kaz",i:[
+["113","AI Weapon Battle: Pupa Custom"],["115","AI Weapon Battle: Chrysalis Custom","",[["S","Railgun"]]],["117","AI Weapon Battle: Cocoon Custom"],["119","AI Weapon Battle: Peace Walker Custom","",[["S","Infinity Bandanna"]]],["068","Date with Kaz","",[["K.O.","Knock Kaz out and search him for the Patriot specs"]]],["120","Metal Gear ZEKE: Mock Battle"]]},
+{h:"Monster Hunter quests",n:"Any kill, small monsters included, costs you the S rank. S-ranking each Hunting Quest gives a new camo.",i:[
+["","Listen to all of Chico's tapes about Isla del Monstruo"],
+["029","Item Capture as Snake, then go to the beach dock","Skip the exit, head to the dock and talk to the Felyne (Trenya)"],
+["121","Hunting Quest: Rathalos","",[["Drop","Rathalos wing → Tanegashima"]]],["122","Hunting Quest: Rathalos / Twilight","",[["Drop","Rathalos wing → Tanegashima"]]],
+["123","Hunting Quest: Tigrex","",[["Drop","Tigrex Fang → Slingshot Post"]]],["124","Hunting Quest: Tigrex / Twilight","",[["Drop","Tigrex Fang → Slingshot Post"]]],
+["125","Hunting Quest: Gear REX","",[["Drop","Gear REX Mucous → Band rank 1"]]],["126","Hunting Quest: Gear REX / Twilight","",[["Drop","Gear REX Mucous → Band rank 1"]]],
+["127","Gear REX: Showdown at Crater Base","",[["Drop","Gear REX Concentrate → Band rank 2"]]],["128","Gear REX Strikes Back","",[["Drop","Gear REX Super Extract → Band rank 3"]]]],
+tips:["Drops are random. Non-lethal takedowns and breaking off parts (tail, wings) raise the odds. The M134 is the best part-breaker.","Stun grenades stun the monsters, which is the main way to take them down.","The Band has to be developed in order: rank 1, then 2, then 3."]},
+{h:"Wonky weapons and extras",n:"The oddball gear to collect once the ops above are done.",i:[
+["","Banana","Doc in Extra Op 035"],
+["","Human Slingshot Post","Develop from the Tigrex Fang"],
+["","Human Slingshot Band, ranks 1 to 3","Develop from the three Gear REX drops in order"],
+["","Human Slingshot assembled","Co-op only: two hold posts, one pulls, one gets launched"],
+["","Tanegashima musket","Rathalos wing drop, plus a Japanese Patriot skill holder in R&D. Fulton a soldier with its whirlwind for a bonus achievement"],
+["","Fulton Mine","Extra Op 064"],["","Fulton Launcher","Extra Op 098"],["","EM Net","S-rank Extra Op 083"],
+["","Stench camo","S-rank Extra Op 061"],["","Neo Moss camo","Codec near bodies in Extra Op 062"],
+["","Stealth camo","S-rank Extra Op 050"],["","Infinity Bandanna","S-rank Extra Op 119"],["","Patriot","Extra Op 068"],
+["","Railgun","S-rank Extra Op 115"],["","M134 Gatling gun","S-rank Extra Op 075"],
+["","Every Hunting Quest camo","S-rank Extra Ops 121–128"],
+["","Recruit Hideo Kojima","In the Main Op where you choose between trucks by license plate, open truck 63824 first. Replayable"]]}
+];
+
+const KEY="pw-endgame-v1";let S={};
+try{S=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){S={}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const main=document.getElementById("main");let all=[];
+D.forEach((sec,si)=>{
+  const s=document.createElement("section");
+  s.innerHTML=`<h2><span>${sec.h}</span><span class="sc"></span></h2>${sec.n?`<p class="note">${sec.n}</p>`:""}`;
+  const ul=document.createElement("ul");
+  sec.i.forEach((it,ii)=>{
+    const [id,name,sub="",tags=[],def]=it, k=si+"-"+ii;
+    if(!(k in S)&&def)S[k]=true;
+    const li=document.createElement("li");
+    const tg=tags.map(([t,v])=>`<span class="tag${t==="S"?" s":""}">${t==="S"?"S Rank":t}: ${v}</span>`).join("");
+    li.innerHTML=`<label for="c${k}"><input type="checkbox" id="c${k}"><span class="id">${id}</span><span class="t"><span class="name">${name}</span>${sub?`<span class="sub">${sub}</span>`:""}${tg?`<div>${tg}</div>`:""}</span></label>`;
+    const cb=li.querySelector("input");cb.checked=!!S[k];li.classList.toggle("on",cb.checked);
+    cb.addEventListener("change",()=>{S[k]=cb.checked;li.classList.toggle("on",cb.checked);save();upd()});
+    ul.appendChild(li);all.push({cb,sec:s});
+  });
+  s.appendChild(ul);
+  if(sec.tips){const t=document.createElement("div");t.className="tips";t.innerHTML="<ul>"+sec.tips.map(x=>`<li>${x}</li>`).join("")+"</ul>";s.appendChild(t)}
+  main.appendChild(s);
+});
+function upd(){
+  const d=all.filter(a=>a.cb.checked).length;
+  document.getElementById("count").textContent=d+" / "+all.length;
+  document.getElementById("fill").style.width=(100*d/all.length)+"%";
+  main.querySelectorAll("section").forEach(sec=>{
+    const cbs=[...sec.querySelectorAll("li input")];const n=cbs.filter(c=>c.checked).length;
+    sec.querySelector(".sc").textContent=n+" / "+cbs.length;
+  });
+}
+const hide=document.getElementById("hide");
+try{hide.checked=localStorage.getItem(KEY+"-hide")==="1"}catch(e){}
+document.body.classList.toggle("hide",hide.checked);
+hide.addEventListener("change",()=>{document.body.classList.toggle("hide",hide.checked);try{localStorage.setItem(KEY+"-hide",hide.checked?"1":"0")}catch(e){}});
+const rb=document.getElementById("reset");let armed=false;
+rb.addEventListener("click",()=>{
+  if(!armed){armed=true;rb.textContent="Tap again to clear";setTimeout(()=>{armed=false;rb.textContent="Reset"},3000);return}
+  S={};save();all.forEach(a=>{a.cb.checked=false;a.cb.closest("li").classList.remove("on")});armed=false;rb.textContent="Reset";upd();
+});
+save();upd();
+</script>
+</body>
+</html>
